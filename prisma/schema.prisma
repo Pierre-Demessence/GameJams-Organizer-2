@@ -1,0 +1,284 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Auth ───────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String?   @unique
+  emailVerified DateTime?
+  passwordHash  String?
+  username      String    @unique
+  displayName   String?
+  bio           String?
+  avatarUrl     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts        Account[]
+  createdJams     Jam[]              @relation("JamCreator")
+  jamRoles        JamRole[]
+  jamParticipants JamParticipant[]
+  submissions     SubmissionMember[]
+  ratings         Rating[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// ─── Jams ───────────────────────────────────────
+
+enum JamStatus {
+  DRAFT
+  UPCOMING
+  ONGOING
+  RATING
+  FINISHED
+}
+
+enum JamVisibility {
+  PUBLISHED
+  UNLISTED
+}
+
+enum RatingEligibility {
+  SUBMITTERS_ONLY
+  SUBMITTERS_AND_CONTRIBUTORS
+  JUDGES_ONLY
+  EVERYONE
+}
+
+model Jam {
+  id          String        @id @default(cuid())
+  name        String
+  slug        String        @unique
+  shortDesc   String
+  fullDesc    String
+  coverUrl    String?
+  hashtag     String?
+  tags        String[]
+
+  status      JamStatus     @default(DRAFT)
+  visibility  JamVisibility @default(UNLISTED)
+
+  ranked      Boolean       @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  ratingEnd   DateTime?
+
+  theme              String?
+  revealThemeOnStart Boolean @default(false)
+
+  hideResults              Boolean @default(false)
+  hideSubmissionsBeforeEnd Boolean @default(false)
+
+  submissionDetails String?
+
+  maxTeamSize                 Int?
+  allowContributorsAfterClose Boolean @default(false)
+
+  ratingEligibility RatingEligibility @default(SUBMITTERS_AND_CONTRIBUTORS)
+
+  createdById String
+  createdBy   User      @relation("JamCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  roles        JamRole[]
+  submissions  Submission[]
+  criteria     Criterion[]
+  customFields CustomField[]
+  participants JamParticipant[]
+  results      JamResult[]
+
+  @@index([status, visibility])
+  @@index([createdAt])
+}
+
+model JamParticipant {
+  id     String @id @default(cuid())
+  jamId  String
+  userId String
+
+  jam  Jam  @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([jamId, userId])
+}
+
+// ─── Jam Permissions ────────────────────────────
+
+enum JamRoleType {
+  ADMIN
+  MODERATOR
+  JUDGE
+  HOST
+}
+
+model JamRole {
+  id     String      @id @default(cuid())
+  jamId  String
+  userId String
+  role   JamRoleType
+
+  jam  Jam  @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([jamId, userId])
+}
+
+// ─── Submissions ────────────────────────────────
+
+model Submission {
+  id          String  @id @default(cuid())
+  jamId       String
+  title       String
+  description String?
+  coverUrl    String?
+
+  linkWindows String?
+  linkMac     String?
+  linkLinux   String?
+  linkWeb     String?
+
+  screenshots String[]
+  videoUrl    String?
+
+  disqualified Boolean @default(false)
+  hidden       Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jam         Jam                @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  members     SubmissionMember[]
+  ratings     Rating[]
+  fieldValues CustomFieldValue[]
+  results     JamResult[]
+}
+
+model SubmissionMember {
+  id           String  @id @default(cuid())
+  submissionId String
+  userId       String
+  isLeader     Boolean @default(false)
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, userId])
+}
+
+// ─── Custom Fields ──────────────────────────────
+
+enum FieldType {
+  SINGLE_LINE
+  MULTI_LINE
+  URL
+}
+
+model CustomField {
+  id          String    @id @default(cuid())
+  jamId       String
+  name        String
+  description String?
+  type        FieldType @default(SINGLE_LINE)
+  required    Boolean   @default(false)
+  isPrivate   Boolean   @default(false)
+  sortOrder   Int       @default(0)
+
+  jam    Jam              @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  values CustomFieldValue[]
+
+  @@index([jamId])
+}
+
+model CustomFieldValue {
+  id           String @id @default(cuid())
+  fieldId      String
+  submissionId String
+  value        String
+
+  field      CustomField @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  submission Submission  @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([fieldId, submissionId])
+}
+
+// ─── Rating ─────────────────────────────────────
+
+model Criterion {
+  id          String  @id @default(cuid())
+  jamId       String
+  name        String
+  description String?
+  weight      Float   @default(1)
+  sortOrder   Int     @default(0)
+
+  jam     Jam      @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  ratings Rating[]
+}
+
+model Rating {
+  id           String @id @default(cuid())
+  submissionId String
+  criterionId  String
+  userId       String
+  score        Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  criterion  Criterion  @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, criterionId, userId])
+  @@index([submissionId])
+}
+
+// ─── Results (computed) ─────────────────────────
+
+model JamResult {
+  id           String   @id @default(cuid())
+  jamId        String
+  submissionId String
+  rank         Int
+  finalScore   Float
+  totalRatings Int
+  rawAverage   Float
+  criteriaScores Json
+  computedAt   DateTime @default(now())
+
+  jam        Jam        @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([jamId, submissionId])
+}

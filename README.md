@@ -1,36 +1,73 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GameJam Organizer
 
-## Getting Started
+Create, join, and rate game jams. Free and open source.
 
-First, run the development server:
+## Quick Start (Development)
+
+**Prerequisites:** Node.js 22+, pnpm, Docker Desktop
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+# Clone and install
+pnpm install
+
+# Start the database
+docker compose up db -d
+
+# Push schema and generate client
+cp .env.example .env  # Edit credentials if needed
+npx prisma db push
+npx prisma generate
+
+# Start dev server
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Production Deployment (Docker)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 1. Create .env from the example and fill in production values
+cp .env.example .env
 
-## Learn More
+# 2. Generate a secure auth secret
+openssl rand -base64 32
+# Paste the output as NEXTAUTH_SECRET in .env
 
-To learn more about Next.js, take a look at the following resources:
+# 3. Set NEXTAUTH_URL to your domain (e.g. https://jams.example.com)
+# 4. Set a strong POSTGRES_PASSWORD
+# 5. Optionally configure Discord OAuth credentials
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# 6. Build and start
+docker compose up -d --build
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# 7. Push the database schema (first run or after schema changes)
+docker compose run --rm migrate
+```
 
-## Deploy on Vercel
+The app runs on port 3000. Place a reverse proxy (nginx, Caddy) in front for TLS.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Environment Variables
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string (auto-set by docker-compose) |
+| `POSTGRES_USER` | Yes | Database username |
+| `POSTGRES_PASSWORD` | Yes | Database password — use a strong random value in production |
+| `POSTGRES_DB` | Yes | Database name |
+| `NEXTAUTH_SECRET` | Yes | Auth.js signing secret — `openssl rand -base64 32` |
+| `NEXTAUTH_URL` | Yes | Public URL of the app (e.g. `https://jams.example.com`) |
+| `AUTH_DISCORD_ID` | No | Discord OAuth app client ID |
+| `AUTH_DISCORD_SECRET` | No | Discord OAuth app client secret |
+
+## Tech Stack
+
+- **Next.js 16** (App Router, TypeScript, standalone output)
+- **Prisma 7** (PostgreSQL, driver adapter)
+- **Auth.js v5** (JWT, Discord + Credentials)
+- **shadcn/ui** + Tailwind CSS v4
+- **Docker** (multi-stage build, PostgreSQL 16)
+
+## Documentation
+
+See [docs/INDEX.md](docs/INDEX.md) for full documentation.

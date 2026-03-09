@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+!README.md
+.env*
+!.env.example
+.vscode
+.DS_Store
+coverage
+.pnpm-debug.log*
+npm-debug.log*
+docs
+.agent_work
+src/generated
