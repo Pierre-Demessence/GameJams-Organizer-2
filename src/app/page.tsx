@@ -26,7 +26,7 @@ export default async function HomePage() {
   const [ongoingJams, upcomingJams, recentlyFinished] = await Promise.all([
     db.jam.findMany({
       where: {
-        visibility: "PUBLISHED",
+        visibility: "PUBLIC",
         OR: [
           { startDate: { lte: now }, endDate: { gt: now } },
           { ranked: true, endDate: { lte: now }, ratingEnd: { gt: now } },
@@ -38,7 +38,7 @@ export default async function HomePage() {
     }),
     db.jam.findMany({
       where: {
-        visibility: "PUBLISHED",
+        visibility: "PUBLIC",
         startDate: { gt: now },
       },
       include: { _count: { select: { participants: true, submissions: true } } },
@@ -47,7 +47,7 @@ export default async function HomePage() {
     }),
     db.jam.findMany({
       where: {
-        visibility: "PUBLISHED",
+        visibility: "PUBLIC",
         OR: [
           { ratingEnd: { lte: now } },
           { endDate: { lte: now }, ranked: false },

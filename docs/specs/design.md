@@ -146,7 +146,7 @@ enum JamStatus {
 }
 
 enum JamVisibility {
-  PUBLISHED
+  PUBLIC
   UNLISTED
 }
 
@@ -477,8 +477,8 @@ function computeStatus(jam):
   fallback → DRAFT
 ```
 
-Both published and unlisted jams progress through the lifecycle; `visibility` only controls
-whether the jam is listed publicly. The **Publish action** sets `visibility = PUBLISHED` with
+Both public and unlisted jams progress through the lifecycle; `visibility` only controls
+whether the jam is listed publicly. The **Publish action** sets `visibility = PUBLIC` with
 valid dates, making the jam discoverable on the listing page.
 
 ---

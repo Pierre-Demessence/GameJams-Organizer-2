@@ -63,7 +63,7 @@ export const jamSchema = z.object({
       "EVERYONE",
     ])
     .default("SUBMITTERS_AND_CONTRIBUTORS"),
-  visibility: z.enum(["PUBLISHED", "UNLISTED"]).default("UNLISTED"),
+  visibility: z.enum(["PUBLIC", "UNLISTED"]).default("UNLISTED"),
 });
 
 export const submissionSchema = z.object({

@@ -49,6 +49,8 @@ export default async function RateSubmissionPage({
   });
   if (!submission) notFound();
 
+  if (computeJamStatus(submission.jam) === "DRAFT") notFound();
+
   if (!submission.jam.ranked) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">

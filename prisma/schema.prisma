@@ -64,7 +64,7 @@ enum JamStatus {
 }
 
 enum JamVisibility {
-  PUBLISHED
+  PUBLIC
   UNLISTED
 }
 
@@ -76,22 +76,22 @@ enum RatingEligibility {
 }
 
 model Jam {
-  id          String        @id @default(cuid())
-  name        String
-  slug        String        @unique
-  shortDesc   String
-  fullDesc    String
-  coverUrl    String?
-  hashtag     String?
-  tags        String[]
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  shortDesc String
+  fullDesc  String
+  coverUrl  String?
+  hashtag   String?
+  tags      String[]
 
-  status      JamStatus     @default(DRAFT)
-  visibility  JamVisibility @default(UNLISTED)
+  status     JamStatus     @default(DRAFT)
+  visibility JamVisibility @default(UNLISTED)
 
-  ranked      Boolean       @default(false)
-  startDate   DateTime?
-  endDate     DateTime?
-  ratingEnd   DateTime?
+  ranked    Boolean   @default(false)
+  startDate DateTime?
+  endDate   DateTime?
+  ratingEnd DateTime?
 
   theme              String?
   revealThemeOnStart Boolean @default(false)
@@ -107,9 +107,9 @@ model Jam {
   ratingEligibility RatingEligibility @default(SUBMITTERS_AND_CONTRIBUTORS)
 
   createdById String
-  createdBy   User      @relation("JamCreator", fields: [createdById], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdBy   User     @relation("JamCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   roles        JamRole[]
   submissions  Submission[]
@@ -214,7 +214,7 @@ model CustomField {
   isPrivate   Boolean   @default(false)
   sortOrder   Int       @default(0)
 
-  jam    Jam              @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  jam    Jam                @relation(fields: [jamId], references: [id], onDelete: Cascade)
   values CustomFieldValue[]
 
   @@index([jamId])
@@ -267,15 +267,15 @@ model Rating {
 // ─── Results (computed) ─────────────────────────
 
 model JamResult {
-  id           String   @id @default(cuid())
-  jamId        String
-  submissionId String
-  rank         Int
-  finalScore   Float
-  totalRatings Int
-  rawAverage   Float
+  id             String   @id @default(cuid())
+  jamId          String
+  submissionId   String
+  rank           Int
+  finalScore     Float
+  totalRatings   Int
+  rawAverage     Float
   criteriaScores Json
-  computedAt   DateTime @default(now())
+  computedAt     DateTime @default(now())
 
   jam        Jam        @relation(fields: [jamId], references: [id], onDelete: Cascade)
   submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)

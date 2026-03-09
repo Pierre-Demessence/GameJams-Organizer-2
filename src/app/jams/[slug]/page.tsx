@@ -23,9 +23,10 @@ export async function generateMetadata({
   const { slug } = await params;
   const jam = await db.jam.findUnique({
     where: { slug },
-    select: { name: true, shortDesc: true },
+    select: { name: true, shortDesc: true, startDate: true, endDate: true, ratingEnd: true, ranked: true },
   });
   if (!jam) return { title: "Jam Not Found" };
+  if (computeJamStatus(jam) === "DRAFT") return { title: "Game Jam" };
   return { title: jam.name, description: jam.shortDesc };
 }
 
@@ -86,9 +87,12 @@ export default async function JamDetailPage({
       )
     : false;
 
-  // Draft jams only visible to admin
-  if (jam.visibility === "UNLISTED" && status === "DRAFT") {
-    if (!isAdmin) notFound();
+  // Draft jams only visible to organizers (any role)
+  if (status === "DRAFT") {
+    const isOrganizer = session?.user?.id
+      ? jam.roles.some((r) => r.userId === session.user!.id)
+      : false;
+    if (!isOrganizer) notFound();
   }
 
   const hasJoined = session?.user?.id

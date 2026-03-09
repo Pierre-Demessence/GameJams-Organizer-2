@@ -231,7 +231,7 @@ export async function publishJamAction(jamId: string) {
 
   await db.jam.update({
     where: { id: jamId },
-    data: { visibility: "PUBLISHED" },
+    data: { visibility: "PUBLIC" },
   });
 
   revalidatePath("/jams");

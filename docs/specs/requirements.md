@@ -151,26 +151,25 @@ THEN THE SYSTEM SHALL reject the change and display a validation error.
 
 THE SYSTEM SHALL support two visibility modes:
 
-- **Published**: Listed on the public jam listing page.
+- **Public**: Listed on the public jam listing page.
 - **Unlisted**: Accessible only via direct URL.
 
 ### REQ-JAM-06: Jam Lifecycle Transitions
 
-The jam status is **computed from dates and visibility** (lazy evaluation):
+The jam status is **computed from dates only** (lazy evaluation):
 
-- `visibility = UNLISTED` and no dates → **DRAFT**
-- `visibility = PUBLISHED` and `now < startDate` → **UPCOMING**
-- `visibility = UNLISTED` with dates and `now < startDate` → **UPCOMING** (private jam,
-  accessible via direct URL only)
+- No `startDate` or `endDate` → **DRAFT**
+- `now < startDate` → **UPCOMING**
 - `now ≥ startDate` and `now < endDate` → **ONGOING**
 - Ranked: `now ≥ endDate` and `now < ratingEnd` → **RATING**
 - Ranked: `now ≥ ratingEnd` → **FINISHED**
 - Non-ranked: `now ≥ endDate` → **FINISHED**
 
-Both published and unlisted jams progress through the lifecycle once dates are set.
-The "Publish" action (setting visibility to PUBLISHED with valid dates) makes a jam
-publicly discoverable; unlisted jams with dates progress identically but are only
-accessible via direct URL.
+Visibility (PUBLIC vs UNLISTED) is independent of status and controls listing
+visibility only. Both public and unlisted jams progress through the lifecycle
+identically once dates are set. The "Publish" action sets visibility to PUBLIC
+with valid dates, making the jam discoverable on listings; unlisted jams with
+dates progress the same way but are only accessible via direct URL.
 
 ### REQ-JAM-07: Join Jam
 
@@ -179,7 +178,7 @@ THE SYSTEM SHALL add them as a participant.
 
 ### REQ-JAM-08: Jam Listing Page
 
-THE SYSTEM SHALL provide a page listing all published jams with filters for:
+THE SYSTEM SHALL provide a page listing all public jams with filters for:
 status (upcoming, ongoing, rating, finished), tags, and a text search on name/description.
 
 ### REQ-JAM-09: Jam Detail Page

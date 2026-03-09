@@ -71,7 +71,7 @@ Features:
 
 ### Visibility
 
-- Published (Jam is visible by the public and ready for submissions and ratings when appropriate)
+- Public (Jam is visible by the public and ready for submissions and ratings when appropriate)
 - Unlisted (Jam will not be listed on the website, but can be accessed by direct URL)
 
 ### Submission settings

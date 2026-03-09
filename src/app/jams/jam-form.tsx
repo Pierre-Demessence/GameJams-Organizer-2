@@ -288,7 +288,7 @@ export function JamForm({ mode, jam }: JamFormProps) {
             <div>
               <Label>Visibility</Label>
               <p className="text-xs text-muted-foreground">
-                Published jams appear in public listings.
+                Public jams appear in listings. Unlisted jams are only accessible via direct link.
               </p>
             </div>
             <div className="flex gap-2">
@@ -302,11 +302,11 @@ export function JamForm({ mode, jam }: JamFormProps) {
               </Button>
               <Button
                 type="button"
-                variant={visibility === "PUBLISHED" ? "default" : "outline"}
+                variant={visibility === "PUBLIC" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setVisibility("PUBLISHED")}
+                onClick={() => setVisibility("PUBLIC")}
               >
-                Published
+                Public
               </Button>
             </div>
           </div>

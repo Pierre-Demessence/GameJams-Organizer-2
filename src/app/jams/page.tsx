@@ -47,7 +47,7 @@ export default async function JamsPage({
 
   const jams = await db.jam.findMany({
     where: {
-      visibility: "PUBLISHED",
+      visibility: "PUBLIC",
       ...(query
         ? {
             OR: [
@@ -72,6 +72,7 @@ export default async function JamsPage({
       ...jam,
       computedStatus: computeJamStatus(jam),
     }))
+    .filter((jam) => jam.computedStatus !== "DRAFT")
     .filter((jam) => !statusFilter || jam.computedStatus === statusFilter);
 
   return (

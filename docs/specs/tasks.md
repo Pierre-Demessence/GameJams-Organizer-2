@@ -82,7 +82,7 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 - [x] **T-212** Implement jam status computation from dates (lazy evaluation)
 - [x] **T-213** Display appropriate content per status (upcoming info, submissions, results)
 - [x] **T-214** Implement "Publish Jam" action (validate required fields, set visibility to
-  PUBLISHED — transitions DRAFT → UPCOMING)
+  PUBLIC — transitions DRAFT → UPCOMING)
 
 ### Join Jam
 

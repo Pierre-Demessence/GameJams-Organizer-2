@@ -20,9 +20,10 @@ export async function generateMetadata({
   const { slug } = await params;
   const jam = await db.jam.findUnique({
     where: { slug },
-    select: { name: true },
+    select: { name: true, startDate: true, endDate: true, ratingEnd: true, ranked: true },
   });
   if (!jam) return { title: "Results Not Found" };
+  if (computeJamStatus(jam) === "DRAFT") return { title: "Results" };
   return { title: `Results — ${jam.name}` };
 }
 
@@ -45,6 +46,14 @@ export default async function ResultsPage({
   if (!jam.ranked) notFound();
 
   const status = computeJamStatus(jam);
+
+  if (status === "DRAFT") {
+    const isOrganizer = session?.user?.id
+      ? jam.roles.some((r) => r.userId === session.user!.id)
+      : false;
+    if (!isOrganizer) notFound();
+  }
+
   const isAdmin = session?.user?.id
     ? jam.roles.some((r) => r.userId === session.user!.id && r.role === "ADMIN")
     : false;
