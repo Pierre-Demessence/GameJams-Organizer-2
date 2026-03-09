@@ -2,6 +2,7 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { UserMenu } from "@/components/user-menu";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export async function Navbar() {
   const session = await auth();
@@ -23,6 +24,7 @@ export async function Navbar() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
           {session?.user ? (
             <UserMenu user={session.user} />
           ) : (
