@@ -13,7 +13,7 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 ## Scripts
 
 | Command | Description |
-|---------|-------------|
+| ------- | ----------- |
 | `pnpm dev` | Start dev server (port 3000) |
 | `pnpm build` | Production build (standalone output) |
 | `pnpm lint` | ESLint check |
@@ -21,7 +21,7 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `npx prisma db push` | Push schema to database (no migration files) |
 | `pnpm db:migrate` | Create and apply migrations (`prisma migrate dev`) |
 | `pnpm db:generate` | Regenerate Prisma client |
-| `pnpm db:seed` | Seed the database |
+| `pnpm db:seed` | Seed sample users, jams, submissions, ratings, and results |
 | `pnpm db:studio` | Open Prisma Studio GUI |
 | `docker compose up -d --build` | Build and start production stack |
 | `docker compose run --rm migrate` | Run DB migration in Docker |
@@ -29,7 +29,7 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 ## Important Paths
 
 | Path | Description |
-|------|-------------|
+| ---- | ----------- |
 | `prisma/schema.prisma` | Database schema (single source of truth) |
 | `src/lib/auth.ts` | Auth.js exports (`auth`, `signIn`, `signOut`) |
 | `src/lib/auth.config.ts` | Auth providers and callbacks |
