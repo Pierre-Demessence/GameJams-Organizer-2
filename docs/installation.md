@@ -62,7 +62,7 @@ pnpm db:seed
 ## Useful Commands
 
 | Command | Description |
-|---------|-------------|
+| ------- | ----------- |
 | `pnpm dev` | Start dev server with hot reload |
 | `pnpm build` | Production build |
 | `pnpm lint` | Run ESLint |

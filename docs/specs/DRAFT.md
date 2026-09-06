@@ -5,24 +5,24 @@
 - Website Admin: TODO
 - Website Moderator: TODO
 
-- ---
+---
 
-- Gamejam: An event where people create games in a limited time frame, usually around a theme.\
-- Jam Admin: A user who has all permissions for a gamejam, including editing the jam, managing submissions, managing users, etc. The creator of the jam is by default an admin.\
-- Jam Moderator: A user who has permissions to manage submissions (edit, disqualify, delete), but can't edit the jam itself or manage users.\
+- Gamejam: An event where people create games in a limited time frame, usually around a theme.
+- Jam Admin: A user who has all permissions for a gamejam, including editing the jam, managing submissions, managing users, etc. The creator of the jam is by default an admin.
+- Jam Moderator: A user who has permissions to manage submissions (edit, disqualify, delete), but can't edit the jam itself or manage users.
 - Judge: A user who is allowed to rate submissions even if they didn't submit a game themselves
 - Host: A user who is credited as a host of the gamejam, but doesn't have any specific permissions.
 - Organizers: Everyone involved in the management of the jam.
 
-- ---
+---
 
-- Submission: A game submitted to a gamejam. Each submission can have multiple contributors, but only one submitter (the one who created the submission).\
-- Contributor: A user who is part of a submission, but is not the submitter. They have the same permissions as the submitter for that submission, but they are not identified differently.\
-- Team: A submission where the submitter has added at least one contributor.\
+- Submission: A game submitted to a gamejam. Each submission can have multiple contributors, but only one submitter (the one who created the submission).
+- Contributor: A user who is part of a submission, but is not the submitter. They have the same permissions as the submitter for that submission, but they are not identified differently.
+- Team: A submission where the submitter has added at least one contributor.
 
-- ---
+---
 
-- Rating: A score given to a submission by a user during the rating period of a gamejam.\
+- Rating: A score given to a submission by a user during the rating period of a gamejam.
 - Voting: The process of selecting a theme or other aspects of a gamejam through user input.
 
 ## Global Features
@@ -156,7 +156,7 @@ DRAFT:
 
 I would like a system where the jam organizers can list prizes for the jam, and set which prize goes to which place (1st, 2nd, 3rd, etc.).\
 And then another system where if there are multiples prizes for the same place, team members of the winning team can declare who gets what.
-Note: The prizes are "intent" there is no actual prizes management on the website, it's just for the organizers to list what they intend to give to the winners and team members declare who gets what, so the jam organize knows who to give what.
+Note: The prizes are "intent" there is no actual prizes management on the website, it's just for the organizers to list what they intend to give to the winners and team members declare who gets what, so the jam organizers know who to give what.
 
 ## Submissions / Teams
 
@@ -207,9 +207,9 @@ Need to think of a way to accept late submissions, for people who want to submit
 - Users can merge account later.
 
 - User can:
-- Create a gamejam
-- Join a gamejam as a participant
-- Submit a game to a gamejam
+  - Create a gamejam
+  - Join a gamejam as a participant
+  - Submit a game to a gamejam
 
 - User Profile:
   - Username
