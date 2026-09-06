@@ -48,21 +48,20 @@ The powers of each role are defined by the permission catalog in
 
 - **Joined** — a user who has joined a jam, signalling they intend to take part, but who is not
   yet part of a submission.
-- **Participant** — a joined user who is part of a submission (as submitter or contributor), and
+- **Participant** — a joined user who is part of a submission (as team leader or contributor), and
   so is actually taking part in the jam.
 
 ### Submissions and teams
 
-- **Submission** — a game submitted to a jam. Each submission has exactly one submitter and may
-  have multiple contributors.
-- **Submitter** — the user who created the submission.
+- **Submission** — a game submitted to a jam. It has one **team leader** and may have additional
+  contributors.
 - **Contributor** — a user who is part of a submission but did not create it. Contributors have
-  the same permissions over the submission as the submitter and are not identified differently
+  the same permissions over the submission as the team leader and are not identified differently
   in public views.
-- **Team** — a submission that has at least one contributor in addition to the submitter. There
+- **Team** — a submission that has at least one contributor in addition to the team leader. There
   is no separate "Team" entity; a submission *is* the team.
-- **Team Leader** — the member responsible for the submission. The submitter is the team leader
-  by default, and leadership can be transferred to another member.
+- **Team Leader** — the member responsible for the submission. The user who creates the
+  submission is its team leader by default; leadership can later be transferred to a contributor.
 
 ### Rating
 
@@ -167,7 +166,7 @@ auto-embedded through a platform-rendered iframe (never from user-supplied HTML)
   - Start of the jam.
   - End of the jam (which is also the start of the rating period for ranked jams).
   - End of the rating period (ranked jams only).
-- **Theme** (optional) — see [Section 6](#6-themes).
+- **Theme** (optional) — see [Section 7](#7-themes).
 - **Community** — a message board for the jam, accessible from the jam page. **[Future]**
 - **Hide results** — when enabled, results stay hidden from the public even after the rating
   period ends, letting organizers reveal them manually. (Ranked jams only.)
@@ -227,7 +226,7 @@ Dates cannot overlap or be out of order: start must precede end, and (for ranked
 precede rating-end. Invalid date orderings are rejected.
 
 **THEME_VOTING** is not a phase in this chain but a **window inside UPCOMING** (see
-[Section 6.2](#62-theme-voting-future)). While a jam's theme-voting window is open — which must
+[Section 7.2](#72-theme-voting-future)). While a jam's theme-voting window is open — which must
 fall entirely before the start date — its status reads **THEME_VOTING**; once the window closes,
 the status returns to **UPCOMING** until the jam starts. **[Future]**
 
@@ -238,7 +237,7 @@ or ONGOING; see [Section 4.7](#47-participation).
 
 - **Max team size** (optional) — no limit if unset.
 - **Allow contributors after submissions close** — whether contributors may still be added once
-  the submission period ends (see [Section 8](#8-submissions--teams) for the exact window).
+  the submission period ends (see [Section 5](#5-submissions--teams) for the exact window).
 - **Custom submission fields** — organizer-defined fields collected with each submission. To
   keep responses consistent, fields should not be changed during the submission period, and
   cannot be changed once it is over. Each field has:
@@ -274,7 +273,7 @@ A user's relationship to a jam has three states:
 - **Not joined** — the default.
 - **Joined** — the user joined the jam, signalling intent to take part, but is not yet in a
   submission.
-- **Participant** — a joined user who is part of a submission (as submitter or contributor).
+- **Participant** — a joined user who is part of a submission (as team leader or contributor).
 
 Transitions and rules:
 
@@ -293,198 +292,10 @@ Transitions and rules:
 
 ---
 
-## 5. Ranked jams
-
-This section applies only to ranked jams.
-
-### 5.1 Who can rate
-
-Organizers choose the rating audience:
-
-- **Submitters only** — only team leaders.
-- **Submitters and contributors** — every member of a team.
-- **Judges** — only users with the Judge role.
-- **Everyone** — any authenticated user.
-
-This audience governs **RATED** criteria. **JURY** criteria are placed by admins and Judges
-instead (see [Section 5.4](#54-scoring-and-ranking)).
-
-### 5.2 Criteria
-
-Each criterion has:
-
-- Name.
-- Description (optional).
-- Weight (optional) — defaults to 1; used only for the averaged overall (see
-  [Section 5.4](#54-scoring-and-ranking)). A weight of 0 collects results without contributing to
-  that average.
-- **Source** — how the criterion is ranked: **RATED**, from aggregated ratings **[MVP]**; or
-  **JURY**, where admins and Judges place entries manually **[Future]**.
-- **Primary** (optional) — marks the one criterion that determines the overall ranking; with a
-  single criterion it is primary by default. **[MVP]**
-
-A ranked jam must have at least one criterion. When the overall is computed by averaging (no
-primary set), at least one RATED criterion must have a non-zero weight. For the MVP all criteria
-are RATED.
-
-### 5.3 Rating process
-
-During the rating period, eligible users rate each **RATED** criterion on a scale of **1 to 5**.
-Users cannot rate a submission they are part of. Ratings are **anonymous** — neither submitters
-nor the public can see who rated what. Ratings can be updated while the rating period is open.
-
-### 5.4 Scoring and ranking
-
-Each criterion produces its own ranking, and a jam may also have an overall ranking.
-
-**Per-criterion ranking.**
-
-A **RATED** criterion uses a **Bayesian average**, so that a submission with a single 5/5 rating
-does not outrank a well-rated submission with many ratings. Each submission has a **raw score**
-(a plain arithmetic mean) and a **weighted score** (the Bayesian value); the weighted score is
-used for ranking. For criterion `c`:
-
-$$WS_c = \frac{v \times R_c + m \times C_c}{v + m}$$
-
-where `v` is the number of ratings for the submission on `c`, `R_c` is the submission's mean on
-`c`, `C_c` is the global mean on `c` across all submissions, and `m` is a tuning parameter (the
-median number of ratings per submission).
-
-A **JURY** criterion is ranked by **manual placement**: admins and Judges place entries in order
-(1st, 2nd, 3rd, …), stopping whenever they choose. Placement can be partial, and different
-criteria may place different numbers of entries. **[Future]**
-
-**Overall ranking.** The overall is optional:
-
-- **Primary set** — the overall equals that criterion's ranking (RATED or JURY).
-- **No primary** — the overall is the **weighted average of the RATED criteria's weighted
-  scores** (JURY criteria are excluded, so mismatched scales are never averaged):
-
-$$\text{FinalScore} = \frac{\sum (WS_c \times w_c)}{\sum w_c}$$
-
-- **No primary and no RATED criteria** (an all-JURY jam) — there is **no overall ranking**, only
-  per-criterion results. This is valid for jams that award only per-criterion prizes (for example
-  Best Art, Best Audio).
-
-Ties in a computed (RATED) ranking are broken in order: higher total number of ratings → higher
-raw average score → deterministic random selection.
-
-### 5.5 Results
-
-When a ranked jam reaches **FINISHED** and "hide results" is not enabled, results are shown
-publicly: the overall ranking (when the jam has one) and each criterion's own ranking, with each
-submission's scores or placement. While "hide results" is enabled, results are visible only to
-organizers until they choose to reveal them.
-
-Submissions that are rank-excluded (disqualified, otherwise excluded, or non-promoted late
-entries) are not ranked; if they were rated, they appear in a separate "Not competing" section.
-
-### 5.6 Rating incentives **[Future]**
-
-To ensure even, fair coverage — so obscure entries are not ignored while popular ones pile up
-ratings — the platform uses a **rating queue** rather than a karma system. (A karma system that
-grants more visibility the more you rate is deliberately avoided: it makes ranking exposure
-depend on rating volume rather than quality, and does not guarantee coverage.)
-
-When rating opens, the queue serves each rater submissions they can play, **least-rated first**,
-excluding their own and any they have already rated. Raters set their playable platforms once,
-matched against each submission's declared supported platforms.
-
-If the organizer enables **"require queue,"** a rater must rate a configurable minimum number of
-queued submissions before rating freely; otherwise the queue only suggests an order. This setting
-is off by default.
-
-Active raters may optionally be recognized (for example a "top rater" mention), but such
-recognition has **no effect on visibility or ranking**.
-
----
-
-## 6. Themes
-
-This section applies only to jams that use a theme, whether the organizer sets it manually or the
-community votes on it.
-
-**Reveal.** The `revealThemeOnStart` toggle governs when the decided theme becomes visible, for
-both manual and voted themes:
-
-- **On (default)** — the theme stays hidden until the jam starts, even if it was decided earlier.
-- **Off** — the theme is revealed as soon as it is decided (the moment an organizer sets it, or
-  the moment theme voting closes), so a jam can sit in UPCOMING with its theme already shown.
-
-### 6.1 Manual theme **[MVP]**
-
-An organizer sets a single theme directly.
-
-### 6.2 Theme voting **[Future]**
-
-Instead of setting the theme directly, an organizer can let the community vote among a list of
-theme options (at most **20**). The organizer sets a voting **start** time and an optional **end**
-time (defaulting to the jam start); the window must fall entirely before the jam starts and, while
-open, puts the jam in the **THEME_VOTING** status (see
-[Section 4.4](#44-lifecycle-and-status)).
-
-Only **Joined** users may vote (see [Section 4.7](#47-participation)). Votes are private
-(aggregate-only) and can be updated while voting is open.
-
-**Voting method — score voting.** Each voter scores **every** option from 1 to 5; scoring all
-options is mandatory. Because every option therefore receives the same number of votes, the
-winner is simply the option with the highest **average** score — no Bayesian adjustment is needed.
-Ties are broken by: most top scores (5s) → fewest bottom scores (1s) → deterministic random.
-
-The winning option becomes the jam's theme, revealed according to the `revealThemeOnStart` toggle
-above. Per-option averages become visible once voting closes.
-
-Additional voting methods (for example Approval voting, or score voting where scoring every option
-is optional — which would reintroduce a Bayesian or threshold guard) are a later enhancement.
-
----
-
-## 7. Prizes **[Future]**
-
-This section applies only to ranked jams. Prizes are **intent only**: the platform records what
-organizers plan to award and how winners divide it, but **never holds, transfers, processes, or
-guarantees** any money or item. Actual delivery is arranged off-platform.
-
-### Defining prizes
-
-Organizers attach prizes to a **target** — a `(ranking, place)` pair, where the ranking is the
-**Overall** ranking or any **criterion**, and the place is a position (1st, 2nd, 3rd, …). A target
-may carry several prizes, and organizers choose entirely which targets have prizes (for example a
-prize for each criterion, or only Overall 1st and 2nd).
-
-Each prize has a title, an optional description, and a **total to divide** among the winning team:
-
-- A **monetary** prize has a divisible amount (for example `$300`), split into shares that must
-  sum to the total.
-- An **item** prize has an integer unit count (for example 4 asset keys), split into whole-unit
-  counts that must sum to the total. Distinct items are listed as separate prizes.
-
-Prizes are shown publicly on the jam page so people know what they are competing for. Letting a
-recipient later pick a specific item from a sponsored list is a possible further extension.
-
-### Allocating prizes among the team
-
-Once the jam is FINISHED and results are determined, each winning team divides its prizes:
-
-- Any team member may draft an **allocation proposal** assigning shares (money) or units (items)
-  of each prize to members; the parts of every prize must sum to its total.
-- **Every team member must approve** the proposal before it is finalized. **Any edit resets all
-  approvals**, so everyone always signs off on the current version and no member can be bypassed.
-- A **solo** winner's allocation is agreed automatically.
-- Once agreed, the breakdown is locked and shown to the organizers, who use it to distribute the
-  prizes off-platform.
-
-An allocation is visible to the winning team and the organizers only; it is not public.
-
-Rank-excluded submissions (disqualified, otherwise excluded, or non-promoted late entries) do not
-win places and receive no prizes.
-
----
-
-## 8. Submissions & teams
+## 5. Submissions & teams
 
 A submission is the unit of participation, and each submission can have multiple contributors —
-that group is the team. The submitter is the team leader by default.
+that group is the team. Its creator is the team leader by default.
 
 A submission has:
 
@@ -513,7 +324,7 @@ A submission can only move to **SUBMITTED** once its itch.io project link is ver
 [Ownership verification](#ownership-verification)) and required fields are filled, and only
 before the submission deadline — the one exception being a late-submission invite (see
 [Late submissions](#late-submissions-future)), which lets a DRAFT reach SUBMITTED after close.
-If the submitter later changes the verified link, the submission returns to **DRAFT** until it is
+If the verified link is later changed, the submission returns to **DRAFT** until it is
 re-verified.
 
 Withdrawing an entry is done by deleting the submission; there is no separate withdrawn status.
@@ -521,10 +332,10 @@ Withdrawing an entry is done by deleting the submission; there is no separate wi
 ### Contributors and team leadership
 
 - Members can invite other joined users to their submission as contributors. Contributors
-  have the same permissions as the submitter and are not identified differently in public views.
-- Exactly one member is the **team leader** — the submitter by default. Leadership can be
+  have the same permissions as the team leader and are not identified differently in public views.
+- Exactly one member is the **team leader** — the creator by default. Leadership can be
   transferred to another member.
-- When rating is restricted to submitters only, only the team leader can rate on the team's
+- When rating is restricted to the team leader only, only the team leader can rate on the team's
   behalf.
 - A user can belong to only **one submission per jam**, but may participate in different
   submissions across different jams.
@@ -575,7 +386,7 @@ separate "Not competing" section rather than interleaved with the ranked entries
 
 ### Ownership verification
 
-Because the platform hosts only links, not content, every submission must prove the submitter
+Because the platform hosts only links, not content, every submission must prove the team
 controls the linked game before it can be published. Verification is **mandatory**: an unverified
 submission stays in **DRAFT** (see [Submission lifecycle](#submission-lifecycle)) and never
 appears in the jam. There is no "verified" badge, since an unverified entry is simply not
@@ -583,11 +394,11 @@ published.
 
 Verification anchors on itch.io, which the platform relies on for the MVP.
 
-**Per-project code (MVP).** The submitter provides their itch.io project URL, the platform issues
-a unique code bound to that submission, URL, and user, and the submitter places the code on the
-itch.io project page. A "verify" action fetches the page and confirms the code is present. If
-automated verification cannot succeed (for example a temporary fetch failure), a jam admin or
-moderator can **manually mark the submission verified** as a fallback. **[MVP]**
+**Per-project code (MVP).** The team provides its itch.io project URL, the platform issues a
+unique code bound to that submission and URL, and a team member places the code on the itch.io
+project page. A "verify" action fetches the page and confirms the code is present. If automated
+verification cannot succeed (for example a temporary fetch failure), a jam admin or moderator can
+**manually mark the submission verified** as a fallback. **[MVP]**
 
 **Verified itch.io profile (later).** A user links their itch.io profile once — proven with the
 same code-on-page mechanism, placed on their profile page — after which any project under that
@@ -614,6 +425,194 @@ in the ranking). A jam admin can **promote it to competing**, which clears the r
 
 A targeted per-user grant (issuing the invite to a specific account rather than a shareable
 link) is a later enhancement.
+
+---
+
+## 6. Ranked jams
+
+This section applies only to ranked jams.
+
+### 6.1 Who can rate
+
+Organizers choose the rating audience:
+
+- **Team leader only** — only the team leader.
+- **All team members** — every member of a team.
+- **Judges** — only users with the Judge role.
+- **Everyone** — any authenticated user.
+
+This audience governs **RATED** criteria. **JURY** criteria are placed by admins and Judges
+instead (see [Section 6.4](#64-scoring-and-ranking)).
+
+### 6.2 Criteria
+
+Each criterion has:
+
+- Name.
+- Description (optional).
+- Weight (optional) — defaults to 1; used only for the averaged overall (see
+  [Section 6.4](#64-scoring-and-ranking)). A weight of 0 collects results without contributing to
+  that average.
+- **Source** — how the criterion is ranked: **RATED**, from aggregated ratings **[MVP]**; or
+  **JURY**, where admins and Judges place entries manually **[Future]**.
+- **Primary** (optional) — marks the one criterion that determines the overall ranking; with a
+  single criterion it is primary by default. **[MVP]**
+
+A ranked jam must have at least one criterion. When the overall is computed by averaging (no
+primary set), at least one RATED criterion must have a non-zero weight. For the MVP all criteria
+are RATED.
+
+### 6.3 Rating process
+
+During the rating period, eligible users rate each **RATED** criterion on a scale of **1 to 5**.
+Users cannot rate a submission they are part of. Ratings are **anonymous** — neither the rated
+team nor the public can see who rated what. Ratings can be updated while the rating period is open.
+
+### 6.4 Scoring and ranking
+
+Each criterion produces its own ranking, and a jam may also have an overall ranking.
+
+**Per-criterion ranking.**
+
+A **RATED** criterion uses a **Bayesian average**, so that a submission with a single 5/5 rating
+does not outrank a well-rated submission with many ratings. Each submission has a **raw score**
+(a plain arithmetic mean) and a **weighted score** (the Bayesian value); the weighted score is
+used for ranking. For criterion `c`:
+
+$$WS_c = \frac{v \times R_c + m \times C_c}{v + m}$$
+
+where `v` is the number of ratings for the submission on `c`, `R_c` is the submission's mean on
+`c`, `C_c` is the global mean on `c` across all submissions, and `m` is a tuning parameter (the
+median number of ratings per submission).
+
+A **JURY** criterion is ranked by **manual placement**: admins and Judges place entries in order
+(1st, 2nd, 3rd, …), stopping whenever they choose. Placement can be partial, and different
+criteria may place different numbers of entries. **[Future]**
+
+**Overall ranking.** The overall is optional:
+
+- **Primary set** — the overall equals that criterion's ranking (RATED or JURY).
+- **No primary** — the overall is the **weighted average of the RATED criteria's weighted
+  scores** (JURY criteria are excluded, so mismatched scales are never averaged):
+
+$$\text{FinalScore} = \frac{\sum (WS_c \times w_c)}{\sum w_c}$$
+
+- **No primary and no RATED criteria** (an all-JURY jam) — there is **no overall ranking**, only
+  per-criterion results. This is valid for jams that award only per-criterion prizes (for example
+  Best Art, Best Audio).
+
+Ties in a computed (RATED) ranking are broken in order: higher total number of ratings → higher
+raw average score → deterministic random selection.
+
+### 6.5 Results
+
+When a ranked jam reaches **FINISHED** and "hide results" is not enabled, results are shown
+publicly: the overall ranking (when the jam has one) and each criterion's own ranking, with each
+submission's scores or placement. While "hide results" is enabled, results are visible only to
+organizers until they choose to reveal them.
+
+Submissions that are rank-excluded (disqualified, otherwise excluded, or non-promoted late
+entries) are not ranked; if they were rated, they appear in a separate "Not competing" section.
+
+### 6.6 Rating incentives **[Future]**
+
+To ensure even, fair coverage — so obscure entries are not ignored while popular ones pile up
+ratings — the platform uses a **rating queue** rather than a karma system. (A karma system that
+grants more visibility the more you rate is deliberately avoided: it makes ranking exposure
+depend on rating volume rather than quality, and does not guarantee coverage.)
+
+When rating opens, the queue serves each rater submissions they can play, **least-rated first**,
+excluding their own and any they have already rated. Raters set their playable platforms once,
+matched against each submission's declared supported platforms.
+
+If the organizer enables **"require queue,"** a rater must rate a configurable minimum number of
+queued submissions before rating freely; otherwise the queue only suggests an order. This setting
+is off by default.
+
+Active raters may optionally be recognized (for example a "top rater" mention), but such
+recognition has **no effect on visibility or ranking**.
+
+---
+
+## 7. Themes
+
+This section applies only to jams that use a theme, whether the organizer sets it manually or the
+community votes on it.
+
+**Reveal.** The `revealThemeOnStart` toggle governs when the decided theme becomes visible, for
+both manual and voted themes:
+
+- **On (default)** — the theme stays hidden until the jam starts, even if it was decided earlier.
+- **Off** — the theme is revealed as soon as it is decided (the moment an organizer sets it, or
+  the moment theme voting closes), so a jam can sit in UPCOMING with its theme already shown.
+
+### 7.1 Manual theme **[MVP]**
+
+An organizer sets a single theme directly.
+
+### 7.2 Theme voting **[Future]**
+
+Instead of setting the theme directly, an organizer can let the community vote among a list of
+theme options (at most **20**). The organizer sets a voting **start** time and an optional **end**
+time (defaulting to the jam start); the window must fall entirely before the jam starts and, while
+open, puts the jam in the **THEME_VOTING** status (see
+[Section 4.4](#44-lifecycle-and-status)).
+
+Only **Joined** users may vote (see [Section 4.7](#47-participation)). Votes are private
+(aggregate-only) and can be updated while voting is open.
+
+**Voting method — score voting.** Each voter scores **every** option from 1 to 5; scoring all
+options is mandatory. Because every option therefore receives the same number of votes, the
+winner is simply the option with the highest **average** score — no Bayesian adjustment is needed.
+Ties are broken by: most top scores (5s) → fewest bottom scores (1s) → deterministic random.
+
+The winning option becomes the jam's theme, revealed according to the `revealThemeOnStart` toggle
+above. Per-option averages become visible once voting closes.
+
+Additional voting methods (for example Approval voting, or score voting where scoring every option
+is optional — which would reintroduce a Bayesian or threshold guard) are a later enhancement.
+
+---
+
+## 8. Prizes **[Future]**
+
+This section applies only to ranked jams. Prizes are **intent only**: the platform records what
+organizers plan to award and how winners divide it, but **never holds, transfers, processes, or
+guarantees** any money or item. Actual delivery is arranged off-platform.
+
+### Defining prizes
+
+Organizers attach prizes to a **target** — a `(ranking, place)` pair, where the ranking is the
+**Overall** ranking or any **criterion**, and the place is a position (1st, 2nd, 3rd, …). A target
+may carry several prizes, and organizers choose entirely which targets have prizes (for example a
+prize for each criterion, or only Overall 1st and 2nd).
+
+Each prize has a title, an optional description, and a **total to divide** among the winning team:
+
+- A **monetary** prize has a divisible amount (for example `$300`), split into shares that must
+  sum to the total.
+- An **item** prize has an integer unit count (for example 4 asset keys), split into whole-unit
+  counts that must sum to the total. Distinct items are listed as separate prizes.
+
+Prizes are shown publicly on the jam page so people know what they are competing for. Letting a
+recipient later pick a specific item from a sponsored list is a possible further extension.
+
+### Allocating prizes among the team
+
+Once the jam is FINISHED and results are determined, each winning team divides its prizes:
+
+- Any team member may draft an **allocation proposal** assigning shares (money) or units (items)
+  of each prize to members; the parts of every prize must sum to its total.
+- **Every team member must approve** the proposal before it is finalized. **Any edit resets all
+  approvals**, so everyone always signs off on the current version and no member can be bypassed.
+- A **solo** winner's allocation is agreed automatically.
+- Once agreed, the breakdown is locked and shown to the organizers, who use it to distribute the
+  prizes off-platform.
+
+An allocation is visible to the winning team and the organizers only; it is not public.
+
+Rank-excluded submissions (disqualified, otherwise excluded, or non-promoted late entries) do not
+win places and receive no prizes.
 
 ---
 
@@ -686,15 +685,6 @@ For the initial release this reduces to the minimum safe core: **a single seeded
 mandatory 2FA, soft-delete with restore, and an audit log.** The Moderator role, the wider
 permission catalog, sudo-mode step-up, and any custom-role builder are **[Future]**, layered in
 as the platform and its staff grow.
-
----
-
-## 11. Platform notes
-
-- The platform is entirely free.
-- No user assets are hosted. All media — profile pictures, cover images, screenshots, and game
-  files — are referenced by external URL and stored on the user's own hosting or third-party
-  services.
 
 ---
 
