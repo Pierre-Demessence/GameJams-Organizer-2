@@ -104,6 +104,7 @@ time-boxed events where people build games, usually around a theme.
 - A calendar of upcoming jams. **[Future]**
 - Email reminder notifications (start, voting, results, etc.). **[Future]**
 - Vote on jam themes. **[Future]**
+- Highlight or feature selected jams, e.g. on the homepage. **[Future]**
 
 ---
 
@@ -187,18 +188,27 @@ auto-embedded through a platform-rendered iframe (never from user-supplied HTML)
 
 ### 4.3 Visibility
 
-Visibility controls listing only and is independent of a jam's status:
+Visibility is a separate axis from the lifecycle (Section 4.4) and only takes effect once the jam
+is published. It controls listing:
 
 - **Public** — listed on the jam listing page and discoverable.
-- **Unlisted** — not listed, but reachable by direct URL.
+- **Unlisted** — not listed; reachable only by direct URL.
 
-New jams default to **Unlisted** and start in **DRAFT**. A **Publish** action sets visibility
-to Public once the jam has valid dates, making it discoverable. Both public and unlisted jams
-progress through the lifecycle identically once dates are set.
+Visibility does not affect a jam's status or progression — a published Unlisted jam runs its full
+lifecycle exactly like a Public one; it is simply not listed.
 
 ### 4.4 Lifecycle and status
 
-A jam moves through these statuses in order, each beginning the moment the previous one ends:
+A jam is configured privately, then published into its live lifecycle:
+
+- **DRAFT** — the jam is being set up and is not yet live. It never appears in listings (whatever
+  its visibility) and does not progress, regardless of its dates.
+- **Publish** — an explicit action, requiring valid dates, that takes the jam out of DRAFT. From
+  then on the jam is live and its status is computed from its dates (starting at UPCOMING, or the
+  phase matching its dates).
+
+Once published, the jam moves through these statuses in order, each beginning the moment the
+previous one ends:
 
 ```text
 DRAFT → UPCOMING → (THEME_VOTING) → (UPCOMING) → ONGOING → (RATING) → FINISHED
@@ -210,7 +220,7 @@ when theme voting is enabled, and `(RATING)` only for ranked jams.
 ```mermaid
 stateDiagram-v2
     [*] --> DRAFT
-    DRAFT --> UPCOMING
+    DRAFT --> UPCOMING: publish
     UPCOMING --> THEME_VOTING: voting opens
     THEME_VOTING --> UPCOMING: voting closes
     UPCOMING --> ONGOING: start date
@@ -225,9 +235,8 @@ stateDiagram-v2
   **FINISHED** begins directly.
 - **RATING** ends and **FINISHED** begins at the rating-end date (ranked jams only).
 
-Status is derived from the jam's dates rather than transitioned manually:
+Once published, status is derived from the jam's dates rather than transitioned manually:
 
-- No start/end dates set → **DRAFT**.
 - Now is before the start date → **UPCOMING**.
 - Now is between start and end → **ONGOING**.
 - Ranked, now is between end and rating-end → **RATING**.
@@ -337,6 +346,9 @@ before the submission deadline — the one exception being a late-submission inv
 [Late submissions](#late-submissions-future)), which lets a DRAFT reach SUBMITTED after close.
 If the verified link is later changed, the submission returns to **DRAFT** until it is
 re-verified.
+
+A submission's content can be edited by its team while the jam is **ONGOING**. Once the jam
+reaches **RATING** or **FINISHED**, the submission is locked and can no longer be edited.
 
 Withdrawing an entry is done by deleting the submission; there is no separate withdrawn status.
 
@@ -587,6 +599,7 @@ Only **Joined** users may vote (see [Section 4.7](#47-participation)). Votes are
 options is mandatory. Because every option therefore receives the same number of votes, the
 winner is simply the option with the highest **average** score — no Bayesian adjustment is needed.
 Ties are broken by: most top scores (5s) → fewest bottom scores (1s) → deterministic random.
+If no votes are cast at all, the winner is selected by that same deterministic random.
 
 The winning option becomes the jam's theme, revealed according to the `revealThemeOnStart` toggle
 above. Per-option averages become visible once voting closes.
@@ -607,12 +620,13 @@ guarantees** any money or item. Actual delivery is arranged off-platform.
 Organizers attach prizes to a **target** — a `(ranking, place)` pair, where the ranking is the
 **Overall** ranking or any **criterion**, and the place is a position (1st, 2nd, 3rd, …). A target
 may carry several prizes, and organizers choose entirely which targets have prizes (for example a
-prize for each criterion, or only Overall 1st and 2nd).
+prize for each criterion, or only Overall 1st and 2nd). A prize whose target place no entry
+reached is simply left unclaimed.
 
 Each prize has a title, an optional description, and a **total to divide** among the winning team:
 
-- A **monetary** prize has a divisible amount (for example `$300`), split into shares that must
-  sum to the total.
+- A **monetary** prize has a divisible amount (for example `$300`; put the currency in the
+  title), split into shares that must sum to the total.
 - An **item** prize has an integer unit count (for example 4 asset keys), split into whole-unit
   counts that must sum to the total. Distinct items are listed as separate prizes.
 
