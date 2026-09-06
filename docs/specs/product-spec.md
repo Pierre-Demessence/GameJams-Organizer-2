@@ -44,6 +44,13 @@ The powers of each role are defined by the permission catalog in
 - **Host** — credited as a host of the jam, with no additional permissions.
 - **Organizers** — the collective term for everyone involved in managing a jam.
 
+### Jam participation
+
+- **Joined** — a user who has joined a jam, signalling they intend to take part, but who is not
+  yet part of a submission.
+- **Participant** — a joined user who is part of a submission (as submitter or contributor), and
+  so is actually taking part in the jam.
+
 ### Submissions and teams
 
 - **Submission** — a game submitted to a jam. Each submission has exactly one submitter and may
@@ -61,8 +68,8 @@ The powers of each role are defined by the permission catalog in
 
 - **Rating** — a score given to a submission during a jam's rating period.
 - **Criterion** — a named dimension on which submissions are rated (e.g. "Gameplay").
-- **Voting** — the process of selecting a theme (or other aspect of a jam) through participant
-  input.
+- **Voting** — the process of selecting a theme (or other aspect of a jam) through community
+  voting.
 
 ---
 
@@ -124,7 +131,7 @@ A user profile stores and displays:
 ### What a user can do
 
 - Create a jam.
-- Join a jam as a participant.
+- Join a jam.
 - Submit a game to a jam.
 
 ---
@@ -181,14 +188,32 @@ progress through the lifecycle identically once dates are set.
 
 ### 4.4 Lifecycle and status
 
-A jam moves through these statuses:
+A jam moves through these statuses in order, each beginning the moment the previous one ends:
 
 ```text
-DRAFT → UPCOMING → (THEME_VOTING) → ONGOING → (RATING) → FINISHED
+DRAFT → UPCOMING → (THEME_VOTING) → (UPCOMING) → ONGOING → (RATING) → FINISHED
 ```
 
-- `THEME_VOTING` applies only to jams that use theme voting. **[Future]**
-- `RATING` applies only to ranked jams.
+Parentheses mark conditional phases: `(THEME_VOTING)` and the return to `(UPCOMING)` appear only
+when theme voting is enabled, and `(RATING)` only for ranked jams.
+
+```mermaid
+stateDiagram-v2
+    [*] --> DRAFT
+    DRAFT --> UPCOMING
+    UPCOMING --> THEME_VOTING: voting opens
+    THEME_VOTING --> UPCOMING: voting closes
+    UPCOMING --> ONGOING: start date
+    ONGOING --> RATING: end date (ranked)
+    ONGOING --> FINISHED: end date (non-ranked)
+    RATING --> FINISHED: rating-end
+    FINISHED --> [*]
+```
+
+- **UPCOMING** ends and **ONGOING** begins at the start date.
+- **ONGOING** ends at the end date; for ranked jams **RATING** then begins, for non-ranked jams
+  **FINISHED** begins directly.
+- **RATING** ends and **FINISHED** begins at the rating-end date (ranked jams only).
 
 Status is derived from the jam's dates rather than transitioned manually:
 
@@ -201,7 +226,13 @@ Status is derived from the jam's dates rather than transitioned manually:
 Dates cannot overlap or be out of order: start must precede end, and (for ranked jams) end must
 precede rating-end. Invalid date orderings are rejected.
 
-Participants may join a jam while it is **UPCOMING** or **ONGOING**.
+**THEME_VOTING** is not a phase in this chain but a **window inside UPCOMING** (see
+[Section 6.2](#62-theme-voting-future)). While a jam's theme-voting window is open — which must
+fall entirely before the start date — its status reads **THEME_VOTING**; once the window closes,
+the status returns to **UPCOMING** until the jam starts. **[Future]**
+
+Users may join a jam (become **Joined**) while it is UPCOMING (including its THEME_VOTING window)
+or ONGOING; see [Section 4.7](#47-participation).
 
 ### 4.5 Submission settings
 
@@ -235,6 +266,30 @@ union of their roles' permissions:
 
 A per-jam **custom-role builder** (organizers defining their own roles) is **[Future]**;
 because enforcement is permission-based, it can be added later with no rewrite.
+
+### 4.7 Participation
+
+A user's relationship to a jam has three states:
+
+- **Not joined** — the default.
+- **Joined** — the user joined the jam, signalling intent to take part, but is not yet in a
+  submission.
+- **Participant** — a joined user who is part of a submission (as submitter or contributor).
+
+Transitions and rules:
+
+- **Join** (Not joined → Joined) is allowed while the jam is UPCOMING (including its
+  THEME_VOTING window) or ONGOING — that is, until submissions close. **[MVP]**
+- **Leave** (Joined → Not joined) is allowed only while the user is not a Participant in a locked
+  submission and has not cast a theme vote. Once a user has voted on the theme they are locked in
+  so the tally stays honest; if the jam has no theme voting, that condition does not apply.
+  **[MVP]** (the theme-vote lock is **[Future]**)
+- **Enter** (Joined → Participant) happens when the user creates or is added to a submission.
+- **Leave a submission** (Participant → Joined) is allowed only while the jam is ONGOING, since
+  submissions and contributors freeze at close (see
+  [Contributor change window](#contributor-change-window)). Once the jam is in RATING or FINISHED
+  a user cannot remove their Participant status. A team leader must first transfer leadership or
+  delete the submission in order to leave. **[MVP]**
 
 ---
 
@@ -301,22 +356,37 @@ is enabled, rankings are visible only to organizers until they choose to reveal 
 Submissions that are rank-excluded (disqualified, otherwise excluded, or non-promoted late
 entries) are not ranked; if they were rated, they appear in a separate "Not competing" section.
 
-### 5.6 Rating incentives
+### 5.6 Rating incentives **[Future]**
 
-> **OPEN QUESTION — OQ-3 (Rating queue vs. karma).** Two competing mechanisms were sketched to
-> encourage rating: (a) an opt-in **rating queue** that requires users to rate some games —
-> filtered by playable platform — before rating freely; and (b) a **karma** system where the
-> more a member rates, the more visibility their own submission gets. One (or neither) should
-> be chosen. See [OQ-3](#oq-3-rating-queue-vs-karma).
+To ensure even, fair coverage — so obscure entries are not ignored while popular ones pile up
+ratings — the platform uses a **rating queue** rather than a karma system. (A karma system that
+grants more visibility the more you rate is deliberately avoided: it makes ranking exposure
+depend on rating volume rather than quality, and does not guarantee coverage.)
+
+When rating opens, the queue serves each rater submissions they can play, **least-rated first**,
+excluding their own and any they have already rated. Raters set their playable platforms once,
+matched against each submission's declared supported platforms.
+
+If the organizer enables **"require queue,"** a rater must rate a configurable minimum number of
+queued submissions before rating freely; otherwise the queue only suggests an order. This setting
+is off by default.
+
+Active raters may optionally be recognized (for example a "top rater" mention), but such
+recognition has **no effect on visibility or ranking**.
 
 ---
 
 ## 6. Themes
 
-This section applies only to jams that use a theme.
+This section applies only to jams that use a theme, whether the organizer sets it manually or the
+community votes on it.
 
-Organizers can set a theme and choose whether it is revealed instantly or only when the jam
-starts.
+**Reveal.** The `revealThemeOnStart` toggle governs when the decided theme becomes visible, for
+both manual and voted themes:
+
+- **On (default)** — the theme stays hidden until the jam starts, even if it was decided earlier.
+- **Off** — the theme is revealed as soon as it is decided (the moment an organizer sets it, or
+  the moment theme voting closes), so a jam can sit in UPCOMING with its theme already shown.
 
 ### 6.1 Manual theme **[MVP]**
 
@@ -324,13 +394,25 @@ An organizer sets a single theme directly.
 
 ### 6.2 Theme voting **[Future]**
 
-Instead of setting a theme directly, organizers can let the community vote among a list of theme
-options. Voting has a start date and time; an end time is optional, defaulting to the jam start.
-When voting, users see the list of options and, for each, vote **NO**, **YES**, or **N/A**.
+Instead of setting the theme directly, an organizer can let the community vote among a list of
+theme options (at most **20**). The organizer sets a voting **start** time and an optional **end**
+time (defaulting to the jam start); the window must fall entirely before the jam starts and, while
+open, puts the jam in the **THEME_VOTING** status (see
+[Section 4.4](#44-lifecycle-and-status)).
 
-> **OPEN QUESTION — OQ-6 (Theme voting mechanics).** The vote-tallying rule, tie-breaking, and
-> how the winning theme is chosen and revealed are undefined. See
-> [OQ-6](#oq-6-theme-voting-mechanics).
+Only **Joined** users may vote (see [Section 4.7](#47-participation)). Votes are private
+(aggregate-only) and can be updated while voting is open.
+
+**Voting method — score voting.** Each voter scores **every** option from 1 to 5; scoring all
+options is mandatory. Because every option therefore receives the same number of votes, the
+winner is simply the option with the highest **average** score — no Bayesian adjustment is needed.
+Ties are broken by: most top scores (5s) → fewest bottom scores (1s) → deterministic random.
+
+The winning option becomes the jam's theme, revealed according to the `revealThemeOnStart` toggle
+above. Per-option averages become visible once voting closes.
+
+Additional voting methods (for example Approval voting, or score voting where scoring every option
+is optional — which would reintroduce a Bayesian or threshold guard) are a later enhancement.
 
 ---
 
@@ -361,6 +443,8 @@ A submission has:
 - Game link: a single **itch.io project URL**, validated against the itch.io URL pattern. This
   is the game entry; per-platform builds (Windows, Mac, Linux, Web) live on the itch.io page.
   Supporting other hosts and separate per-platform link fields is a **[Future]** expansion.
+- Supported platforms: a multi-select of Windows, Mac, Linux, and Web declaring what the game
+  runs on. Shown on the submission, and used to filter the rating queue.
 - Screenshots (external URLs).
 - Video link (e.g. YouTube, Twitch).
 - Any custom fields defined by the jam organizers.
@@ -385,7 +469,7 @@ Withdrawing an entry is done by deleting the submission; there is no separate wi
 
 ### Contributors and team leadership
 
-- Members can invite other jam participants to their submission as contributors. Contributors
+- Members can invite other joined users to their submission as contributors. Contributors
   have the same permissions as the submitter and are not identified differently in public views.
 - Exactly one member is the **team leader** — the submitter by default. Leadership can be
   transferred to another member.
@@ -469,7 +553,7 @@ become required when arbitrary hosts are supported alongside separate per-platfo
 ### Late submissions **[Future]**
 
 After the submission window closes, a jam admin or moderator can allow a late entry by generating
-a **one-time invite link** (single-use, expiring) and sharing it with the participant. Opening
+a **one-time invite link** (single-use, expiring) and sharing it with the user. Opening
 the link reopens the normal submission form for that one entry, so a late submission goes through
 the **same flow as any other submission**, including ownership verification (see
 [Ownership verification](#ownership-verification)) — it is simply flagged **Late**.
@@ -583,10 +667,13 @@ unverified submission stays DRAFT (no badge). Linking a verified itch.io profile
 future projects, non-itch hosts, and full SSRF hardening are [Future]. See
 [Section 8](#ownership-verification) and [Submission lifecycle](#submission-lifecycle).
 
-### OQ-3: Rating queue vs. karma
+### OQ-3: Rating queue vs. karma — Resolved
 
-Choose between an opt-in rating queue, a karma/visibility system, both, or neither. Referenced
-in [Section 5.6](#56-rating-incentives).
+Resolved: a rating queue (least-rated-first, platform-filtered) is chosen over karma, which is
+rejected for distorting fairness. An organizer-configurable "require N queued ratings before free
+rating" is off by default; active-rater recognition carries no ranking impact. The queue is
+[Future]; the submission's supported-platforms field it relies on is added now. See
+[Section 5.6](#56-rating-incentives-future).
 
 ### OQ-4: Late submissions — Resolved
 
@@ -602,10 +689,13 @@ with an admin "promote to competing" action. See [Section 8](#moderation) and
 Confirm the intent-only prizes model and the per-place / winner-declaration flow. Referenced in
 [Section 7](#7-prizes-future).
 
-### OQ-6: Theme voting mechanics
+### OQ-6: Theme voting mechanics — Resolved
 
-Define vote tallying, tie-breaking, and how the winning theme is chosen and revealed. Referenced
-in [Section 6.2](#62-theme-voting-future).
+Resolved: score voting (1–5, all options mandatory, plain average, no Bayesian) among at most 20
+options; tie-break most 5s → fewest 1s → deterministic random. Only Joined users vote (private,
+updatable). THEME_VOTING is a window inside UPCOMING; the winner is revealed via
+revealThemeOnStart (unified for manual and voted themes). Additional voting methods are [Future].
+See [Section 6.2](#62-theme-voting-future) and [Section 4.7](#47-participation).
 
 ### OQ-7: Contributor window for ranked jams — Resolved
 
