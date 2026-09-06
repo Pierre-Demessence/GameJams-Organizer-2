@@ -306,30 +306,43 @@ Organizers choose the rating audience:
 - **Judges** — only users with the Judge role.
 - **Everyone** — any authenticated user.
 
+This audience governs **RATED** criteria. **JURY** criteria are placed by admins and Judges
+instead (see [Section 5.4](#54-scoring-and-ranking)).
+
 ### 5.2 Criteria
 
-Each rating criterion has:
+Each criterion has:
 
 - Name.
 - Description (optional).
-- Weight (optional) — used to compute final scores; defaults to 1. A weight of 0 collects
-  ratings without contributing to the score. A ranked jam must have at least one criterion with
-  a non-zero weight.
+- Weight (optional) — defaults to 1; used only for the averaged overall (see
+  [Section 5.4](#54-scoring-and-ranking)). A weight of 0 collects results without contributing to
+  that average.
+- **Source** — how the criterion is ranked: **RATED**, from aggregated ratings **[MVP]**; or
+  **JURY**, where admins and Judges place entries manually **[Future]**.
+- **Primary** (optional) — marks the one criterion that determines the overall ranking; with a
+  single criterion it is primary by default. **[MVP]**
+
+A ranked jam must have at least one criterion. When the overall is computed by averaging (no
+primary set), at least one RATED criterion must have a non-zero weight. For the MVP all criteria
+are RATED.
 
 ### 5.3 Rating process
 
-During the rating period, eligible users rate each criterion on a scale of **1 to 5**. Users
-cannot rate a submission they are part of. Ratings are **anonymous** — neither submitters nor
-the public can see who rated what. Ratings can be updated while the rating period is open.
+During the rating period, eligible users rate each **RATED** criterion on a scale of **1 to 5**.
+Users cannot rate a submission they are part of. Ratings are **anonymous** — neither submitters
+nor the public can see who rated what. Ratings can be updated while the rating period is open.
 
 ### 5.4 Scoring and ranking
 
-Scores use a **Bayesian average** so that a submission with a single 5/5 rating does not
-outrank a well-rated submission with many ratings. Each submission has a **raw score**
-(a plain arithmetic mean) and a **weighted score** (the Bayesian, weight-adjusted value);
-only the weighted score is used for ranking.
+Each criterion produces its own ranking, and a jam may also have an overall ranking.
 
-For each criterion `c` with weight `w > 0`:
+**Per-criterion ranking.**
+
+A **RATED** criterion uses a **Bayesian average**, so that a submission with a single 5/5 rating
+does not outrank a well-rated submission with many ratings. Each submission has a **raw score**
+(a plain arithmetic mean) and a **weighted score** (the Bayesian value); the weighted score is
+used for ranking. For criterion `c`:
 
 $$WS_c = \frac{v \times R_c + m \times C_c}{v + m}$$
 
@@ -337,21 +350,31 @@ where `v` is the number of ratings for the submission on `c`, `R_c` is the submi
 `c`, `C_c` is the global mean on `c` across all submissions, and `m` is a tuning parameter (the
 median number of ratings per submission).
 
-The final score is the weighted mean across scoring criteria:
+A **JURY** criterion is ranked by **manual placement**: admins and Judges place entries in order
+(1st, 2nd, 3rd, …), stopping whenever they choose. Placement can be partial, and different
+criteria may place different numbers of entries. **[Future]**
+
+**Overall ranking.** The overall is optional:
+
+- **Primary set** — the overall equals that criterion's ranking (RATED or JURY).
+- **No primary** — the overall is the **weighted average of the RATED criteria's weighted
+  scores** (JURY criteria are excluded, so mismatched scales are never averaged):
 
 $$\text{FinalScore} = \frac{\sum (WS_c \times w_c)}{\sum w_c}$$
 
-Ties are broken in order:
+- **No primary and no RATED criteria** (an all-JURY jam) — there is **no overall ranking**, only
+  per-criterion results. This is valid for jams that award only per-criterion prizes (for example
+  Best Art, Best Audio).
 
-1. Higher total number of ratings received.
-2. Higher raw average score.
-3. A deterministic random selection between the tied submissions.
+Ties in a computed (RATED) ranking are broken in order: higher total number of ratings → higher
+raw average score → deterministic random selection.
 
 ### 5.5 Results
 
-When a ranked jam reaches **FINISHED** and "hide results" is not enabled, rankings are shown
-publicly — each submission's final score, rank, and per-criterion scores. While "hide results"
-is enabled, rankings are visible only to organizers until they choose to reveal them.
+When a ranked jam reaches **FINISHED** and "hide results" is not enabled, results are shown
+publicly: the overall ranking (when the jam has one) and each criterion's own ranking, with each
+submission's scores or placement. While "hide results" is enabled, results are visible only to
+organizers until they choose to reveal them.
 
 Submissions that are rank-excluded (disqualified, otherwise excluded, or non-promoted late
 entries) are not ranked; if they were rated, they appear in a separate "Not competing" section.
@@ -418,15 +441,43 @@ is optional — which would reintroduce a Bayesian or threshold guard) are a lat
 
 ## 7. Prizes **[Future]**
 
-This section applies only to ranked jams.
+This section applies only to ranked jams. Prizes are **intent only**: the platform records what
+organizers plan to award and how winners divide it, but **never holds, transfers, processes, or
+guarantees** any money or item. Actual delivery is arranged off-platform.
 
-Organizers can list prizes and assign each to a place (1st, 2nd, 3rd, and so on). Prizes are an
-**intent** only — the platform does not manage or deliver anything; it records what organizers
-intend to give. When multiple prizes exist for the same place, members of the winning team can
-declare who receives what, so organizers know how to distribute them.
+### Defining prizes
 
-> **OPEN QUESTION — OQ-5 (Prizes model).** The intent-only model and the per-place /
-> winner-declaration flow need to be confirmed and detailed. See [OQ-5](#oq-5-prizes-model).
+Organizers attach prizes to a **target** — a `(ranking, place)` pair, where the ranking is the
+**Overall** ranking or any **criterion**, and the place is a position (1st, 2nd, 3rd, …). A target
+may carry several prizes, and organizers choose entirely which targets have prizes (for example a
+prize for each criterion, or only Overall 1st and 2nd).
+
+Each prize has a title, an optional description, and a **total to divide** among the winning team:
+
+- A **monetary** prize has a divisible amount (for example `$300`), split into shares that must
+  sum to the total.
+- An **item** prize has an integer unit count (for example 4 asset keys), split into whole-unit
+  counts that must sum to the total. Distinct items are listed as separate prizes.
+
+Prizes are shown publicly on the jam page so entrants know what they are competing for. Letting a
+recipient later pick a specific item from a sponsored list is a possible further extension.
+
+### Allocating prizes among the team
+
+Once the jam is FINISHED and results are determined, each winning team divides its prizes:
+
+- Any team member may draft an **allocation proposal** assigning shares (money) or units (items)
+  of each prize to members; the parts of every prize must sum to its total.
+- **Every team member must approve** the proposal before it is finalized. **Any edit resets all
+  approvals**, so everyone always signs off on the current version and no member can be bypassed.
+- A **solo** winner's allocation is agreed automatically.
+- Once agreed, the breakdown is locked and shown to the organizers, who use it to distribute the
+  prizes off-platform.
+
+An allocation is visible to the winning team and the organizers only; it is not public.
+
+Rank-excluded submissions (disqualified, otherwise excluded, or non-promoted late entries) do not
+win places and receive no prizes.
 
 ---
 
@@ -649,75 +700,9 @@ as the platform and its staff grow.
 
 ## Open questions
 
-Consolidated index of unresolved decisions. Each is resolved in a later pass and folded back
-into the sections above.
-
-### OQ-1: Site-level roles — Resolved
-
-Resolved: platform staff use permission-based access control with seeded roles (Super Admin now;
-Moderator and a custom-role builder later), mandatory TOTP 2FA, soft-delete with an audit log,
-and sudo-mode step-up for destructive actions. MVP ships a single Super Admin, 2FA, soft-delete,
-and the audit log. See [Section 10](#10-platform-administration--moderation).
-
-### OQ-2: Ownership verification — Resolved
-
-Resolved: verification is mandatory and itch.io-anchored. MVP uses a per-project code placed on
-the itch.io project page (single-host allowlist fetch) plus a manual organizer override; an
-unverified submission stays DRAFT (no badge). Linking a verified itch.io profile to auto-verify
-future projects, non-itch hosts, and full SSRF hardening are [Future]. See
-[Section 8](#ownership-verification) and [Submission lifecycle](#submission-lifecycle).
-
-### OQ-3: Rating queue vs. karma — Resolved
-
-Resolved: a rating queue (least-rated-first, platform-filtered) is chosen over karma, which is
-rejected for distorting fairness. An organizer-configurable "require N queued ratings before free
-rating" is off by default; active-rater recognition carries no ranking impact. The queue is
-[Future]; the submission's supported-platforms field it relies on is added now. See
-[Section 5.6](#56-rating-incentives-future).
-
-### OQ-4: Late submissions — Resolved
-
-Resolved: moderation is modeled as three composable switches (visible, rateable, competing);
-disqualify = rank-excluded + rating-disabled, exclude-from-ranking = rank-excluded only — both
-[MVP]. Late submissions [Future] use a one-time invite link, go through the normal submission
-flow (incl. verification), are flagged Late, and are rank-excluded (feedback-only) by default
-with an admin "promote to competing" action. See [Section 8](#moderation) and
-[Late submissions](#late-submissions-future).
-
-### OQ-5: Prizes model
-
-Confirm the intent-only prizes model and the per-place / winner-declaration flow. Referenced in
-[Section 7](#7-prizes-future).
-
-### OQ-6: Theme voting mechanics — Resolved
-
-Resolved: score voting (1–5, all options mandatory, plain average, no Bayesian) among at most 20
-options; tie-break most 5s → fewest 1s → deterministic random. Only Joined users vote (private,
-updatable). THEME_VOTING is a window inside UPCOMING; the winner is revealed via
-revealThemeOnStart (unified for manual and voted themes). Additional voting methods are [Future].
-See [Section 6.2](#62-theme-voting-future) and [Section 4.7](#47-participation).
-
-### OQ-7: Contributor window for ranked jams — Resolved
-
-Resolved: the roster is freely editable during the submission period and freezes at close. With
-"allow contributors after close" enabled, additions (never removals) are permitted until the
-jam ends — during RATING for ranked jams, and with no effect for non-ranked jams. See
-[Section 8](#contributor-change-window).
-
-### OQ-8: Markdown vs HTML — Resolved
-
-Resolved: descriptions render sanitized GitHub-Flavored Markdown only, with an http/https/mailto
-URL allowlist and no raw HTML. Ratified for the MVP; auto-embedding known video providers via a
-platform iframe is a [Future] enhancement. See [Section 4.1](#41-basic-information).
-
-### OQ-9: One role per user — Resolved
-
-Resolved: jam roles are permission-based, seeded bundles that are **stackable** (a user may hold
-several; effective powers are the union). Adopted for the MVP, changing the uniqueness rule to
-one row per (jam, user, role). A custom-role builder is deferred. See
-[Section 4.6](#46-jam-permissions).
+Decisions still to be made. Resolved questions are folded into the sections above.
 
 ### OQ-10: Notifications
 
-Define the notified events, configuration, and organizer-sent messages. Referenced in
-[Section 9](#9-notifications-future).
+Define the notified events, who can configure them, and what messages organizers can send.
+Referenced in [Section 9](#9-notifications-future).
