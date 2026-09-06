@@ -10,8 +10,8 @@ historical reference.
 
 ## Reading this document
 
-- **[MVP]** marks behaviour that is part of the initial release and already specified in the
-  MVP requirements/design.
+- **[MVP]** marks behaviour intended for the initial release. Behaviour without a tag is also
+  part of the MVP.
 - **[Future]** marks behaviour that is planned but deferred beyond the MVP.
 - Blocks introduced by **`OPEN QUESTION`** mark decisions that are not yet settled. These are
   collected in the [Open Questions](#open-questions) index at the end and are resolved
@@ -125,7 +125,7 @@ A user profile stores and displays:
 - Display name.
 - Bio.
 - Profile picture (external URL).
-- The jams they created or participated in, with their role (admin / moderator / judge / host).
+- The jams they created or participated in, with their roles (admin / moderator / judge / host).
 - The submissions and teams they participated in.
 
 ### What a user can do
@@ -145,8 +145,8 @@ A user profile stores and displays:
 - Vanity URL (slug), unique across the platform.
 - Full description, with Markdown support.
 - Cover image (external URL).
-- Submission details — shown at the top of the submission dialog as an entrant adds their game.
-- Social media hashtag — entrants are prompted to use it when talking about the jam or their
+- Submission details — shown at the top of the submission dialog as a user adds their game.
+- Social media hashtag — participants are prompted to use it when talking about the jam or their
   submissions.
 - Tags — used for filtering and discovery on the jam listing. Organizers may enter custom tags
   when no suitable suggestion exists.
@@ -459,7 +459,7 @@ Each prize has a title, an optional description, and a **total to divide** among
 - An **item** prize has an integer unit count (for example 4 asset keys), split into whole-unit
   counts that must sum to the total. Distinct items are listed as separate prizes.
 
-Prizes are shown publicly on the jam page so entrants know what they are competing for. Letting a
+Prizes are shown publicly on the jam page so people know what they are competing for. Letting a
 recipient later pick a specific item from a sponsored list is a possible further extension.
 
 ### Allocating prizes among the team
