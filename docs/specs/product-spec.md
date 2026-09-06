@@ -23,12 +23,12 @@ historical reference.
 
 ### Platform roles
 
-Platform staff are governed by a **permission-based** system rather than a fixed Admin/Moderator
-split: every staff action checks a specific permission, and roles are named bundles of
+Platform staff are governed by a **permission-based** system rather than a fixed two-tier
+hierarchy: every staff action checks a specific permission, and roles are named bundles of
 permissions.
 
-- **Super Admin** — holds every permission, including managing staff and roles.
-- **Moderator** — holds a safe, mostly reversible subset (content moderation). **[Future]**
+- **Site Admin** — holds every permission, including managing staff and roles.
+- **Site Moderator** — holds a safe, mostly reversible subset (content moderation). **[Future]**
 
 The powers of each role are defined by the permission catalog in
 [Section 10](#10-platform-administration--moderation).
@@ -62,11 +62,20 @@ The powers of each role are defined by the permission catalog in
   is no separate "Team" entity; a submission *is* the team.
 - **Team Leader** — the member responsible for the submission. The user who creates the
   submission is its team leader by default; leadership can later be transferred to a contributor.
+- **Submission status** — a submission is either **DRAFT** (being prepared, not yet in the jam)
+  or **SUBMITTED** (verified and live in the jam).
 
 ### Rating
 
 - **Rating** — a score given to a submission during a jam's rating period.
-- **Criterion** — a named dimension on which submissions are rated (e.g. "Gameplay").
+- **Criterion** — a named dimension on which submissions are ranked (e.g. "Gameplay"). Its
+  **source** is either **RATED** (ranked from aggregated ratings) or **JURY** (placed manually by
+  Jam Admins and Judges).
+- **Primary criterion** — the criterion designated to determine the overall ranking, if any.
+- **Overall ranking** — a jam's combined ranking across criteria (see
+  [Section 6.4](#64-scoring-and-ranking)); it is optional.
+- **Rank-excluded** — a submission that may still be shown (and possibly rated) but does not count
+  in any ranking.
 - **Voting** — the process of selecting a theme (or other aspect of a jam) through community
   voting.
 
@@ -91,6 +100,7 @@ time-boxed events where people build games, usually around a theme.
 - Submit games to jams. **[MVP]**
 - Rate submitted games. **[MVP]**
 - Register through Discord. **[MVP]**
+- Comment on submissions (any registered user). **[Future]**
 - A calendar of upcoming jams. **[Future]**
 - Email reminder notifications (start, voting, results, etc.). **[Future]**
 - Vote on jam themes. **[Future]**
@@ -161,7 +171,8 @@ auto-embedded through a platform-rendered iframe (never from user-supplied HTML)
 
 ### 4.2 Settings
 
-- **Ranked or non-ranked.**
+- **Ranked or non-ranked.** Non-ranked jams have no rating or ranking; their result is simply the
+  showcase of submissions (with comments for feedback — see [Section 5](#5-submissions--teams)).
 - **Dates and times:**
   - Start of the jam.
   - End of the jam (which is also the start of the rating period for ranked jams).
@@ -257,9 +268,9 @@ and the named roles below are **seeded bundles** of those permissions.
 Roles are **stackable** — a user may hold several at once, and their effective powers are the
 union of their roles' permissions:
 
-- **Admin** — every jam permission: edit the jam and any submission, and manage roles. The
-  creator is always an Admin and cannot be demoted.
-- **Moderator** — edit, disqualify, hide, and delete submissions, but not edit the jam.
+- **Jam Admin** — every jam permission: edit the jam and any submission, and manage roles. The
+  creator is always a Jam Admin and cannot be demoted.
+- **Jam Moderator** — edit, disqualify, hide, and delete submissions, but not edit the jam.
 - **Judge** — rate submissions even without a submission of their own.
 - **Host** — a credit only, with no permissions; stacks with any other role.
 
@@ -370,7 +381,7 @@ cleanly:
 - **Competing** — whether it counts in the official ranking (`rank-excluded` removes it from the
   ranking).
 
-Jam admins and moderators act through these presets:
+Jam Admins and Jam Moderators act through these presets:
 
 - **Disqualify** — for rule-breaking or cheating: the submission stays visible with a
   "Disqualified" badge and a reason, but is both **rank-excluded and rating-disabled** (cannot
@@ -397,8 +408,8 @@ Verification anchors on itch.io, which the platform relies on for the MVP.
 **Per-project code (MVP).** The team provides its itch.io project URL, the platform issues a
 unique code bound to that submission and URL, and a team member places the code on the itch.io
 project page. A "verify" action fetches the page and confirms the code is present. If automated
-verification cannot succeed (for example a temporary fetch failure), a jam admin or moderator can
-**manually mark the submission verified** as a fallback. **[MVP]**
+verification cannot succeed (for example a temporary fetch failure), a Jam Admin or Jam Moderator
+can **manually mark the submission verified** as a fallback. **[MVP]**
 
 **Verified itch.io profile (later).** A user links their itch.io profile once — proven with the
 same code-on-page mechanism, placed on their profile page — after which any project under that
@@ -414,17 +425,27 @@ become required when arbitrary hosts are supported alongside separate per-platfo
 
 ### Late submissions **[Future]**
 
-After the submission window closes, a jam admin or moderator can allow a late entry by generating
-a **one-time invite link** (single-use, expiring) and sharing it with the user. Opening
+After the submission window closes, a Jam Admin or Jam Moderator can allow a late entry by
+generating a **one-time invite link** (single-use, expiring) and sharing it with the user. Opening
 the link reopens the normal submission form for that one entry, so a late submission goes through
 the **same flow as any other submission**, including ownership verification (see
 [Ownership verification](#ownership-verification)) — it is simply flagged **Late**.
 
 A late submission is **rank-excluded by default** (feedback-only: visible and rateable, but not
-in the ranking). A jam admin can **promote it to competing**, which clears the rank exclusion.
+in the ranking). A Jam Admin can **promote it to competing**, which clears the rank exclusion.
 
 A targeted per-user grant (issuing the invite to a specific account rather than a shareable
 link) is a later enhancement.
+
+### Comments **[Future]**
+
+Any registered user can comment on a submission — whether or not they joined the jam, and
+regardless of whether the jam is ranked. Comments are a generic feedback feature, entirely
+separate from rating and ranking, so even non-ranked jams (which have no ratings) still support
+community feedback.
+
+When a commenter also has a submission in the same jam, that submission is surfaced alongside
+their comment, so commenting earns visibility and is thereby encouraged.
 
 ---
 
@@ -441,7 +462,7 @@ Organizers choose the rating audience:
 - **Judges** — only users with the Judge role.
 - **Everyone** — any authenticated user.
 
-This audience governs **RATED** criteria. **JURY** criteria are placed by admins and Judges
+This audience governs **RATED** criteria. **JURY** criteria are placed by Jam Admins and Judges
 instead (see [Section 6.4](#64-scoring-and-ranking)).
 
 ### 6.2 Criteria
@@ -454,7 +475,7 @@ Each criterion has:
   [Section 6.4](#64-scoring-and-ranking)). A weight of 0 collects results without contributing to
   that average.
 - **Source** — how the criterion is ranked: **RATED**, from aggregated ratings **[MVP]**; or
-  **JURY**, where admins and Judges place entries manually **[Future]**.
+  **JURY**, where Jam Admins and Judges place entries manually **[Future]**.
 - **Primary** (optional) — marks the one criterion that determines the overall ranking; with a
   single criterion it is primary by default. **[MVP]**
 
@@ -485,8 +506,9 @@ where `v` is the number of ratings for the submission on `c`, `R_c` is the submi
 `c`, `C_c` is the global mean on `c` across all submissions, and `m` is a tuning parameter (the
 median number of ratings per submission).
 
-A **JURY** criterion is ranked by **manual placement**: admins and Judges place entries in order
-(1st, 2nd, 3rd, …), stopping whenever they choose. Placement can be partial, and different
+A **JURY** criterion is ranked by **manual placement**: Jam Admins and Judges place entries in
+order (1st, 2nd, 3rd, …) on a single shared, editable list, stopping whenever they choose;
+coordinating among themselves is left to the jury. Placement can be partial, and different
 criteria may place different numbers of entries. **[Future]**
 
 **Overall ranking.** The overall is optional:
@@ -649,9 +671,9 @@ user an admin." Permissions are a **hardcoded catalog** in the codebase, for exa
 A **role** is a named bundle of permissions. The platform ships **seeded roles** rather than a
 role-building UI:
 
-- **Super Admin** — every permission.
-- **Moderator** — a safe, mostly reversible subset (content moderation, temporary bans, report
-  handling), without account deletion, staff management, or site configuration. **[Future]**
+- **Site Admin** — every permission.
+- **Site Moderator** — a safe, mostly reversible subset (content moderation, temporary bans,
+  report handling), without account deletion, staff management, or site configuration. **[Future]**
 
 Because enforcement is permission-based, a **self-service role builder** (staff creating custom
 roles and assigning permissions) can be added later with no rewrite. That builder is **[Future]**
@@ -681,8 +703,8 @@ and is only warranted if the staff team grows.
 
 ### MVP scope
 
-For the initial release this reduces to the minimum safe core: **a single seeded Super Admin,
-mandatory 2FA, soft-delete with restore, and an audit log.** The Moderator role, the wider
+For the initial release this reduces to the minimum safe core: **a single seeded Site Admin,
+mandatory 2FA, soft-delete with restore, and an audit log.** The Site Moderator role, the wider
 permission catalog, sudo-mode step-up, and any custom-role builder are **[Future]**, layered in
 as the platform and its staff grow.
 
