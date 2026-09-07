@@ -1,16 +1,17 @@
----
-post_title: "GameJam Organizer 2 — MVP Tasks"
-author1: "Pierre"
-post_slug: "gamejam-organizer-2-tasks"
-summary: "MVP implementation task checklist for the GameJam Organizer 2 platform."
-post_date: 2026-03-08
----
+# GameJam Organizer 2 — MVP Tasks
+
+This task list covers the **MVP** as defined by [product-spec.md](./product-spec.md), with EARS
+detail in [requirements.md](./requirements.md) and the target schema in [design.md](./design.md).
+
+Phases 0–7 were delivered by the original prototype. Phase 8 tracks the **spec-alignment
+refactor** that brings the prototype in line with the refined spec; its execution is sequenced in
+[../plans/refactor-restart.md](../plans/refactor-restart.md).
 
 ## Scope
 
-This task list covers **MVP only**. Features explicitly deferred:
-theme voting, notifications, calendar UI, community board,
-prizes, submission verification, late submissions, site admin panel, analytics.
+Features deferred beyond MVP: theme voting, notifications, calendar UI, community board, comments,
+prizes, late submissions, verified itch.io profile, JURY criteria, rating queue, Site Moderator
+role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 ---
 
@@ -131,7 +132,7 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 
 - [x] **T-410** Build submission list on jam page (`/jams/[slug]/submissions`)
 - [x] **T-411** Respect "hide submissions before end" setting
-- [x] **T-412** Show disqualification badge on disqualified submissions
+- [x] **T-412** Show disqualification badge on disqualified submissions _(superseded by T-820)_
 
 ### Contributors / Teams
 
@@ -143,9 +144,9 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 
 ### Submission Moderation
 
-- [x] **T-430** Add disqualify/hide/delete actions for admins and moderators
-- [x] **T-431** Implement server actions: disqualify, hide, delete submission
-- [x] **T-432** Exclude disqualified submissions from ratings
+- [x] **T-430** Add disqualify/hide/delete actions for admins and moderators _(reworked in Phase 8)_
+- [x] **T-431** Implement server actions: disqualify, hide, delete submission _(reworked in Phase 8)_
+- [x] **T-432** Exclude disqualified submissions from ratings _(reworked in Phase 8)_
 
 ---
 
@@ -155,7 +156,7 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 
 ### Criteria
 
-- [x] **T-500** Build criteria management UI in jam edit (name, description, weight)
+- [x] **T-500** Build criteria management UI in jam edit (name, description, weight) _(extended in Phase 8: source, primary)_
 - [x] **T-501** Implement server action: CRUD criteria
 
 ### Rating UI
@@ -169,7 +170,7 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 
 ### Results Computation
 
-- [x] **T-520** Implement Bayesian average scoring algorithm (per design.md)
+- [x] **T-520** Implement Bayesian average scoring algorithm (per design.md) _(extended in Phase 8: per-criterion + optional/primary overall)_
 - [x] **T-521** Implement tiebreaking logic
 - [x] **T-522** Store computed results in JamResult table
 - [x] **T-523** Build results page (`/jams/[slug]/results`)
@@ -186,7 +187,7 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 - [x] **T-601** Add responsive design pass (mobile breakpoints)
 - [x] **T-602** Build 404 and error pages
 - [x] **T-603** Add loading states and skeleton UIs
-- [x] **T-604** Sanitize all Markdown rendering — N/A: fullDesc rendered as plain text (React auto-escapes)
+- [x] **T-604** Sanitize all Markdown rendering — plain-text for now _(replaced by T-880: sanitized GFM)_
 - [x] **T-605** Server-side input validation pass (Zod on all server actions)
 - [x] **T-606** Add rate limiting middleware on form submissions
 - [x] **T-607** Test full jam lifecycle end-to-end (manual browser test: create → join → submit → view)
@@ -206,19 +207,61 @@ prizes, submission verification, late submissions, site admin panel, analytics.
 
 ---
 
+## Phase 8: Spec Alignment Refactor
+
+**Brings the prototype in line with the refined spec. Sequenced in
+[../plans/refactor-restart.md](../plans/refactor-restart.md).**
+
+### Permissions
+
+- [ ] **T-800** Make `JamRole` stackable (`@@unique([jamId, userId, role])`)
+- [ ] **T-801** Refactor `permissions.ts` to union permissions across a user's roles
+- [ ] **T-802** Route inline `isAdmin` checks through the permission catalog
+- [ ] **T-803** Rework role assignment + manage UI for stacked roles
+
+### Submissions
+
+- [ ] **T-810** Replace per-platform links with a single itch.io URL + `supportedPlatforms`
+- [ ] **T-811** Add submission `DRAFT`/`SUBMITTED` status and flow
+- [ ] **T-812** Implement itch.io code-on-page ownership verification + manual fallback
+- [ ] **T-813** Fetch safety: single-host allowlist, HTTPS, timeout, size cap
+- [ ] **T-820** Replace `disqualified`/`hidden` with visible/rateable/competing switches + badges
+- [ ] **T-821** Wire moderation presets (disqualify, exclude-from-ranking, hide, delete)
+
+### Rating
+
+- [ ] **T-830** Add criterion `source` (RATED) + `primary`
+- [ ] **T-831** Per-criterion ranking + optional/primary overall in scoring
+
+### Platform Administration
+
+- [ ] **T-860** Add `StaffRole` (seeded Site Admin) + permission-based staff checks
+- [ ] **T-861** Mandatory TOTP 2FA enrollment + enforcement for staff
+- [ ] **T-862** Soft-delete (`deletedAt`) with restore on jams/submissions
+- [ ] **T-863** Audit log (`AuditLogEntry`) for staff actions
+- [ ] **T-864** Build platform admin page (`/admin`)
+
+### Content
+
+- [ ] **T-880** Sanitized GFM Markdown rendering (escape raw HTML, restrict URL schemes)
+
+---
+
 ## Post-MVP Backlog (Not In Scope)
 
 For reference — features deferred from MVP, roughly prioritized:
 
-1. Theme voting (community YES/NO/N/A voting)
+1. Theme voting (score voting among options)
 2. Email notifications (jam start, end, results)
-3. Rating queue / karma system
-4. Submission verification (code-on-page)
+3. Rating queue / incentives
+4. Comments on submissions
 5. Community message board per jam
 6. Prize listing and team member claiming
 7. Late submissions (flagged, non-ranked)
 8. Visual calendar UI
-9. Site admin/moderator panel
-10. Analytics dashboard
-11. Google/GitHub OAuth providers
-12. In-app notifications
+9. Verified itch.io profile (auto-verify all projects)
+10. JURY criteria and manual placement
+11. Site Moderator role, sudo-mode, custom-role builder
+12. Google/GitHub OAuth providers
+13. In-app notifications
+14. Analytics dashboard

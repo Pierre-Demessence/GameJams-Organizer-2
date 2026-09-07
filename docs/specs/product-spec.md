@@ -5,7 +5,7 @@ superset from which the MVP artifacts are drawn: [requirements.md](./requirement
 requirements) and [design.md](./design.md) (technical design) cover only the MVP subset, while
 this document describes the complete product vision, including features planned beyond the MVP.
 
-It supersedes the free-form brainstorm in [DRAFT.md](./DRAFT.md), which is retained for
+It supersedes the free-form brainstorm in [DRAFT.md](../archived/DRAFT.md), which is retained for
 historical reference.
 
 ## Reading this document

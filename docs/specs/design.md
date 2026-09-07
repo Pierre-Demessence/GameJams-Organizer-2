@@ -1,10 +1,8 @@
----
-post_title: "GameJam Organizer 2 — MVP Technical Design"
-author1: "Pierre"
-post_slug: "gamejam-organizer-2-design"
-summary: "Technical architecture, data models, and implementation design for the GameJam Organizer 2 MVP."
-post_date: 2026-03-08
----
+# GameJam Organizer 2 — MVP Technical Design
+
+The authoritative product source is [product-spec.md](./product-spec.md); this document covers the
+technical design of the MVP subset, and [requirements.md](./requirements.md) holds the EARS
+requirements. The data model below is the **target** schema the implementation converges on.
 
 ## Tech Stack
 
@@ -87,6 +85,8 @@ User links additional provider (account merging)
 - Use **JWT session strategy** (stateless, no session table needed).
 - Custom `signIn` callback to handle account merging conflicts.
 - `pages` config for custom sign-in/sign-up pages.
+- **Staff 2FA:** every staff member must enrol a TOTP authenticator (`TotpCredential`), enforced
+  independently of their sign-in provider before any staff action.
 
 ---
 
@@ -113,6 +113,9 @@ model User {
   jamParticipants JamParticipant[]
   submissions     SubmissionMember[]
   ratings         Rating[]
+  staffRoles      StaffRole[]
+  totpCredential  TotpCredential?
+  auditEntries    AuditLogEntry[]    @relation("AuditActor")
 }
 
 model Account {
@@ -176,7 +179,7 @@ model Jam {
   ratingEnd   DateTime?     // Ranked only
 
   theme           String?
-  revealThemeOnStart Boolean @default(false)
+  revealThemeOnStart Boolean @default(true)
 
   hideResults             Boolean @default(false)
   hideSubmissionsBeforeEnd Boolean @default(false)
@@ -192,6 +195,7 @@ model Jam {
   createdBy   User      @relation("JamCreator", fields: [createdById], references: [id])
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime? // Soft delete (staff)
 
   roles        JamRole[]
   submissions  Submission[]
@@ -233,37 +237,60 @@ model JamRole {
   jam  Jam  @relation(fields: [jamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([jamId, userId]) // One role per user per jam (MVP simplification)
+  @@unique([jamId, userId, role]) // Stackable: a user may hold several roles per jam
 }
 
 // ─── Submissions ────────────────────────────────
 
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum Platform {
+  WINDOWS
+  MAC
+  LINUX
+  WEB
+}
+
 model Submission {
-  id          String  @id @default(cuid())
+  id          String            @id @default(cuid())
   jamId       String
   title       String
-  description String? // Markdown
+  description String?           // Markdown
   coverUrl    String?
 
-  linkWindows String?
-  linkMac     String?
-  linkLinux   String?
-  linkWeb     String?
+  itchUrl            String?    // Single itch.io project URL
+  supportedPlatforms Platform[] // Windows / Mac / Linux / Web
 
-  screenshots String[]  // External URLs
+  screenshots String[]          // External URLs
   videoUrl    String?
 
-  disqualified Boolean @default(false)
-  hidden       Boolean @default(false)
+  status SubmissionStatus @default(DRAFT)
+
+  // Ownership verification (itch.io code-on-page)
+  verificationCode String?
+  verified         Boolean   @default(false)
+  verifiedAt       DateTime?
+  verifiedManually Boolean   @default(false)
+
+  // Moderation switches (compose independently)
+  visible          Boolean @default(true)
+  rateable         Boolean @default(true)
+  competing        Boolean @default(true)
+  moderationReason String?
+
+  deletedAt DateTime? // Soft delete (staff)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  jam     Jam                @relation(fields: [jamId], references: [id], onDelete: Cascade)
-  members SubmissionMember[]
-  ratings Rating[]
+  jam         Jam                @relation(fields: [jamId], references: [id], onDelete: Cascade)
+  members     SubmissionMember[]
+  ratings     Rating[]
   fieldValues CustomFieldValue[]
-  results JamResult[]
+  results     JamResult[]
 }
 
 model SubmissionMember {
@@ -316,13 +343,20 @@ model CustomFieldValue {
 
 // ─── Rating ─────────────────────────────────────
 
+enum CriterionSource {
+  RATED  // Ranked from aggregated ratings (MVP)
+  JURY   // Manually placed by admins/judges (Future)
+}
+
 model Criterion {
-  id          String  @id @default(cuid())
+  id          String          @id @default(cuid())
   jamId       String
   name        String
   description String?
-  weight      Float   @default(1)
-  sortOrder   Int     @default(0)
+  weight      Float           @default(1)
+  source      CriterionSource @default(RATED)
+  isPrimary   Boolean         @default(false)
+  sortOrder   Int             @default(0)
 
   jam     Jam      @relation(fields: [jamId], references: [id], onDelete: Cascade)
   ratings Rating[]
@@ -364,6 +398,45 @@ model JamResult {
 
   @@unique([jamId, submissionId])
 }
+
+// ─── Platform Administration ────────────────────
+
+enum StaffRoleType {
+  SITE_ADMIN
+}
+
+model StaffRole {
+  id     String        @id @default(cuid())
+  userId String
+  role   StaffRoleType
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model TotpCredential {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  secret     String
+  enrolledAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLogEntry {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([createdAt])
+}
 ```
 
 ---
@@ -399,7 +472,9 @@ app/
 ├── users/
 │   └── [username]/page.tsx       # User profile
 ├── settings/
-│   └── page.tsx                  # Account settings (edit profile, link providers)
+│   └── page.tsx                  # Account settings (edit profile, link providers, 2FA enrollment)
+├── admin/
+│   └── page.tsx                  # Platform admin (audit log, moderation) — Site Admin only
 └── api/
     └── auth/[...nextauth]/route.ts  # NextAuth handler
 ```
@@ -413,20 +488,22 @@ app/
 Run once when a ranked jam transitions to FINISHED (or on-demand for admin preview):
 
 ```
-1. Fetch all ratings for the jam, grouped by submission and criterion.
-2. For each criterion c (where weight > 0):
-   a. Compute C_c = global mean of all scores on criterion c.
-   b. Compute m = median of (number of ratings per submission) across all submissions.
-3. For each submission s, for each criterion c:
-   a. v = count of ratings for s on c
-   b. R_c = mean of ratings for s on c
-   c. WS_c = (v × R_c + m × C_c) / (v + m)
-4. For each submission s:
-   a. FinalScore = Σ(WS_c × w_c) / Σ(w_c)   for all c where w_c > 0
-5. Sort submissions by FinalScore DESC.
-6. Tiebreak: total ratings DESC → raw average DESC → deterministic random (hash of submission ID).
-7. Store computed ranks and scores.
+1. Fetch all ratings for the jam, grouped by submission and criterion. Rank only competing,
+   rateable submissions; rank-excluded ones are shown separately, not ranked.
+2. For each RATED criterion c:
+   a. C_c = global mean of all scores on criterion c.
+   b. m = median of (number of ratings per submission) across all submissions.
+   c. For each submission s: v = count, R_c = mean, WS_c = (v × R_c + m × C_c) / (v + m).
+   d. Rank submissions on c by WS_c (the per-criterion ranking).
+3. Overall ranking (optional):
+   a. Primary criterion set → overall = that criterion's ranking.
+   b. Else → FinalScore = Σ(WS_c × w_c) / Σ(w_c) over RATED criteria with w_c > 0; rank by it.
+   c. No primary and no RATED criteria → no overall ranking (per-criterion results only).
+4. Tiebreak: total ratings DESC → raw average DESC → deterministic random (hash of submission ID).
+5. Store computed ranks and scores.
 ```
+
+> For the MVP all criteria are RATED; JURY criteria and manual placement are Future.
 
 ### Storage
 
@@ -494,7 +571,9 @@ valid dates, making the jam discoverable on the listing page.
 | Rate limiting        | Rate limiter middleware on auth + form endpoints                  |
 | Password storage     | bcrypt with cost factor ≥ 12                                     |
 | Session fixation     | New JWT issued on each login (NextAuth default)                  |
-| Broken access control| Service layer checks role permissions before every mutation       |
+| Broken access control| Permission-catalog check before every mutation (jam + platform)   |
+| SSRF (itch.io fetch) | Single-host allowlist (`itch.io`, `*.itch.io`), HTTPS, timeout, size cap |
+| Staff account takeover| Mandatory TOTP 2FA for all staff; soft-delete + audit log limit blast radius |
 
 ---
 

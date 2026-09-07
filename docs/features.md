@@ -11,12 +11,14 @@
 | **Jam Creation** | Create game jams with name, description, dates, themes, rating criteria | High |
 | **Jam Lifecycle** | Automatic status transitions: DRAFT → UPCOMING → ONGOING → RATING → FINISHED | High |
 | **Jam Browsing** | List and filter jams by status, search by name | High |
-| **Jam Roles** | Admin, Moderator, Judge, Host roles with granular permissions | High |
+| **Jam Roles** | Stackable, permission-based roles (Admin, Moderator, Judge, Host) | High |
 | **Join/Leave Jams** | Participants can join during UPCOMING and ONGOING phases | High |
-| **Submissions** | Submit games with title, description, links, and optional contributors | High |
+| **Submissions** | Submit games (itch.io link + platforms), DRAFT/SUBMITTED lifecycle, contributors | High |
 | **Rating System** | Rate submissions on custom criteria; Bayesian average scoring | High |
 | **Results** | View ranked results with scores per criterion after rating period | Medium |
-| **Jam Management** | Edit jam details, manage members, moderate submissions | Medium |
+| **Jam Management** | Edit jam details, manage roles, moderate submissions (visible/rateable/competing switches) | Medium |
+| **Ownership Verification** | itch.io code-on-page verification required to publish a submission | High |
+| **Platform Admin** | Seeded Site Admin, mandatory 2FA, soft-delete + restore, audit log | Medium |
 | **Rate Limiting** | In-memory rate limiter on server actions to prevent abuse | Medium |
 | **Responsive UI** | Mobile-friendly layout with Tailwind CSS breakpoints | Medium |
 
@@ -29,8 +31,9 @@
 | Calendar UI | Visual calendar for upcoming jams |
 | Community Board | Discussion forums per jam |
 | Prize System | Define and display jam prizes |
-| Submission Verification | Code-on-page verification |
-| Late Submissions | Accept submissions after deadline with penalty |
-| Site Admin Panel | Global moderation and user management |
+| Late Submissions | Accept submissions after deadline (rank-excluded by default) |
+| Verified itch.io Profile | Auto-verify all projects under a linked profile |
+| JURY Criteria | Manually placed rankings |
+| Site Moderator Role | Reversible-subset staff role, sudo-mode, custom-role builder |
 | Analytics Dashboard | Jam and submission statistics |
 | Password Reset | Email-based password recovery flow |

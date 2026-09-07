@@ -1,5 +1,8 @@
 # Gamejam Organizer Website
 
+> **Archived** — superseded by [product-spec.md](../specs/product-spec.md), which folds in and
+> supersedes this free-form brainstorm. Retained for historical reference only.
+
 ## Terminology
 
 - Website Admin: TODO

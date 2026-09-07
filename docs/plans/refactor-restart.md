@@ -50,17 +50,17 @@ Resolved decisions:
 
 `product-spec.md` is the new north star. Reconcile the derived docs to it before coding.
 
-- [ ] **requirements.md** — update the EARS requirements to match the refined spec
+- [x] **requirements.md** — update the EARS requirements to match the refined spec
       (stacking roles, submission DRAFT/SUBMITTED, itch.io verification, moderation switches,
       criterion source/primary).
-- [ ] **design.md** — update the technical design: permission-based access, three moderation
+- [x] **design.md** — update the technical design: permission-based access, three moderation
       switches, submission lifecycle + ownership verification, single itch.io link + supported
       platforms, criterion `source`/`primary`, scoring (primary vs weighted-average overall).
-- [ ] **tasks.md** — rebuild the implementation task list from the updated design.
-- [ ] **features.md** — reconcile the MVP feature table with the spec (what's in vs deferred).
-- [ ] **DRAFT.md** — archive: move `docs/specs/DRAFT.md` → `docs/archived/DRAFT.md` with a
+- [x] **tasks.md** — rebuild the implementation task list from the updated design.
+- [x] **features.md** — reconcile the MVP feature table with the spec (what's in vs deferred).
+- [x] **DRAFT.md** — archive: move `docs/specs/DRAFT.md` → `docs/archived/DRAFT.md` with a
       one-line "archived because superseded by product-spec.md" note.
-- [ ] **INDEX.md** — update the table of contents for any moved/added docs.
+- [x] **INDEX.md** — update the table of contents for any moved/added docs.
 
 ## Phase 3 — Schema migration (the foundation)
 
@@ -76,6 +76,7 @@ One Prisma migration (or a small ordered set), then regenerate the client. Order
 - [ ] **Ownership verification** — add the fields for the code-on-page flow (issued code,
       verified state/timestamp).
 - [ ] **Criterion** — add `source` (RATED / JURY) and `primary`.
+- [ ] **Theme reveal default** — set `revealThemeOnStart` default to `true` (spec §7: on by default).
 - [ ] Generate the migration, regenerate the client, confirm it applies cleanly on a fresh DB.
 
 ## Phase 4 — Code refactor (inside out: lib → actions → UI)

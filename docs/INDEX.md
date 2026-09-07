@@ -10,10 +10,14 @@
 
 ## Specifications
 
+- [Product Spec](specs/product-spec.md) — full product vision (authoritative source of truth)
 - [Requirements](specs/requirements.md) — user stories and acceptance criteria (EARS notation)
 - [Design](specs/design.md) — technical architecture, data models, and sequence diagrams
 - [Tasks](specs/tasks.md) — implementation checklist
-- [Draft](specs/DRAFT.md) — original feature brainstorm and terminology
+
+## Archived
+
+- [Draft](archived/DRAFT.md) — original feature brainstorm (superseded by the product spec)
 
 ## Operations
 
