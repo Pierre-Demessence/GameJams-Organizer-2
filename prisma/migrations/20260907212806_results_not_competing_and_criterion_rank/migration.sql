@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "JamResult" ADD COLUMN     "competing" BOOLEAN NOT NULL DEFAULT true,
+ALTER COLUMN "rank" DROP NOT NULL;

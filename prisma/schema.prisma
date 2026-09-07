@@ -296,7 +296,8 @@ model JamResult {
   id             String   @id @default(cuid())
   jamId          String
   submissionId   String
-  rank           Int
+  rank           Int?
+  competing      Boolean  @default(true)
   finalScore     Float
   totalRatings   Int
   rawAverage     Float

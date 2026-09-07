@@ -47,9 +47,11 @@ export async function computeJamResults(jamId: string) {
 
   if (submissions.length === 0) return;
 
+  // Include non-competing submissions' ratings too, so "Not competing" entries can
+  // display scores; the global stats below are still computed from competing entries only.
   const allRatings = await db.rating.findMany({
     where: {
-      submission: { jamId, status: "SUBMITTED", competing: true },
+      submission: { jamId, status: "SUBMITTED" },
     },
   });
 
@@ -92,25 +94,28 @@ export async function computeJamResults(jamId: string) {
   }
 
   // Step 3-4: Compute weighted scores for each submission
-  const results: {
+  type CriterionScore = {
+    raw: number;
+    weighted: number;
+    count: number;
+    rank: number | null;
+  };
+  type ScoredSubmission = {
     submissionId: string;
     finalScore: number;
     totalRatings: number;
     rawAverage: number;
-    criteriaScores: Record<string, { raw: number; weighted: number; count: number }>;
-  }[] = [];
+    criteriaScores: Record<string, CriterionScore>;
+  };
 
-  for (const sub of submissions) {
-    const subRatings = ratingMap.get(sub.id) ?? new Map();
+  function scoreSubmission(subId: string): ScoredSubmission {
+    const subRatings = ratingMap.get(subId) ?? new Map<string, number[]>();
     let weightedSum = 0;
     let totalWeight = 0;
     let totalRatingCount = 0;
     let rawScoreSum = 0;
     let rawScoreCount = 0;
-    const criteriaScores: Record<
-      string,
-      { raw: number; weighted: number; count: number }
-    > = {};
+    const criteriaScores: Record<string, CriterionScore> = {};
 
     for (const c of ratedCriteria) {
       const scores = subRatings.get(c.id) ?? [];
@@ -130,11 +135,7 @@ export async function computeJamResults(jamId: string) {
       // Bayesian weighted score
       const WS_c = (v * R_c + m * C_c) / (v + m || 1);
 
-      criteriaScores[c.id] = {
-        raw: R_c,
-        weighted: WS_c,
-        count: v,
-      };
+      criteriaScores[c.id] = { raw: R_c, weighted: WS_c, count: v, rank: null };
 
       if (c.weight > 0) {
         weightedSum += WS_c * c.weight;
@@ -150,18 +151,40 @@ export async function computeJamResults(jamId: string) {
         : 0;
     const rawAverage = rawScoreCount > 0 ? rawScoreSum / rawScoreCount : 0;
 
-    results.push({
-      submissionId: sub.id,
+    return {
+      submissionId: subId,
       finalScore,
       totalRatings: totalRatingCount,
       rawAverage,
       criteriaScores,
+    };
+  }
+
+  const EPSILON = 1e-9;
+  const competingResults = submissions.map((sub) => scoreSubmission(sub.id));
+
+  // Per-criterion ranking among competing submissions (spec §6.4, design step 2d).
+  for (const c of ratedCriteria) {
+    const ordered = [...competingResults].sort((a, b) => {
+      const aw = a.criteriaScores[c.id]?.weighted ?? 0;
+      const bw = b.criteriaScores[c.id]?.weighted ?? 0;
+      if (Math.abs(bw - aw) > EPSILON) return bw - aw;
+      const ac = a.criteriaScores[c.id]?.count ?? 0;
+      const bc = b.criteriaScores[c.id]?.count ?? 0;
+      if (bc !== ac) return bc - ac;
+      return (
+        deterministicRandom(b.submissionId) -
+        deterministicRandom(a.submissionId)
+      );
+    });
+    ordered.forEach((r, index) => {
+      const cs = r.criteriaScores[c.id];
+      if (cs) cs.rank = index + 1;
     });
   }
 
-  // Step 5-6: Sort with tiebreakers
-  const EPSILON = 1e-9;
-  results.sort((a, b) => {
+  // Step 5-6: Sort the overall ranking with tiebreakers
+  competingResults.sort((a, b) => {
     if (Math.abs(b.finalScore - a.finalScore) > EPSILON) return b.finalScore - a.finalScore;
     if (b.totalRatings !== a.totalRatings)
       return b.totalRatings - a.totalRatings;
@@ -172,15 +195,43 @@ export async function computeJamResults(jamId: string) {
     );
   });
 
+  // Rated but rank-excluded submissions (spec §6.5 "Not competing"): scored for
+  // display using the competing cohort's stats, but never ranked.
+  const nonCompeting = await db.submission.findMany({
+    where: {
+      jamId,
+      status: "SUBMITTED",
+      competing: false,
+      ratings: { some: {} },
+    },
+    select: { id: true },
+  });
+  const nonCompetingResults = nonCompeting.map((sub) => scoreSubmission(sub.id));
+
   // Step 7: Store results — delete old then bulk create
   await db.$transaction([
     db.jamResult.deleteMany({ where: { jamId } }),
-    ...results.map((r, index) =>
+    ...competingResults.map((r, index) =>
       db.jamResult.create({
         data: {
           jamId,
           submissionId: r.submissionId,
           rank: index + 1,
+          competing: true,
+          finalScore: r.finalScore,
+          totalRatings: r.totalRatings,
+          rawAverage: r.rawAverage,
+          criteriaScores: r.criteriaScores,
+        },
+      })
+    ),
+    ...nonCompetingResults.map((r) =>
+      db.jamResult.create({
+        data: {
+          jamId,
+          submissionId: r.submissionId,
+          rank: null,
+          competing: false,
           finalScore: r.finalScore,
           totalRatings: r.totalRatings,
           rawAverage: r.rawAverage,

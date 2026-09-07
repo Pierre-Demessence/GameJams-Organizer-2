@@ -26,13 +26,30 @@ import { computeJamResults } from "@/lib/scoring";
 
 interface StoredResult {
   submissionId: string;
-  rank: number;
+  rank: number | null;
+  competing: boolean;
+  criteriaScores: Record<string, { weighted: number; rank: number | null }>;
+}
+
+function allStored(): StoredResult[] {
+  return mocks.jamResultCreate.mock.calls.map(
+    (c) => (c[0] as { data: StoredResult }).data
+  );
 }
 
 function storedResults(): StoredResult[] {
-  return mocks.jamResultCreate.mock.calls
-    .map((c) => (c[0] as { data: StoredResult }).data)
-    .sort((a, b) => a.rank - b.rank);
+  return allStored()
+    .filter((r) => r.competing)
+    .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0));
+}
+
+// The scoring code queries submissions twice: competing (default) then the
+// rank-excluded set (`where.competing === false`). Route the mock accordingly.
+function mockSubmissions(competing: { id: string }[], notCompeting: { id: string }[] = []) {
+  mocks.submissionFindMany.mockImplementation(
+    async (args?: { where?: { competing?: boolean } }) =>
+      args?.where?.competing === false ? notCompeting : competing
+  );
 }
 
 const criterion = (over: Partial<Record<string, unknown>>) => ({
@@ -54,7 +71,7 @@ beforeEach(() => {
 describe("computeJamResults", () => {
   it("ranks higher-scored submissions first (lone criterion is primary)", async () => {
     mocks.criterionFindMany.mockResolvedValue([criterion({})]);
-    mocks.submissionFindMany.mockResolvedValue([{ id: "sA" }, { id: "sB" }]);
+    mockSubmissions([{ id: "sA" }, { id: "sB" }]);
     mocks.ratingFindMany.mockResolvedValue([
       { submissionId: "sA", criterionId: "c1", score: 5 },
       { submissionId: "sA", criterionId: "c1", score: 5 },
@@ -75,7 +92,7 @@ describe("computeJamResults", () => {
       criterion({ id: "c1", weight: 100, isPrimary: false }),
       criterion({ id: "c2", weight: 1, isPrimary: true, name: "Theme" }),
     ]);
-    mocks.submissionFindMany.mockResolvedValue([{ id: "sA" }, { id: "sB" }]);
+    mockSubmissions([{ id: "sA" }, { id: "sB" }]);
     mocks.ratingFindMany.mockResolvedValue([
       // c1 favors sB heavily (high weight)
       { submissionId: "sA", criterionId: "c1", score: 1 },
@@ -101,7 +118,7 @@ describe("computeJamResults", () => {
 
   it("clears stale results and stores nothing when there are no submissions", async () => {
     mocks.criterionFindMany.mockResolvedValue([criterion({})]);
-    mocks.submissionFindMany.mockResolvedValue([]);
+    mockSubmissions([]);
 
     await computeJamResults("j1");
 
@@ -109,5 +126,47 @@ describe("computeJamResults", () => {
       where: { jamId: "j1" },
     });
     expect(mocks.jamResultCreate).not.toHaveBeenCalled();
+  });
+
+  it("assigns each criterion its own ranking among competing submissions", async () => {
+    mocks.criterionFindMany.mockResolvedValue([
+      criterion({ id: "c1", name: "Gameplay", isPrimary: true }),
+      criterion({ id: "c2", name: "Art", weight: 1 }),
+    ]);
+    mockSubmissions([{ id: "sA" }, { id: "sB" }]);
+    mocks.ratingFindMany.mockResolvedValue([
+      // Gameplay favors sA
+      { submissionId: "sA", criterionId: "c1", score: 5 },
+      { submissionId: "sB", criterionId: "c1", score: 1 },
+      // Art favors sB
+      { submissionId: "sA", criterionId: "c2", score: 1 },
+      { submissionId: "sB", criterionId: "c2", score: 5 },
+    ]);
+
+    await computeJamResults("j1");
+
+    const byId = Object.fromEntries(storedResults().map((r) => [r.submissionId, r]));
+    expect(byId.sA.criteriaScores.c1.rank).toBe(1);
+    expect(byId.sB.criteriaScores.c1.rank).toBe(2);
+    expect(byId.sB.criteriaScores.c2.rank).toBe(1);
+    expect(byId.sA.criteriaScores.c2.rank).toBe(2);
+  });
+
+  it("stores rated-but-excluded submissions separately, unranked", async () => {
+    mocks.criterionFindMany.mockResolvedValue([criterion({})]);
+    mockSubmissions([{ id: "sA" }], [{ id: "sX" }]);
+    mocks.ratingFindMany.mockResolvedValue([
+      { submissionId: "sA", criterionId: "c1", score: 4 },
+      { submissionId: "sX", criterionId: "c1", score: 5 },
+    ]);
+
+    await computeJamResults("j1");
+
+    const excluded = allStored().find((r) => r.submissionId === "sX");
+    expect(excluded).toBeDefined();
+    expect(excluded!.competing).toBe(false);
+    expect(excluded!.rank).toBeNull();
+    // Excluded entries are not part of any ranking.
+    expect(excluded!.criteriaScores.c1.rank).toBeNull();
   });
 });

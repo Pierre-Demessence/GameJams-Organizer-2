@@ -233,8 +233,8 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 - [x] **T-830** Add criterion `source` (RATED) + `primary`
 - [x] **T-831** Per-criterion ranking + optional/primary overall in scoring
-- [ ] **T-832** Results: show rank-excluded but rated submissions in a separate "Not competing" section (spec §6.4–6.5)
-- [ ] **T-833** Results: display each criterion's own ranking, not just per-criterion scores (spec §6.5)
+- [x] **T-832** Results: show rank-excluded but rated submissions in a separate "Not competing" section (spec §6.4–6.5)
+- [x] **T-833** Results: display each criterion's own ranking, not just per-criterion scores (spec §6.5)
 
 ### Platform Administration
 
