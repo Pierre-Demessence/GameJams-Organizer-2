@@ -16,6 +16,7 @@ import {
 import { TeamManager } from "./team-manager";
 import { ModerationActions } from "./moderation-actions";
 import { SubmissionOwnerPanel } from "./submission-owner-panel";
+import { Markdown } from "@/components/markdown";
 
 export async function generateMetadata({
   params,
@@ -190,9 +191,7 @@ export default async function SubmissionDetailPage({
                 <CardTitle>About</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                  {submission.description}
-                </div>
+                <Markdown>{submission.description}</Markdown>
               </CardContent>
             </Card>
           )}

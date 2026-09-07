@@ -246,7 +246,7 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 ### Content
 
-- [ ] **T-880** Sanitized GFM Markdown rendering (escape raw HTML, restrict URL schemes)
+- [x] **T-880** Sanitized GFM Markdown rendering (escape raw HTML, restrict URL schemes)
 
 ### Testing & CI
 

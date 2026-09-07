@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { JoinJamButton, PublishJamButton } from "./jam-actions-client";
 import { SubmissionList } from "./submission-list";
+import { Markdown } from "@/components/markdown";
 
 export async function generateMetadata({
   params,
@@ -219,9 +220,7 @@ export default async function JamDetailPage({
               <CardTitle>About</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                {jam.fullDesc}
-              </div>
+              <Markdown>{jam.fullDesc}</Markdown>
             </CardContent>
           </Card>
 
@@ -232,9 +231,7 @@ export default async function JamDetailPage({
                 <CardTitle>Submission Guidelines</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                  {jam.submissionDetails}
-                </div>
+                <Markdown>{jam.submissionDetails}</Markdown>
               </CardContent>
             </Card>
           )}
