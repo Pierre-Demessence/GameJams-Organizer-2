@@ -83,27 +83,27 @@ One Prisma migration (or a small ordered set), then regenerate the client. Order
 
 Re-green build / lint / typecheck after each numbered step.
 
-- [ ] **1. `permissions.ts`** — `getJamRole` (findUnique) → `getJamRoles` (findMany), union the
+- [x] **1. `permissions.ts`** — `getJamRole` (findUnique) → `getJamRoles` (findMany), union the
       bundled permissions. This is the keystone; call sites using `checkJamPermission` need no
       change.
-- [ ] **2. Kill inline role leaks** — route the direct `jam.roles.some(... === "ADMIN")` checks
+- [x] **2. Kill inline role leaks** — route the direct `jam.roles.some(... === "ADMIN")` checks
       in `jams/[slug]/page.tsx` and `results/page.tsx` through the permission helper.
-- [ ] **3. Role assignment** — `manage/actions.ts` upsert-on-`(jamId,userId)` → add/remove per
+- [x] **3. Role assignment** — `manage/actions.ts` upsert-on-`(jamId,userId)` → add/remove per
       role; update the manage UI to show/edit stacked roles.
-- [ ] **4. Moderation** — rewire the three switches through `scoring.ts`, `submissions/actions.ts`,
+- [x] **4. Moderation** — rewire the three switches through `scoring.ts`, `submissions/actions.ts`,
       the submission page, `submission-list`, `moderation-actions`, and the rate flow; update badges.
-- [ ] **5. Submission lifecycle & links** — implement DRAFT/SUBMITTED flow; swap per-platform
+- [x] **5. Submission lifecycle & links** — implement DRAFT/SUBMITTED flow; swap per-platform
       links for the single itch.io URL + supported-platforms selector.
-- [ ] **6. Ownership verification** — issue the per-project code, the fetch-and-verify action
+- [x] **6. Ownership verification** — issue the per-project code, the fetch-and-verify action
       (single-host itch.io allowlist, timeout, size cap), and the manual admin fallback.
-- [ ] **7. Criteria & scoring** — honor `source`/`primary`; overall = primary's ranking when set,
+- [x] **7. Criteria & scoring** — honor `source`/`primary`; overall = primary's ranking when set,
       else weighted average of RATED criteria.
-- [ ] **8. Rate limiting / validations** — extend `validations.ts` (Zod) and rate limits to cover
+- [x] **8. Rate limiting / validations** — extend `validations.ts` (Zod) and rate limits to cover
       the new inputs (itch.io URL, verification, roles).
 
 ## Phase 5 — Seed & test data
 
-- [ ] Update `prisma/seed.ts` to the new schema: stacked roles, submission statuses, verified
+- [x] Update `prisma/seed.ts` to the new schema: stacked roles, submission statuses, verified
       submissions, criteria with source/primary, itch.io links + platforms.
 
 ## Phase 6 — End-to-end verification

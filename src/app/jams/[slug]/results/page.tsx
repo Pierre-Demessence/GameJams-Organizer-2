@@ -3,12 +3,12 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { computeJamStatus } from "@/lib/jam-status";
+import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { ComputeResultsButton } from "./compute-button";
 
@@ -47,16 +47,17 @@ export default async function ResultsPage({
 
   const status = computeJamStatus(jam);
 
+  const userRoles = session?.user?.id
+    ? jam.roles
+        .filter((r) => r.userId === session.user!.id)
+        .map((r) => r.role)
+    : [];
+  const isAdmin = hasPermission(userRoles, "edit_jam");
+
   if (status === "DRAFT") {
-    const isOrganizer = session?.user?.id
-      ? jam.roles.some((r) => r.userId === session.user!.id)
-      : false;
+    const isOrganizer = userRoles.length > 0;
     if (!isOrganizer) notFound();
   }
-
-  const isAdmin = session?.user?.id
-    ? jam.roles.some((r) => r.userId === session.user!.id && r.role === "ADMIN")
-    : false;
 
   // Only show results when rating is finished (or admin preview)
   if (jam.hideResults && status !== "FINISHED" && !isAdmin) {

@@ -17,15 +17,31 @@ function deterministicRandom(submissionId: string): number {
 }
 
 export async function computeJamResults(jamId: string) {
+  // Clear any prior ranking first, so recomputing after all entries are
+  // disqualified (or criteria removed) does not leave a stale ranking behind.
+  await db.jamResult.deleteMany({ where: { jamId } });
+
   const criteria = await db.criterion.findMany({
     where: { jamId },
   });
 
-  const scoredCriteria = criteria.filter((c) => c.weight > 0);
-  if (scoredCriteria.length === 0) return;
+  // MVP: only RATED criteria are aggregated from ratings.
+  const ratedCriteria = criteria.filter((c) => c.source === "RATED");
+  const scoredCriteria = ratedCriteria.filter((c) => c.weight > 0);
 
+  // Primary determines the overall ranking; a lone criterion is primary by default.
+  const primary =
+    ratedCriteria.find((c) => c.isPrimary) ??
+    (criteria.length === 1 && ratedCriteria.length === 1
+      ? ratedCriteria[0]
+      : null);
+
+  // No overall ranking is possible without a primary or a weighted criterion.
+  if (!primary && scoredCriteria.length === 0) return;
+
+  // Submissions that compete in the official ranking.
   const submissions = await db.submission.findMany({
-    where: { jamId, disqualified: false },
+    where: { jamId, status: "SUBMITTED", competing: true },
     select: { id: true },
   });
 
@@ -33,7 +49,7 @@ export async function computeJamResults(jamId: string) {
 
   const allRatings = await db.rating.findMany({
     where: {
-      submission: { jamId, disqualified: false },
+      submission: { jamId, status: "SUBMITTED", competing: true },
     },
   });
 
@@ -56,7 +72,7 @@ export async function computeJamResults(jamId: string) {
     { globalMean: number; medianCount: number }
   >();
 
-  for (const c of scoredCriteria) {
+  for (const c of ratedCriteria) {
     const allScores: number[] = [];
     const ratingsPerSubmission: number[] = [];
 
@@ -96,7 +112,7 @@ export async function computeJamResults(jamId: string) {
       { raw: number; weighted: number; count: number }
     > = {};
 
-    for (const c of scoredCriteria) {
+    for (const c of ratedCriteria) {
       const scores = subRatings.get(c.id) ?? [];
       const v = scores.length;
       totalRatingCount += v;
@@ -120,11 +136,18 @@ export async function computeJamResults(jamId: string) {
         count: v,
       };
 
-      weightedSum += WS_c * c.weight;
-      totalWeight += c.weight;
+      if (c.weight > 0) {
+        weightedSum += WS_c * c.weight;
+        totalWeight += c.weight;
+      }
     }
 
-    const finalScore = totalWeight > 0 ? weightedSum / totalWeight : 0;
+    // Primary set → overall equals that criterion's score; else weighted average.
+    const finalScore = primary
+      ? (criteriaScores[primary.id]?.weighted ?? 0)
+      : totalWeight > 0
+        ? weightedSum / totalWeight
+        : 0;
     const rawAverage = rawScoreCount > 0 ? rawScoreSum / rawScoreCount : 0;
 
     results.push({

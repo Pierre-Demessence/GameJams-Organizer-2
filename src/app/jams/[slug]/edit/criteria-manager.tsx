@@ -22,6 +22,7 @@ interface Criterion {
   name: string;
   description: string | null;
   weight: number;
+  isPrimary: boolean;
 }
 
 interface CriteriaManagerProps {
@@ -109,6 +110,14 @@ export function CriteriaManager({ jamId, criteria: initialCriteria, locked }: Cr
                   />
                 </div>
               </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="isPrimary"
+                  defaultChecked={c.isPrimary}
+                />
+                Primary (determines overall ranking)
+              </label>
               <div className="flex gap-2">
                 <Button type="submit" size="sm" disabled={isPending}>
                   Save
@@ -130,6 +139,11 @@ export function CriteriaManager({ jamId, criteria: initialCriteria, locked }: Cr
             >
               <div>
                 <span className="font-medium">{c.name}</span>
+                {c.isPrimary && (
+                  <span className="ml-2 text-xs font-medium text-primary">
+                    Primary
+                  </span>
+                )}
                 {c.description && (
                   <span className="ml-2 text-sm text-muted-foreground">
                     — {c.description}
@@ -191,6 +205,10 @@ export function CriteriaManager({ jamId, criteria: initialCriteria, locked }: Cr
                 />
               </div>
             </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" name="isPrimary" />
+              Primary (determines overall ranking)
+            </label>
             <Button type="submit" size="sm" disabled={isPending}>
               Add
             </Button>

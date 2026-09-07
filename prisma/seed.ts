@@ -67,7 +67,11 @@ async function createSeedSubmissions(
           title: entry.title,
           description: entry.description,
           coverUrl: entry.coverUrl,
-          linkWeb: entry.linkWeb,
+          itchUrl: entry.linkWeb,
+          supportedPlatforms: ["WEB"],
+          status: "SUBMITTED",
+          verified: true,
+          verifiedAt: createdAt,
           screenshots: entry.screenshots,
           videoUrl: entry.videoUrl,
           createdAt,
@@ -129,7 +133,7 @@ async function computeJamResults(jamId: string) {
   if (scoredCriteria.length === 0) return;
 
   const submissions = await prisma.submission.findMany({
-    where: { jamId, disqualified: false },
+    where: { jamId, status: "SUBMITTED", competing: true },
     select: { id: true },
   });
 
@@ -139,7 +143,8 @@ async function computeJamResults(jamId: string) {
     where: {
       submission: {
         jamId,
-        disqualified: false,
+        status: "SUBMITTED",
+        competing: true,
       },
     },
   });
@@ -444,7 +449,9 @@ async function main() {
 
   for (const { jam, owner } of allJams) {
     await prisma.jamRole.upsert({
-      where: { jamId_userId: { jamId: jam.id, userId: owner.id } },
+      where: {
+        jamId_userId_role: { jamId: jam.id, userId: owner.id, role: "ADMIN" },
+      },
       update: {},
       create: { jamId: jam.id, userId: owner.id, role: "ADMIN" },
     });

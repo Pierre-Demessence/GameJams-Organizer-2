@@ -3,6 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { computeJamStatus } from "@/lib/jam-status";
+import { hasPermission } from "@/lib/permissions";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -65,7 +66,7 @@ export default async function JamDetailPage({
       _count: { select: { participants: true, submissions: true } },
       criteria: { select: { id: true, name: true, description: true, weight: true } },
       submissions: {
-        where: { hidden: false },
+        where: { status: "SUBMITTED", visible: true },
         include: {
           members: {
             include: { user: { select: { username: true, displayName: true } } },
@@ -81,17 +82,17 @@ export default async function JamDetailPage({
 
   const status = computeJamStatus(jam);
 
-  const isAdmin = session?.user?.id
-    ? jam.roles.some(
-        (r) => r.userId === session.user!.id && r.role === "ADMIN"
-      )
-    : false;
+  const userRoles = session?.user?.id
+    ? jam.roles
+        .filter((r) => r.userId === session.user!.id)
+        .map((r) => r.role)
+    : [];
+  const canEditJam = hasPermission(userRoles, "edit_jam");
+  const canManageRoles = hasPermission(userRoles, "manage_roles");
 
   // Draft jams only visible to organizers (any role)
   if (status === "DRAFT") {
-    const isOrganizer = session?.user?.id
-      ? jam.roles.some((r) => r.userId === session.user!.id)
-      : false;
+    const isOrganizer = userRoles.length > 0;
     if (!isOrganizer) notFound();
   }
 
@@ -137,10 +138,10 @@ export default async function JamDetailPage({
           <p className="text-muted-foreground">{jam.shortDesc}</p>
         </div>
         <div className="flex gap-2">
-          {isAdmin && status === "DRAFT" && (
+          {canEditJam && status === "DRAFT" && (
             <PublishJamButton jamId={jam.id} />
           )}
-          {isAdmin && (
+          {canEditJam && (
             <Link
               href={`/jams/${jam.slug}/edit`}
               className={buttonVariants({ variant: "outline" })}
@@ -148,7 +149,7 @@ export default async function JamDetailPage({
               Edit
             </Link>
           )}
-          {isAdmin && (
+          {canManageRoles && (
             <Link
               href={`/jams/${jam.slug}/manage`}
               className={buttonVariants({ variant: "outline" })}
@@ -272,7 +273,7 @@ export default async function JamDetailPage({
             hasJoined={!!hasJoined}
             userSubmissionId={userSubmission?.submissionId ?? null}
             hideSubmissionsBeforeEnd={jam.hideSubmissionsBeforeEnd}
-            isAdmin={isAdmin}
+            isAdmin={canEditJam}
           />
         </div>
 

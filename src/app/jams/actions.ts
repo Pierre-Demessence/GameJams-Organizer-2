@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { jamSchema, slugPattern } from "@/lib/validations";
+import { checkJamPermission } from "@/lib/permissions";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 
@@ -125,10 +126,7 @@ export async function updateJamAction(jamId: string, formData: FormData) {
     return { error: "You must be signed in" };
   }
 
-  const role = await db.jamRole.findUnique({
-    where: { jamId_userId: { jamId, userId: session.user.id } },
-  });
-  if (!role || role.role !== "ADMIN") {
+  if (!(await checkJamPermission(jamId, session.user.id, "edit_jam"))) {
     return { error: "You do not have permission to edit this jam" };
   }
 
@@ -214,11 +212,10 @@ export async function publishJamAction(jamId: string) {
 
   const jam = await db.jam.findUnique({
     where: { id: jamId },
-    include: { roles: { where: { userId: session.user.id } } },
   });
 
   if (!jam) return { error: "Jam not found" };
-  if (!jam.roles.length || jam.roles[0].role !== "ADMIN") {
+  if (!(await checkJamPermission(jamId, session.user.id, "edit_jam"))) {
     return { error: "You do not have permission to publish this jam" };
   }
 

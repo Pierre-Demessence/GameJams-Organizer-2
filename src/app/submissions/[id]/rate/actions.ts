@@ -58,7 +58,12 @@ export async function submitRatingAction(data: {
     },
   });
   if (!submission) return { error: "Submission not found" };
-  if (submission.disqualified) return { error: "Cannot rate a disqualified submission" };
+  if (!submission.jam.ranked)
+    return { error: "This jam is not ranked" };
+  if (submission.status !== "SUBMITTED")
+    return { error: "This submission is not finalized" };
+  if (!submission.rateable)
+    return { error: "This submission cannot be rated" };
 
   const status = computeJamStatus(submission.jam);
   if (status !== "RATING") {

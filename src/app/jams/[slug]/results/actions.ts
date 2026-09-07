@@ -3,16 +3,16 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeJamResults } from "@/lib/scoring";
+import { checkJamPermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 
 export async function computeResultsAction(jamId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
-  const role = await db.jamRole.findFirst({
-    where: { jamId, userId: session.user.id, role: "ADMIN" },
-  });
-  if (!role) return { error: "Not authorized" };
+  if (!(await checkJamPermission(jamId, session.user.id, "edit_jam"))) {
+    return { error: "Not authorized" };
+  }
 
   const jam = await db.jam.findUnique({
     where: { id: jamId },

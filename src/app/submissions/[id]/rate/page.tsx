@@ -86,11 +86,21 @@ export default async function RateSubmissionPage({
     );
   }
 
-  if (submission.disqualified) {
+  if (!submission.rateable) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <p className="text-muted-foreground">
-          This submission has been disqualified.
+          This submission cannot be rated.
+        </p>
+      </div>
+    );
+  }
+
+  if (submission.status !== "SUBMITTED") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <p className="text-muted-foreground">
+          This submission has not been finalized yet.
         </p>
       </div>
     );

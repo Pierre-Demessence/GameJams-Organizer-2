@@ -13,7 +13,8 @@ interface SubmissionListProps {
     id: string;
     title: string;
     coverUrl: string | null;
-    disqualified: boolean;
+    rateable: boolean;
+    competing: boolean;
     members: {
       isLeader: boolean;
       user: { username: string; displayName: string | null };
@@ -90,9 +91,14 @@ export function SubmissionList({
                   >
                     <div>
                       <span className="font-medium">{sub.title}</span>
-                      {sub.disqualified && (
+                      {!sub.competing && !sub.rateable && (
                         <Badge variant="destructive" className="ml-2">
-                          DQ
+                          Disqualified
+                        </Badge>
+                      )}
+                      {!sub.competing && sub.rateable && (
+                        <Badge variant="secondary" className="ml-2">
+                          Not competing
                         </Badge>
                       )}
                       <p className="text-xs text-muted-foreground">

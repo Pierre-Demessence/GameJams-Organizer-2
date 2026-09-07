@@ -3,6 +3,7 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { computeJamStatus } from "@/lib/jam-status";
+import { checkJamPermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
@@ -15,10 +16,7 @@ const customFieldSchema = z.object({
 });
 
 async function verifyJamAdmin(jamId: string, userId: string) {
-  const role = await db.jamRole.findUnique({
-    where: { jamId_userId: { jamId, userId } },
-  });
-  return role?.role === "ADMIN";
+  return checkJamPermission(jamId, userId, "edit_jam");
 }
 
 async function checkFieldsLocked(jamId: string): Promise<boolean> {
