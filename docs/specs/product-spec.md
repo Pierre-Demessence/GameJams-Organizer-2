@@ -33,6 +33,19 @@ permissions.
 The powers of each role are defined by the permission catalog in
 [Section 10](#10-platform-administration--moderation).
 
+### Organization roles **[Future]**
+
+An **Organization** is a persistent group that runs a series of jams under a shared banner (e.g.
+"Ludum Dare", "UDC Jam"). Its roles mirror the jam roles and, when a jam is created under the
+organization, seed the matching jam roles (see [Section 11](#11-organizations)).
+
+- **Org Admin** — every organization permission: edit the organization, create jams under it, and
+  manage roles. The creator is an Org Admin by default and cannot be demoted.
+- **Org Moderator** — moderate submissions across the organization's jams, but cannot edit the
+  organization or manage its roles.
+- **Org Judge** — may rate submissions as a judge in the organization's jams.
+- **Org Host** — credited as a host of the organization, with no additional permissions.
+
 ### Jam roles
 
 - **Jam Admin** — has all permissions for a jam: editing the jam, managing submissions,
@@ -105,6 +118,7 @@ time-boxed events where people build games, usually around a theme.
 - Email reminder notifications (start, voting, results, etc.). **[Future]**
 - Vote on jam themes. **[Future]**
 - Highlight or feature selected jams, e.g. on the homepage. **[Future]**
+- Group jams under an organization banner with a shared, reusable organizer roster. **[Future]**
 
 ---
 
@@ -721,6 +735,111 @@ For the initial release this reduces to the minimum safe core: **a single seeded
 mandatory 2FA, soft-delete with restore, and an audit log.** The Site Moderator role, the wider
 permission catalog, sudo-mode step-up, and any custom-role builder are **[Future]**, layered in
 as the platform and its staff grow.
+
+---
+
+## 11. Organizations **[Future]**
+
+The entire feature described in this section is **[Future]**; the MVP has no organizations, and
+every jam is owned directly by the user who creates it.
+
+An **Organization** is a persistent group of people that runs a series of jams under a shared
+banner — for example "Ludum Dare", "Global Game Jam", or "UDC Jam". It serves two distinct
+purposes at once:
+
+- **A banner for discovery** — every edition an organization runs is grouped in one place, so
+  people can browse all "UDC Jams" regardless of who ran each individual edition.
+- **A reusable organizer roster** — a standing team with roles, so organizers are defined once on
+  the organization instead of being re-added to every new jam.
+
+This replaces two inadequate alternatives: filtering jams by the person who created them (one
+person runs many unrelated jams, and a later edition may be run by someone else entirely) and
+free-text tags (no identity, no ownership, no roster reuse).
+
+### 11.1 Organization roles
+
+Organization access is **permission-based**, mirroring jam permissions (see
+[Section 4.6](#46-jam-permissions)) and platform staff (see
+[Section 10](#10-platform-administration--moderation)): a hardcoded catalog of organization
+permissions (edit the organization, manage roles, create jams under it, and so on) is enforced in
+code, and the named roles below are **seeded bundles** of those permissions.
+
+Roles are **stackable**, and a user's effective powers are the union of their roles:
+
+- **Org Admin** — every organization permission: edit the organization, create jams under it, and
+  manage roles. The creator is always an Org Admin and cannot be demoted.
+- **Org Moderator** — moderate submissions across the organization's jams, but not edit the
+  organization or manage its roles.
+- **Org Judge** — rate submissions as a judge in the organization's jams.
+- **Org Host** — a credit only, with no permissions; stacks with any other role.
+
+These deliberately mirror the jam roles (Admin, Moderator, Judge, Host) so the mapping in
+[Section 11.2](#112-seeding-a-jams-roster) is one-to-one. A self-service custom-role builder is a
+later enhancement, as it is for jams and platform staff.
+
+### 11.2 Seeding a jam's roster
+
+When a jam is created under an organization, the organization's **current** roster **seeds** the
+jam's roles, one-to-one: Org Admin → Jam Admin, Org Moderator → Jam Moderator, Org Judge → Judge,
+Org Host → Host. The seeded rows are ordinary jam-role entries (see
+[Section 4.6](#46-jam-permissions)) — after seeding, the jam owns its roster like any other jam.
+
+The **creator invariant** is preserved: the human who creates the jam is always seeded as a Jam
+Admin and cannot be demoted, independently of the organization roster. The organization is
+recorded as the jam's owning banner, but a jam always has a human owner.
+
+A jam may also be created without an organization, exactly as in the MVP.
+
+### 11.3 Roster changes and existing jams
+
+An organization's roster is a **living** membership, but each jam it has already created keeps its
+**own** roster. Changing the organization roster never rewrites a jam's roster wholesale; instead:
+
+- **New jams** are seeded from the roster as it stands at creation time.
+- **Existing non-finished jams** (UPCOMING, THEME_VOTING, ONGOING, RATING) **track** roster
+  changes: adding a member to the organization grants them the matching role on those jams, and
+  removing a member revokes it there.
+- **Finished jams are frozen.** A FINISHED jam's roster is a historical record of who actually ran
+  that edition and is never altered by later roster changes — neither additions nor removals reach
+  it.
+
+This keeps attribution truthful (a past edition credits exactly who ran it), limits the blast
+radius of a compromised or departing Org Admin (they cannot rewrite history across every past
+edition at once), and still delivers the convenience the feature exists for (a newly added member
+immediately helps on every active jam).
+
+Worked example — an organization runs three editions while its roster changes:
+
+| Event                       | Org roster after | Jam 30 (finished) | Jam 31 (ongoing) | Jam 32 (upcoming) |
+| --------------------------- | ---------------- | ----------------- | ---------------- | ----------------- |
+| Jam 30 created with A, B, C | A, B, C          | A, B, C           | —                | —                 |
+| D added, Jam 31 created     | A, B, C, D       | A, B, C           | A, B, C, D       | —                 |
+| B removed, Jam 32 created   | A, C, D          | A, B, C           | A, C, D          | A, C, D           |
+
+- **D never gains access to Jam 30**, because 30 finished before D joined — D did not run it.
+- **B keeps Jam 30**, because 30 is frozen and B genuinely ran it; but **B loses Jam 31** while it
+  is still running, since non-finished jams track removals.
+
+Because a jam's content locks at RATING and FINISHED anyway (see
+[Submission lifecycle](#submission-lifecycle)), tracked access on a RATING jam mostly governs
+moderation and results handling rather than editing.
+
+### 11.4 Discovery and identity
+
+- Each organization has a public **page** listing all the jams it has run — across every edition
+  and every roster — filterable and sorted like the main jam listing.
+- A jam created under an organization shows an **"Organized by <Organization>"** credit linking
+  back to the organization page.
+- An organization has a unique **slug** for its page URL and namespace, chosen the same way as a
+  jam slug.
+- Organization visibility follows the same public/unlisted idea as jams (see
+  [Section 4.3](#43-visibility)): an unlisted organization is reachable by direct URL but not
+  listed for discovery.
+
+### 11.5 Profiles
+
+A user profile (see [Section 3](#3-user-accounts)) additionally lists the organizations the user
+belongs to, with their role in each, alongside the jams and submissions they have taken part in.
 
 ---
 
