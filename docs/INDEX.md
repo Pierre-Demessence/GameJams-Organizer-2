@@ -7,6 +7,7 @@
 - [Tech Stack](tech-stack.md) — languages, runtimes, and dependencies
 - [Codebase](codebase.md) — directory map, conventions, and where to add new code
 - [Features](features.md) — product-level feature list
+- [Backlog](backlog.md) — unscheduled ideas and post-MVP features
 
 ## Specifications
 

@@ -2,8 +2,8 @@
 
 ## Prerequisites
 
-- **Node.js** 22+ — [download](https://nodejs.org/)
-- **pnpm** 9+ — `corepack enable` (ships with Node.js 22)
+- **Node.js** 24+ — [download](https://nodejs.org/)
+- **pnpm** 9+ — `corepack enable`
 - **Docker Desktop** — [download](https://www.docker.com/products/docker-desktop/) (for PostgreSQL)
 
 ## Local Development Setup
@@ -30,14 +30,15 @@ docker compose up db -d
 
 This starts PostgreSQL 16 on port 5432 with credentials from `.env`.
 
-### 4. Push schema and generate client
+### 4. Apply migrations and generate the client
 
 The database must be running before this step.
 
 ```bash
-npx prisma db push
-pnpm db:generate
+pnpm db:migrate
 ```
+
+`pnpm db:migrate` applies the SQL migrations and regenerates the Prisma client.
 
 ### 5. Start the dev server
 
@@ -67,8 +68,10 @@ pnpm db:seed
 | `pnpm build` | Production build |
 | `pnpm lint` | Run ESLint |
 | `pnpm format` | Format code with Prettier |
+| `pnpm test` | Run Vitest unit tests |
+| `pnpm test:e2e` | Run Playwright E2E tests |
 | `npx prisma studio` | Open database GUI |
-| `npx prisma db push` | Push schema changes to database |
+| `pnpm db:migrate` | Create/apply migrations and regenerate the client |
 
 ## Production Deployment
 

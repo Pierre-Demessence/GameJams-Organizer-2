@@ -18,9 +18,19 @@
 | **Results** | View ranked results with scores per criterion after rating period | Medium |
 | **Jam Management** | Edit jam details, manage roles, moderate submissions (visible/rateable/competing switches) | Medium |
 | **Ownership Verification** | itch.io code-on-page verification required to publish a submission | High |
-| **Platform Admin** | Seeded Site Admin, mandatory 2FA, soft-delete + restore, audit log | Medium |
 | **Rate Limiting** | In-memory rate limiter on server actions to prevent abuse | Medium |
 | **Responsive UI** | Mobile-friendly layout with Tailwind CSS breakpoints | Medium |
+| **Automated Tests** | Vitest unit tests + Playwright E2E, run in CI | Medium |
+
+## MVP — Not Yet Built
+
+Defined as MVP in the spec but not yet implemented (tracked in
+[specs/tasks.md](specs/tasks.md)):
+
+| Feature | Description |
+|---------|-------------|
+| Platform Admin | Seeded Site Admin, mandatory 2FA, soft-delete + restore, audit log, `/admin` page |
+| Markdown Rendering | Sanitized GFM rendering for jam/submission descriptions (currently plain text) |
 
 ## Deferred to Post-MVP
 

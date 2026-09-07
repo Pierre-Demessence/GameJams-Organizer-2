@@ -4,7 +4,7 @@ Create, join, and rate game jams. Free and open source.
 
 ## Quick Start (Development)
 
-**Prerequisites:** Node.js 22+, pnpm, Docker Desktop
+**Prerequisites:** Node.js 24+, pnpm, Docker Desktop
 
 ```bash
 # Clone and install
@@ -13,10 +13,9 @@ pnpm install
 # Start the database
 docker compose up db -d
 
-# Push schema and generate client
+# Apply migrations and generate the client
 cp .env.example .env  # Edit credentials if needed
-npx prisma db push
-npx prisma generate
+pnpm db:migrate
 
 # Start dev server
 pnpm dev
@@ -41,7 +40,7 @@ openssl rand -base64 32
 # 6. Build and start
 docker compose up -d --build
 
-# 7. Push the database schema (first run or after schema changes)
+# 7. Apply database migrations (first run or after schema changes)
 docker compose run --rm migrate
 ```
 
@@ -63,10 +62,18 @@ The app runs on port 3000. Place a reverse proxy (nginx, Caddy) in front for TLS
 ## Tech Stack
 
 - **Next.js 16** (App Router, TypeScript, standalone output)
-- **Prisma 7** (PostgreSQL, driver adapter)
+- **Prisma 7** (PostgreSQL, driver adapter, SQL migrations)
 - **Auth.js v5** (JWT, Discord + Credentials)
 - **shadcn/ui** + Tailwind CSS v4
+- **Vitest** (unit) + **Playwright** (E2E), run in GitHub Actions CI
 - **Docker** (multi-stage build, PostgreSQL 16)
+
+## Testing
+
+```bash
+pnpm test       # Vitest unit tests
+pnpm test:e2e   # Playwright E2E (needs the app + a seeded database)
+```
 
 ## Documentation
 

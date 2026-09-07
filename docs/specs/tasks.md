@@ -214,24 +214,24 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 ### Permissions
 
-- [ ] **T-800** Make `JamRole` stackable (`@@unique([jamId, userId, role])`)
-- [ ] **T-801** Refactor `permissions.ts` to union permissions across a user's roles
-- [ ] **T-802** Route inline `isAdmin` checks through the permission catalog
-- [ ] **T-803** Rework role assignment + manage UI for stacked roles
+- [x] **T-800** Make `JamRole` stackable (`@@unique([jamId, userId, role])`)
+- [x] **T-801** Refactor `permissions.ts` to union permissions across a user's roles
+- [x] **T-802** Route inline `isAdmin` checks through the permission catalog
+- [x] **T-803** Rework role assignment + manage UI for stacked roles
 
 ### Submissions
 
-- [ ] **T-810** Replace per-platform links with a single itch.io URL + `supportedPlatforms`
-- [ ] **T-811** Add submission `DRAFT`/`SUBMITTED` status and flow
-- [ ] **T-812** Implement itch.io code-on-page ownership verification + manual fallback
-- [ ] **T-813** Fetch safety: single-host allowlist, HTTPS, timeout, size cap
-- [ ] **T-820** Replace `disqualified`/`hidden` with visible/rateable/competing switches + badges
-- [ ] **T-821** Wire moderation presets (disqualify, exclude-from-ranking, hide, delete)
+- [x] **T-810** Replace per-platform links with a single itch.io URL + `supportedPlatforms`
+- [x] **T-811** Add submission `DRAFT`/`SUBMITTED` status and flow
+- [x] **T-812** Implement itch.io code-on-page ownership verification + manual fallback
+- [x] **T-813** Fetch safety: single-host allowlist, HTTPS, timeout, size cap
+- [x] **T-820** Replace `disqualified`/`hidden` with visible/rateable/competing switches + badges
+- [x] **T-821** Wire moderation presets (disqualify, exclude-from-ranking, hide, delete)
 
 ### Rating
 
-- [ ] **T-830** Add criterion `source` (RATED) + `primary`
-- [ ] **T-831** Per-criterion ranking + optional/primary overall in scoring
+- [x] **T-830** Add criterion `source` (RATED) + `primary`
+- [x] **T-831** Per-criterion ranking + optional/primary overall in scoring
 
 ### Platform Administration
 
@@ -245,23 +245,12 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 - [ ] **T-880** Sanitized GFM Markdown rendering (escape raw HTML, restrict URL schemes)
 
+### Testing & CI
+
+- [x] **T-890** Vitest unit tests (jam-status, permissions, validations, verification, scoring)
+- [x] **T-891** Playwright E2E smoke tests
+- [x] **T-892** GitHub Actions CI (typecheck, lint, unit, Postgres-backed E2E)
+
 ---
 
-## Post-MVP Backlog (Not In Scope)
-
-For reference — features deferred from MVP, roughly prioritized:
-
-1. Theme voting (score voting among options)
-2. Email notifications (jam start, end, results)
-3. Rating queue / incentives
-4. Comments on submissions
-5. Community message board per jam
-6. Prize listing and team member claiming
-7. Late submissions (flagged, non-ranked)
-8. Visual calendar UI
-9. Verified itch.io profile (auto-verify all projects)
-10. JURY criteria and manual placement
-11. Site Moderator role, sudo-mode, custom-role builder
-12. Google/GitHub OAuth providers
-13. In-app notifications
-14. Analytics dashboard
+Post-MVP features and unscheduled ideas live in [../backlog.md](../backlog.md).

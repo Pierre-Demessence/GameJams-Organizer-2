@@ -116,13 +116,13 @@ Re-green build / lint / typecheck after each numbered step.
 
 Now that the code reflects the spec, update the docs that describe what exists.
 
-- [ ] **tech-stack.md** — bump versions to what's actually installed after Phase 1.
-- [ ] **codebase.md** — reflect new/changed modules (verification, moderation, roles).
-- [ ] **features.md** — mark what's now built vs deferred.
-- [ ] **configuration.md / installation.md** — any new env vars (e.g. verification/fetch config).
-- [ ] **CHANGELOG.md** — record the refactor.
-- [ ] **README.md** — update the one-page summary if anything user-facing changed.
-- [ ] **agent/README.md** — update invariants (permission-based checks, moderation switches).
+- [x] **tech-stack.md** — bump versions to what's actually installed after Phase 1.
+- [x] **codebase.md** — reflect new/changed modules (verification, moderation, roles).
+- [x] **features.md** — mark what's now built vs deferred.
+- [x] **configuration.md / installation.md** — any new env vars (e.g. verification/fetch config).
+- [x] **CHANGELOG.md** — record the refactor.
+- [x] **README.md** — update the one-page summary if anything user-facing changed.
+- [x] **agent/README.md** — update invariants (permission-based checks, moderation switches).
 
 ## Phase 8 — Review & finalize
 
