@@ -44,7 +44,7 @@ Resolved decisions:
 - [x] **Decision point:** bleeding-edge posture — resolved as above.
 - [x] Apply the agreed updates; regenerate the Prisma client (`pnpm db:generate`).
 - [x] Fix any breakages from the updates; re-green build / lint / typecheck.
-- [ ] Commit the dependency refresh on its own (isolated, easy to bisect).
+- [x] Commit the dependency refresh on its own (isolated, easy to bisect). `22c01c3`
 
 ## Phase 2 — Align the "intended-state" docs (the contract)
 
