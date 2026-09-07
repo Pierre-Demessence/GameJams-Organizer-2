@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { submissionSchema } from "@/lib/validations";
+import { submissionSchema, findMissingRequiredFields } from "@/lib/validations";
 import { computeJamStatus } from "@/lib/jam-status";
 import { checkJamPermission } from "@/lib/permissions";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -664,6 +664,24 @@ export async function submitSubmissionAction(submissionId: string) {
   }
   if (!submission.verified) {
     return { error: "Verify ownership of your itch.io project before submitting" };
+  }
+
+  const requiredFields = await db.customField.findMany({
+    where: { jamId: submission.jamId, required: true },
+    orderBy: { sortOrder: "asc" },
+    include: { values: { where: { submissionId } } },
+  });
+  const missingFields = findMissingRequiredFields(
+    requiredFields.map((field) => ({
+      name: field.name,
+      required: field.required,
+      value: field.values[0]?.value,
+    }))
+  );
+  if (missingFields.length > 0) {
+    return {
+      error: `Fill in all required fields before submitting: ${missingFields.join(", ")}`,
+    };
   }
 
   await db.submission.update({

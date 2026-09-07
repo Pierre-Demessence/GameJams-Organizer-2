@@ -225,7 +225,7 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 - [x] **T-811** Add submission `DRAFT`/`SUBMITTED` status and flow
 - [x] **T-812** Implement itch.io code-on-page ownership verification + manual fallback
 - [x] **T-813** Fetch safety: single-host allowlist, HTTPS, timeout, size cap
-- [ ] **T-814** Enforce required custom fields are filled before DRAFT → SUBMITTED
+- [x] **T-814** Enforce required custom fields are filled before DRAFT → SUBMITTED
 - [x] **T-820** Replace `disqualified`/`hidden` with visible/rateable/competing switches + badges
 - [x] **T-821** Wire moderation presets (disqualify, exclude-from-ranking, hide, delete)
 

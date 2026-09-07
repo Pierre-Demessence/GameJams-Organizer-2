@@ -3,6 +3,7 @@ import {
   isItchProjectUrl,
   submissionSchema,
   criterionSchema,
+  findMissingRequiredFields,
 } from "@/lib/validations";
 
 describe("isItchProjectUrl", () => {
@@ -53,5 +54,25 @@ describe("submissionSchema", () => {
   it("allows an empty itch.io URL (draft in progress)", () => {
     const result = submissionSchema.safeParse({ title: "My Game", itchUrl: "" });
     expect(result.success).toBe(true);
+  });
+});
+
+describe("findMissingRequiredFields", () => {
+  it("returns names of required fields with empty or whitespace values", () => {
+    const missing = findMissingRequiredFields([
+      { name: "Repo", required: true, value: "" },
+      { name: "Notes", required: true, value: "   " },
+      { name: "Trailer", required: true, value: null },
+      { name: "Contact", required: true, value: undefined },
+    ]);
+    expect(missing).toEqual(["Repo", "Notes", "Trailer", "Contact"]);
+  });
+
+  it("ignores optional fields and filled required fields", () => {
+    const missing = findMissingRequiredFields([
+      { name: "Repo", required: true, value: "https://github.com/x" },
+      { name: "Notes", required: false, value: "" },
+    ]);
+    expect(missing).toEqual([]);
   });
 });

@@ -4,6 +4,14 @@ export const slugPattern = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 
 export const platformValues = ["WINDOWS", "MAC", "LINUX", "WEB"] as const;
 
+export function findMissingRequiredFields(
+  fields: { name: string; required: boolean; value: string | null | undefined }[]
+): string[] {
+  return fields
+    .filter((field) => field.required && !field.value?.trim())
+    .map((field) => field.name);
+}
+
 // itch.io project URL: HTTPS on itch.io or a *.itch.io subdomain.
 export function isItchProjectUrl(value: string): boolean {
   try {
