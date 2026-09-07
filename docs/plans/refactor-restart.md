@@ -66,18 +66,18 @@ Resolved decisions:
 
 One Prisma migration (or a small ordered set), then regenerate the client. Ordered by dependency.
 
-- [ ] **Role stacking** — change `JamRole` `@@unique([jamId, userId])` →
+- [x] **Role stacking** — change `JamRole` `@@unique([jamId, userId])` →
       `@@unique([jamId, userId, role])` so a user can hold several roles.
-- [ ] **Submission lifecycle** — add a `status` (DRAFT / SUBMITTED) to `Submission`.
-- [ ] **Moderation switches** — replace `disqualified` / `hidden` booleans with the three
+- [x] **Submission lifecycle** — add a `status` (DRAFT / SUBMITTED) to `Submission`.
+- [x] **Moderation switches** — replace `disqualified` / `hidden` booleans with the three
       independent switches (visible / rateable / competing) + a moderation reason/badge field.
-- [ ] **Links** — collapse per-platform `linkWindows/Mac/Linux/Web` into a single itch.io
+- [x] **Links** — collapse per-platform `linkWindows/Mac/Linux/Web` into a single itch.io
       project URL + a `supportedPlatforms` multi-select.
-- [ ] **Ownership verification** — add the fields for the code-on-page flow (issued code,
+- [x] **Ownership verification** — add the fields for the code-on-page flow (issued code,
       verified state/timestamp).
-- [ ] **Criterion** — add `source` (RATED / JURY) and `primary`.
-- [ ] **Theme reveal default** — set `revealThemeOnStart` default to `true` (spec §7: on by default).
-- [ ] Generate the migration, regenerate the client, confirm it applies cleanly on a fresh DB.
+- [x] **Criterion** — add `source` (RATED / JURY) and `primary`.
+- [x] **Theme reveal default** — set `revealThemeOnStart` default to `true` (spec §7: on by default).
+- [x] Generate the migration, regenerate the client, confirm it applies cleanly on a fresh DB.
 
 ## Phase 4 — Code refactor (inside out: lib → actions → UI)
 

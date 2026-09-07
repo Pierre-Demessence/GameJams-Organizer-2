@@ -94,7 +94,7 @@ model Jam {
   ratingEnd DateTime?
 
   theme              String?
-  revealThemeOnStart Boolean @default(false)
+  revealThemeOnStart Boolean @default(true)
 
   hideResults              Boolean @default(false)
   hideSubmissionsBeforeEnd Boolean @default(false)
@@ -151,10 +151,22 @@ model JamRole {
   jam  Jam  @relation(fields: [jamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([jamId, userId])
+  @@unique([jamId, userId, role])
 }
 
 // ─── Submissions ────────────────────────────────
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum Platform {
+  WINDOWS
+  MAC
+  LINUX
+  WEB
+}
 
 model Submission {
   id          String  @id @default(cuid())
@@ -163,16 +175,23 @@ model Submission {
   description String?
   coverUrl    String?
 
-  linkWindows String?
-  linkMac     String?
-  linkLinux   String?
-  linkWeb     String?
+  itchUrl            String?
+  supportedPlatforms Platform[]
 
   screenshots String[]
   videoUrl    String?
 
-  disqualified Boolean @default(false)
-  hidden       Boolean @default(false)
+  status SubmissionStatus @default(DRAFT)
+
+  verificationCode String?
+  verified         Boolean   @default(false)
+  verifiedAt       DateTime?
+  verifiedManually Boolean   @default(false)
+
+  visible          Boolean @default(true)
+  rateable         Boolean @default(true)
+  competing        Boolean @default(true)
+  moderationReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -234,13 +253,20 @@ model CustomFieldValue {
 
 // ─── Rating ─────────────────────────────────────
 
+enum CriterionSource {
+  RATED
+  JURY
+}
+
 model Criterion {
-  id          String  @id @default(cuid())
+  id          String          @id @default(cuid())
   jamId       String
   name        String
   description String?
-  weight      Float   @default(1)
-  sortOrder   Int     @default(0)
+  weight      Float           @default(1)
+  source      CriterionSource @default(RATED)
+  isPrimary   Boolean         @default(false)
+  sortOrder   Int             @default(0)
 
   jam     Jam      @relation(fields: [jamId], references: [id], onDelete: Cascade)
   ratings Rating[]
