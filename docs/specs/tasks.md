@@ -225,6 +225,7 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 - [x] **T-811** Add submission `DRAFT`/`SUBMITTED` status and flow
 - [x] **T-812** Implement itch.io code-on-page ownership verification + manual fallback
 - [x] **T-813** Fetch safety: single-host allowlist, HTTPS, timeout, size cap
+- [ ] **T-814** Enforce required custom fields are filled before DRAFT → SUBMITTED
 - [x] **T-820** Replace `disqualified`/`hidden` with visible/rateable/competing switches + badges
 - [x] **T-821** Wire moderation presets (disqualify, exclude-from-ranking, hide, delete)
 
@@ -232,6 +233,8 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 - [x] **T-830** Add criterion `source` (RATED) + `primary`
 - [x] **T-831** Per-criterion ranking + optional/primary overall in scoring
+- [ ] **T-832** Results: show rank-excluded but rated submissions in a separate "Not competing" section (spec §6.4–6.5)
+- [ ] **T-833** Results: display each criterion's own ranking, not just per-criterion scores (spec §6.5)
 
 ### Platform Administration
 
