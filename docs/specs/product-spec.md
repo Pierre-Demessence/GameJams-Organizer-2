@@ -113,6 +113,8 @@ time-boxed events where people build games, usually around a theme.
 - Submit games to jams. **[MVP]**
 - Rate submitted games. **[MVP]**
 - Register through Discord. **[MVP]**
+- Register / sign in through itch.io (OAuth), which doubles as itch.io profile linking for
+  automatic submission verification. **[Future]**
 - Comment on submissions (any registered user). **[Future]**
 - A calendar of upcoming jams. **[Future]**
 - Email reminder notifications (start, voting, results, etc.). **[Future]**
@@ -130,6 +132,7 @@ Users register and sign in using:
 
 - Discord OAuth. **[MVP]**
 - Email and password. **[MVP]**
+- itch.io OAuth. **[Future]**
 - Google OAuth. **[Future]**
 - GitHub OAuth. **[Future]**
 
@@ -137,6 +140,15 @@ When a user registers via OAuth, setting an email and password is optional. User
 additional providers later and sign in with any linked method (**account merging**). Attempting
 to link a provider already associated with a different account is rejected with a conflict
 error.
+
+**itch.io sign-in.** itch.io only implements the OAuth 2.0 *implicit flow* (the access token is
+returned in the URL fragment; there is no server-side code exchange or client secret), so it is
+not a standard linkable provider like Discord. It is served through a custom callback bridge that
+extracts the token client-side, posts it to the server, and reads the itch.io identity from the
+`/me` endpoint (`profile:me` scope). The same bridge doubles as the link entry point: with no
+active session it signs in or creates the account; with an active session it links the itch.io
+identity to the current user (subject to the same conflict rule). Storing the user's itch.io
+username enables the auto-verification described under [Ownership verification](#ownership-verification).
 
 Each user chooses a unique **username** at registration (lowercase alphanumeric plus hyphens
 and underscores). This is distinct from the display name and is used in profile URLs.
@@ -437,10 +449,11 @@ project page. A "verify" action fetches the page and confirms the code is presen
 verification cannot succeed (for example a temporary fetch failure), a Jam Admin or Jam Moderator
 can **manually mark the submission verified** as a fallback. **[MVP]**
 
-**Verified itch.io profile (later).** A user links their itch.io profile once — proven with the
-same code-on-page mechanism, placed on their profile page — after which any project under that
-profile is verified automatically (matched by the project's `username.itch.io` namespace and
-author byline), with no per-project code. **[Future]**
+**Verified itch.io profile (later).** A user links their itch.io profile once — either by signing
+in with itch.io (OAuth) or by placing a code on their profile page — after which any project
+under that profile is verified automatically (matched by the project's `username.itch.io`
+namespace and author byline), with no per-project code. OAuth linking is the preferred proof
+since it authenticates the itch.io account directly. **[Future]**
 
 Because the MVP only ever fetches itch.io URLs, the fetcher uses a **single-host allowlist**
 (`itch.io` and `*.itch.io`) over HTTPS, with a request timeout and a response-size cap. The

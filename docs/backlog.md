@@ -21,9 +21,11 @@ Roughly prioritized:
 9. Verified itch.io profile (auto-verify all projects)
 10. JURY criteria and manual placement
 11. Site Moderator role, sudo-mode, custom-role builder
-12. Google / GitHub OAuth providers
-13. In-app notifications
-14. Analytics dashboard
+12. itch.io OAuth sign-in (implicit-flow bridge; doubles as itch.io profile linking for auto-verify)
+13. Google / GitHub OAuth providers
+14. In-app notifications
+15. Analytics dashboard
+16. Organizations (group jams under an organization banner with a shared, reusable organizer roster)
 
 ## Ideas
 
