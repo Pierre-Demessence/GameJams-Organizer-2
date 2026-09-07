@@ -108,7 +108,7 @@ Re-green build / lint / typecheck after each numbered step.
 
 ## Phase 6 — End-to-end verification
 
-- [ ] Full build / lint / typecheck green.
+- [x] Full build / lint / typecheck green.
 - [ ] Manual click-through of the core flows in the browser (create jam → submit → verify →
       rate → results), including the new moderation switches and stacked roles.
 
