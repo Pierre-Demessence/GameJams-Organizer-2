@@ -15,7 +15,7 @@ test.describe("smoke", () => {
   test("public jam detail page renders", async ({ page }) => {
     await page.goto("/jams/ongoing-jam");
     await expect(
-      page.getByRole("heading", { name: "Ongoing Jam" })
+      page.getByRole("heading", { name: "Ongoing Jam", level: 1 })
     ).toBeVisible();
   });
 
