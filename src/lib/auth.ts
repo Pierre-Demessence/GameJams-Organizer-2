@@ -94,7 +94,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async signIn({ user }) {
-      if (user?.id && (await isStaff(user.id))) {
+      if (!user?.id) return;
+      await promoteInitialAdmin(user.id, user.email);
+      if (await isStaff(user.id)) {
         await recordAudit({
           actorId: user.id,
           action: "auth:staff_signin",
@@ -105,6 +107,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+// Bootstrap: promote allowlisted emails to Site Admin on sign-in so a fresh
+// (prod) database can get its first admin without manual DB surgery. Idempotent.
+async function promoteInitialAdmin(userId: string, email?: string | null) {
+  if (!email) return;
+  const allow = (process.env.INITIAL_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allow.includes(email.toLowerCase())) return;
+  await db.staffRole.upsert({
+    where: { userId_role: { userId, role: "SITE_ADMIN" } },
+    update: {},
+    create: { userId, role: "SITE_ADMIN" },
+  });
+}
 
 // The default PrismaAdapter writes Auth.js's canonical fields (name, image) and
 // omits our required `username`. Wrap createUser/updateUser to map onto this

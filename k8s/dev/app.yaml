@@ -36,6 +36,11 @@ spec:
           envFrom:
             - secretRef:
                 name: gamejams
+            # Optional: present only once the initial-admin-emails 1Password
+            # field exists; absence must not block startup.
+            - secretRef:
+                name: gamejams-admin
+                optional: true
           env:
             - name: NODE_ENV
               value: production
