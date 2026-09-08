@@ -6,6 +6,7 @@ import { submissionSchema, findMissingRequiredFields } from "@/lib/validations";
 import { computeJamStatus } from "@/lib/jam-status";
 import { checkJamPermission } from "@/lib/permissions";
 import { checkStaffPermission } from "@/lib/staff-permissions";
+import { recordAudit } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   generateVerificationCode,
@@ -561,19 +562,31 @@ export async function deleteSubmissionAction(submissionId: string) {
   if (!submission) return { error: "Submission not found" };
   if (submission.deletedAt) return { success: true };
 
-  const canDelete =
-    (await checkJamPermission(
-      submission.jamId,
-      session.user.id,
-      "delete_submission"
-    )) ||
-    (await checkStaffPermission(session.user.id, "moderate_any_submission"));
-  if (!canDelete) return { error: "You do not have permission" };
+  const isOrganizer = await checkJamPermission(
+    submission.jamId,
+    session.user.id,
+    "delete_submission"
+  );
+  const isStaff = await checkStaffPermission(
+    session.user.id,
+    "moderate_any_submission"
+  );
+  if (!isOrganizer && !isStaff) return { error: "You do not have permission" };
 
   await db.submission.update({
     where: { id: submissionId },
     data: { deletedAt: new Date() },
   });
+
+  if (isStaff) {
+    await recordAudit({
+      actorId: session.user.id,
+      action: "submission:soft_delete",
+      targetType: "submission",
+      targetId: submissionId,
+      metadata: { jamId: submission.jamId, title: submission.title },
+    });
+  }
 
   revalidatePath(`/jams/${submission.jam.slug}`);
   return { success: true };

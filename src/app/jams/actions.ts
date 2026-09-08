@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { jamSchema, slugPattern } from "@/lib/validations";
 import { checkJamPermission } from "@/lib/permissions";
 import { checkStaffPermission } from "@/lib/staff-permissions";
+import { recordAudit } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 
@@ -247,10 +248,13 @@ export async function softDeleteJamAction(jamId: string) {
   if (!jam) return { error: "Jam not found" };
   if (jam.deletedAt) return { success: true };
 
-  const canDelete =
-    (await checkJamPermission(jamId, session.user.id, "delete_jam")) ||
-    (await checkStaffPermission(session.user.id, "delete_any_jam"));
-  if (!canDelete) {
+  const isOrganizer = await checkJamPermission(
+    jamId,
+    session.user.id,
+    "delete_jam"
+  );
+  const isStaff = await checkStaffPermission(session.user.id, "delete_any_jam");
+  if (!isOrganizer && !isStaff) {
     return { error: "You do not have permission to delete this jam" };
   }
 
@@ -259,6 +263,16 @@ export async function softDeleteJamAction(jamId: string) {
     where: { id: jamId },
     data: { deletedAt: new Date(), slug: `${jam.slug}__del__${jam.id}` },
   });
+
+  if (isStaff) {
+    await recordAudit({
+      actorId: session.user.id,
+      action: "jam:soft_delete",
+      targetType: "jam",
+      targetId: jamId,
+      metadata: { slug: jam.slug, name: jam.name },
+    });
+  }
 
   revalidatePath("/jams");
   revalidatePath(`/jams/${jam.slug}`);
