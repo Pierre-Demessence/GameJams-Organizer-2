@@ -43,6 +43,49 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gamejams
+          POSTGRES_PASSWORD: gamejams
+          POSTGRES_DB: gamejams
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gamejams"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Server-action integration tests provision and target this dedicated DB.
+      TEST_DATABASE_URL: postgresql://gamejams:gamejams@localhost:5432/gamejams_test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm exec prisma generate
+
+      # Tests share one DB and truncate between tests (fileParallelism: false).
+      - name: Run integration tests
+        run: pnpm test:integration
+
   e2e:
     name: End-to-end tests
     runs-on: ubuntu-latest

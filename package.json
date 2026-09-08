@@ -17,6 +17,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:coverage:all": "vitest run --coverage --config vitest.overall.config.mts",
+    "test:integration": "vitest run --config vitest.integration.config.mts",
     "test:e2e": "playwright test"
   },
   "prisma": {

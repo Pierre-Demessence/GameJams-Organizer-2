@@ -35,7 +35,7 @@
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| Vitest | 5.x | Unit tests (colocated `*.test.ts`) |
+| Vitest | 5.x | Unit tests (colocated `*.test.ts`) + integration tests (`integration/`, real Postgres) |
 | Playwright | 1.63 | End-to-end browser tests (`e2e/`) |
 
 ## Infrastructure

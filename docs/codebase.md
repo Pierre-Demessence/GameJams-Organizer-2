@@ -82,7 +82,7 @@ Edge middleware that handles auth-related redirects and route protection.
 - **Validation**: All user input validated with Zod schemas from `lib/validations.ts`.
 - **Auth checks**: Use `auth()` from `lib/auth.ts` in server components and actions.
 - **Access control**: Gate every mutation with `checkJamPermission(jamId, userId, permission)`; never inline `role === "ADMIN"`.
-- **Testing**: Unit tests colocated as `*.test.ts` (Vitest); E2E in `e2e/*.spec.ts` (Playwright).
+- **Testing**: Unit tests colocated as `*.test.ts` (Vitest); server-action integration tests in `integration/` against a real Postgres test DB (`pnpm test:integration`); E2E in `e2e/*.spec.ts` (Playwright).
 - **Naming**: kebab-case files, PascalCase components, camelCase functions/variables.
 - **Imports**: Use `@/` path alias (maps to `src/`).
 - **Prisma client**: Import from `@/generated/prisma/client`, access via `@/lib/db`.
