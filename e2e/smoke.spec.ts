@@ -19,6 +19,26 @@ test.describe("smoke", () => {
     ).toBeVisible();
   });
 
+  test("markdown descriptions are styled by the typography plugin", async ({
+    page,
+  }) => {
+    await page.goto("/jams/ongoing-jam");
+    // The seeded fullDesc renders an h1 (demoted to h2) plus a paragraph inside .prose.
+    // Without @tailwindcss/typography, preflight collapses heading font-size to the
+    // paragraph size, so a larger heading proves the prose styles are active.
+    const heading = page.locator(".prose h2").first();
+    const paragraph = page.locator(".prose p").first();
+    await expect(heading).toBeVisible();
+    await expect(paragraph).toBeVisible();
+    const headingSize = await heading.evaluate((el) =>
+      parseFloat(getComputedStyle(el).fontSize)
+    );
+    const paragraphSize = await paragraph.evaluate((el) =>
+      parseFloat(getComputedStyle(el).fontSize)
+    );
+    expect(headingSize).toBeGreaterThan(paragraphSize);
+  });
+
   test("sign-in page renders a login form", async ({ page }) => {
     await page.goto("/sign-in");
     await expect(page.locator('input[type="email"]')).toBeVisible();
