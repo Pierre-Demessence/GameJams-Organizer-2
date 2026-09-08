@@ -33,6 +33,7 @@ model User {
   jamParticipants JamParticipant[]
   submissions     SubmissionMember[]
   ratings         Rating[]
+  staffRoles      StaffRole[]
 }
 
 model Account {
@@ -51,6 +52,22 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+}
+
+// ─── Platform Administration ────────────────────
+
+enum StaffRoleType {
+  SITE_ADMIN
+}
+
+model StaffRole {
+  id     String        @id @default(cuid())
+  userId String
+  role   StaffRoleType
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
 }
 
 // ─── Jams ───────────────────────────────────────

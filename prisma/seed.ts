@@ -295,6 +295,19 @@ async function main() {
     },
   });
 
+  // Grant the seeded Site Admin. Defaults to Alice in dev; override with STAFF_ADMIN_EMAIL.
+  const staffAdminEmail = process.env.STAFF_ADMIN_EMAIL ?? "alice@example.com";
+  const staffAdmin = await prisma.user.findUnique({
+    where: { email: staffAdminEmail },
+  });
+  if (staffAdmin) {
+    await prisma.staffRole.upsert({
+      where: { userId_role: { userId: staffAdmin.id, role: "SITE_ADMIN" } },
+      update: {},
+      create: { userId: staffAdmin.id, role: "SITE_ADMIN" },
+    });
+  }
+
   const now = Date.now();
 
   // DRAFT: no dates, unlisted (default visibility)
