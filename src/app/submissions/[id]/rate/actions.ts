@@ -58,6 +58,8 @@ export async function submitRatingAction(data: {
     },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt || submission.jam.deletedAt)
+    return { error: "Submission not found" };
   if (!submission.jam.ranked)
     return { error: "This jam is not ranked" };
   if (submission.status !== "SUBMITTED")

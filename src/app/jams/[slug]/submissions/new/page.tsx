@@ -67,7 +67,7 @@ export default async function NewSubmissionPage({
   const existingMembership = await db.submissionMember.findFirst({
     where: {
       userId: session.user.id,
-      submission: { jamId: jam.id },
+      submission: { jamId: jam.id, deletedAt: null },
     },
   });
   if (existingMembership) {

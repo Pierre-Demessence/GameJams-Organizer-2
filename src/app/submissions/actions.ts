@@ -145,6 +145,7 @@ export async function updateSubmissionAction(
     },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt) return { error: "Submission not found" };
 
   const status = computeJamStatus(submission.jam);
   if (status !== "ONGOING") {
@@ -276,6 +277,7 @@ export async function addContributorAction(
     include: { jam: true, members: true },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt) return { error: "Submission not found" };
 
   // Only leader can add contributors
   const isLeader = submission.members.some(
