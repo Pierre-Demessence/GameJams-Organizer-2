@@ -51,7 +51,7 @@ export function UserMenu({ user }: UserMenuProps) {
         <DropdownMenuSeparator />
         <DropdownMenuItem
           className="cursor-pointer"
-          onSelect={() => signOut({ callbackUrl: "/" })}
+          onClick={() => signOut({ callbackUrl: "/" })}
         >
           Sign Out
         </DropdownMenuItem>
