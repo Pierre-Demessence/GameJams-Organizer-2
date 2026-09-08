@@ -24,5 +24,14 @@ export default defineConfig({
     fileParallelism: false,
     testTimeout: 20_000,
     env: { DATABASE_URL: TEST_DATABASE_URL },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov"],
+      reportsDirectory: "coverage/integration",
+      // Integration tests exist to cover server actions; scope the flag to them
+      // so it doesn't overlap the unit flag (src/lib) or count untestable UI.
+      include: ["src/app/**/actions.ts", "src/app/**/*-actions.ts"],
+      exclude: ["src/**/*.test.ts"],
+    },
   },
 });

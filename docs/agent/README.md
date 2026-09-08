@@ -16,6 +16,7 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `pnpm test:coverage` | Vitest unit tests with V8 coverage (scoped to unit-owned logic) |
 | `pnpm test:coverage:all` | Merged whole-app coverage (unit + integration; needs Postgres) |
 | `pnpm test:integration` | Server-action integration tests against a Postgres test DB (`gamejams_test`) |
+| `pnpm test:coverage:integration` | Integration tests with coverage (CI uploads this as the `integration` flag) |
 | `pnpm test:e2e` | Playwright E2E tests |
 | `pnpm db:migrate` | Create and apply migrations (`prisma migrate dev`) |
 | `pnpm db:generate` | Regenerate Prisma client |

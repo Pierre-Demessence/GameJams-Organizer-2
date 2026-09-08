@@ -1,0 +1,34 @@
+# Codecov configuration. CI uploads coverage as two flags:
+#   - unit:        pure-logic unit tests (src/lib, markdown)
+#   - integration: server-action tests against a real test DB (src/app)
+# Codecov merges the flags into the overall project coverage.
+
+coverage:
+  status:
+    project:
+      default:
+        target: auto # never drop below the current total
+        threshold: 1%
+        # Report-only for now. To gate merges: set informational: false AND add
+        # the "codecov/project" check to the branch ruleset's required checks.
+        informational: true
+    patch:
+      default:
+        target: 60% # new/changed lines should carry some coverage
+        informational: true
+
+flag_management:
+  default_rules:
+    carryforward: true
+  individual_flags:
+    - name: unit
+      paths:
+        - src/lib
+        - src/components
+    - name: integration
+      paths:
+        - src/app
+
+comment:
+  layout: "reach, flags, files"
+  require_changes: true

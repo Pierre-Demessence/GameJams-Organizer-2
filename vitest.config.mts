@@ -12,7 +12,7 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html"],
+      reporter: ["text", "html", "lcov"],
       reportsDirectory: "coverage/unit",
       // Unit-suite health: scope to the pure logic unit tests can/should own.
       // Server actions, pages and UI components belong to the overall report
