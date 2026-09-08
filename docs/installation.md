@@ -70,7 +70,7 @@ pnpm db:seed
 | `pnpm format` | Format code with Prettier |
 | `pnpm test` | Run Vitest unit tests |
 | `pnpm test:coverage` | Run Vitest unit tests with coverage |
-| `pnpm test:coverage:all` | Run whole-app coverage report |
+| `pnpm test:coverage:all` | Run merged whole-app coverage (unit + integration, needs Postgres) |
 | `pnpm test:integration` | Run server-action integration tests (needs a running Postgres) |
 | `pnpm test:e2e` | Run Playwright E2E tests |
 | `npx prisma studio` | Open database GUI |

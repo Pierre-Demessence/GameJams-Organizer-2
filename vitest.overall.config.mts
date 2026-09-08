@@ -1,20 +1,20 @@
 import { defineConfig } from "vitest/config";
 import { fileURLToPath } from "node:url";
 
-// Honest whole-app coverage: measures how much of src is exercised by the JS
-// test runner (unit + future integration tests). Only genuinely-untestable
-// framework/config glue and generated code is excluded, so untested areas
-// (server actions, components) show their real numbers and climb over time.
-// e2e (Playwright) runs in a separate process and is not reflected here.
+// Honest whole-app coverage across BOTH the unit suite and the server-action
+// integration suite, merged into one report. Only genuinely-untestable
+// framework/config glue and generated code is excluded, so untested areas show
+// their real numbers. Requires a running Postgres (the integration project spins
+// up the gamejams_test DB). e2e (Playwright) runs separately and isn't included.
+
+const alias = { "@": fileURLToPath(new URL("./src", import.meta.url)) };
+
+const TEST_DATABASE_URL =
+  process.env.TEST_DATABASE_URL ??
+  "postgresql://gamejams:gamejams@localhost:5432/gamejams_test";
+
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
-    },
-  },
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],
@@ -32,5 +32,28 @@ export default defineConfig({
         "src/app/**/{layout,loading,error,not-found}.tsx",
       ],
     },
+    projects: [
+      {
+        resolve: { alias },
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+        },
+      },
+      {
+        resolve: { alias },
+        test: {
+          name: "integration",
+          environment: "node",
+          include: ["integration/**/*.test.ts"],
+          globalSetup: ["./integration/global-setup.ts"],
+          setupFiles: ["./integration/setup.ts"],
+          fileParallelism: false,
+          testTimeout: 20_000,
+          env: { DATABASE_URL: TEST_DATABASE_URL },
+        },
+      },
+    ],
   },
 });
