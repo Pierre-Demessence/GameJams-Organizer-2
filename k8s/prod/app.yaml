@@ -42,7 +42,7 @@ spec:
             - name: NODE_ENV
               value: production
             - name: NEXTAUTH_URL
-              value: https://gamejams.vps.corniland.ovh
+              value: https://gamejams.corniland.ovh
             # Auth.js v5 sits behind the Traefik proxy; trust the forwarded host.
             - name: AUTH_TRUST_HOST
               value: "true"
@@ -120,10 +120,10 @@ metadata:
 spec:
   tls:
     - hosts:
-        - gamejams.vps.corniland.ovh
+        - gamejams.corniland.ovh
       secretName: gamejams-tls
   rules:
-    - host: gamejams.vps.corniland.ovh
+    - host: gamejams.corniland.ovh
       http:
         paths:
           - path: /

@@ -26,16 +26,16 @@ The `Corniland-K8sCluster` repo drives the cluster with an ArgoCD app-of-apps:
 - **Secrets**: `ExternalSecret` per env pulls from 1Password items `gamejams-dev` /
   `gamejams-prod` (fields: `postgres-password`, `nextauth-secret`, `discord-id`,
   `discord-secret`) and templates `DATABASE_URL`.
-- **Hostnames**: prod `gamejams.vps.corniland.ovh`, dev `dev.gamejams.vps.corniland.ovh`
-  (add a `*.gamejams.vps.corniland.ovh` DNS record; prod is covered by `*.vps.corniland.ovh`).
+- **Hostnames**: prod `gamejams.corniland.ovh`, dev `dev.gamejams.corniland.ovh`
+  (point `gamejams.corniland.ovh` at the VPS and add a `*.gamejams.corniland.ovh` record).
 
 ## Prerequisites (manual, one-time)
 
 - [ ] Create 1Password items `gamejams-dev` and `gamejams-prod` in the `K8S` vault
       with fields: `postgres-password`, `nextauth-secret`, `discord-id`, `discord-secret`.
 - [ ] Configure the Discord OAuth app redirect URIs:
-      `https://gamejams.vps.corniland.ovh/api/auth/callback/discord` and the dev host.
-- [ ] Add a `*.gamejams.vps.corniland.ovh` DNS record (prod covered by `*.vps.corniland.ovh`).
+      `https://gamejams.corniland.ovh/api/auth/callback/discord` and the dev host.
+- [ ] Point `gamejams.corniland.ovh` at the VPS and add a `*.gamejams.corniland.ovh` record.
 - [ ] Make the GHCR package readable by the cluster (public, or add pull creds).
 
 ## Tasks

@@ -5,8 +5,8 @@ environments are supported:
 
 | Env  | Host                                  | Namespace       | Manifests   |
 | ---- | ------------------------------------- | --------------- | ----------- |
-| dev  | `dev.gamejams.vps.corniland.ovh`      | `gamejams-dev`  | `k8s/dev/`  |
-| prod | `gamejams.vps.corniland.ovh`          | `gamejams-prod` | `k8s/prod/` |
+| dev  | `dev.gamejams.corniland.ovh`          | `gamejams-dev`  | `k8s/dev/`  |
+| prod | `gamejams.corniland.ovh`              | `gamejams-prod` | `k8s/prod/` |
 
 ## How it fits together
 
@@ -28,12 +28,12 @@ environments are supported:
    vault with fields `postgres-password`, `nextauth-secret`, `discord-id`,
    `discord-secret`.
 2. **Discord OAuth**: add redirect URIs
-   `https://gamejams.vps.corniland.ovh/api/auth/callback/discord` and
-   `https://dev.gamejams.vps.corniland.ovh/api/auth/callback/discord`
+   `https://gamejams.corniland.ovh/api/auth/callback/discord` and
+   `https://dev.gamejams.corniland.ovh/api/auth/callback/discord`
    (Discord Developer Portal → your app → OAuth2 → Redirects).
-3. **DNS**: prod `gamejams.vps.corniland.ovh` is covered by the existing
-   `*.vps.corniland.ovh` wildcard; add a `*.gamejams.vps.corniland.ovh` record
-   (→ VPS IP) so `dev.gamejams.vps.corniland.ovh` (and future sub-envs) resolve.
+3. **DNS**: point `gamejams.corniland.ovh` at the VPS IP, and add a
+   `*.gamejams.corniland.ovh` record (→ VPS IP) so `dev.gamejams.corniland.ovh`
+   (and future sub-envs) resolve.
 4. **GHCR access**: make the package public, or add image pull credentials.
 5. Commit the two ArgoCD `Application` files in the cluster repo; the `root` app
    picks them up automatically.
