@@ -69,6 +69,8 @@ pnpm db:seed
 | `pnpm lint` | Run ESLint |
 | `pnpm format` | Format code with Prettier |
 | `pnpm test` | Run Vitest unit tests |
+| `pnpm test:coverage` | Run Vitest unit tests with coverage |
+| `pnpm test:coverage:all` | Run whole-app coverage report |
 | `pnpm test:e2e` | Run Playwright E2E tests |
 | `npx prisma studio` | Open database GUI |
 | `pnpm db:migrate` | Create/apply migrations and regenerate the client |
