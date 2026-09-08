@@ -1,5 +1,17 @@
-import { describe, it, expect } from "vitest";
-import { hasPermission } from "@/lib/permissions";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  hasPermission,
+  getJamRoles,
+  checkJamPermission,
+} from "@/lib/permissions";
+
+const { jamRoleFindMany } = vi.hoisted(() => ({
+  jamRoleFindMany: vi.fn(),
+}));
+
+vi.mock("@/lib/db", () => ({
+  db: { jamRole: { findMany: jamRoleFindMany } },
+}));
 
 describe("hasPermission", () => {
   it("grants nothing to an empty role set", () => {
@@ -31,5 +43,49 @@ describe("hasPermission", () => {
       false
     );
     expect(hasPermission(["MODERATOR", "ADMIN"], "edit_jam")).toBe(true);
+  });
+});
+
+describe("getJamRoles", () => {
+  beforeEach(() => {
+    jamRoleFindMany.mockReset();
+  });
+
+  it("queries roles scoped to the jam and user and returns their names", async () => {
+    jamRoleFindMany.mockResolvedValue([{ role: "ADMIN" }, { role: "JUDGE" }]);
+
+    const roles = await getJamRoles("jam-1", "user-1");
+
+    expect(roles).toEqual(["ADMIN", "JUDGE"]);
+    expect(jamRoleFindMany).toHaveBeenCalledWith({
+      where: { jamId: "jam-1", userId: "user-1" },
+      select: { role: true },
+    });
+  });
+
+  it("returns an empty array when the user holds no roles", async () => {
+    jamRoleFindMany.mockResolvedValue([]);
+
+    expect(await getJamRoles("jam-1", "user-1")).toEqual([]);
+  });
+});
+
+describe("checkJamPermission", () => {
+  beforeEach(() => {
+    jamRoleFindMany.mockReset();
+  });
+
+  it("grants when a queried role holds the permission", async () => {
+    jamRoleFindMany.mockResolvedValue([{ role: "MODERATOR" }]);
+
+    expect(
+      await checkJamPermission("jam-1", "user-1", "moderate_submission")
+    ).toBe(true);
+  });
+
+  it("denies when no queried role holds the permission", async () => {
+    jamRoleFindMany.mockResolvedValue([{ role: "JUDGE" }]);
+
+    expect(await checkJamPermission("jam-1", "user-1", "edit_jam")).toBe(false);
   });
 });
