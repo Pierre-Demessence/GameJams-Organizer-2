@@ -39,8 +39,11 @@ To configure Discord OAuth:
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `STAFF_ADMIN_EMAIL` | No | `alice@example.com` (dev seed) | Email of the user granted the Site Admin staff role when seeding |
+| `INITIAL_ADMIN_EMAILS` | No | — | Comma-separated emails auto-promoted to Site Admin on sign-in. Bootstraps the first admin on a fresh (prod) database without seeding. |
 
 The seed script grants the `SITE_ADMIN` staff role to the user matching `STAFF_ADMIN_EMAIL`. In development it defaults to the seeded `alice@example.com`; set it explicitly before seeding a production database.
+
+`INITIAL_ADMIN_EMAILS` solves the prod bootstrap problem: since prod starts empty and is not seeded, nobody would have admin. On sign-in, any user whose email matches this list is granted `SITE_ADMIN` (idempotent). Set it to your own email, sign in once, then manage other admins from `/admin`.
 
 ## Docker-Specific Notes
 

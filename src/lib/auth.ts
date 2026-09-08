@@ -2,13 +2,14 @@ import NextAuth from "next-auth";
 import Discord from "next-auth/providers/discord";
 import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import type { Adapter, AdapterUser } from "next-auth/adapters";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
 import { isStaff } from "@/lib/staff-permissions";
 import { recordAudit } from "@/lib/audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(db),
+  adapter: customPrismaAdapter(),
   session: { strategy: "jwt" },
   pages: {
     signIn: "/sign-in",
@@ -93,7 +94,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   events: {
     async signIn({ user }) {
-      if (user?.id && (await isStaff(user.id))) {
+      if (!user?.id) return;
+      await promoteInitialAdmin(user.id, user.email);
+      if (await isStaff(user.id)) {
         await recordAudit({
           actorId: user.id,
           action: "auth:staff_signin",
@@ -104,3 +107,87 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
 });
+
+// Bootstrap: promote allowlisted emails to Site Admin on sign-in so a fresh
+// (prod) database can get its first admin without manual DB surgery. Idempotent.
+async function promoteInitialAdmin(userId: string, email?: string | null) {
+  if (!email) return;
+  const allow = (process.env.INITIAL_ADMIN_EMAILS ?? "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  if (!allow.includes(email.toLowerCase())) return;
+  await db.staffRole.upsert({
+    where: { userId_role: { userId, role: "SITE_ADMIN" } },
+    update: {},
+    create: { userId, role: "SITE_ADMIN" },
+  });
+}
+
+// The default PrismaAdapter writes Auth.js's canonical fields (name, image) and
+// omits our required `username`. Wrap createUser/updateUser to map onto this
+// project's User model (name->displayName, image->avatarUrl) and mint a unique
+// username on first OAuth sign-in.
+function customPrismaAdapter(): Adapter {
+  const base = PrismaAdapter(db);
+  return {
+    ...base,
+    createUser: async (data) => {
+      const seed =
+        (data.name ?? data.email ?? "user").toLowerCase().replace(/[^a-z0-9]/g, "") ||
+        "user";
+      let username = seed;
+      for (let suffix = 0; suffix < 20; suffix++) {
+        if (suffix > 0) username = `${seed}${suffix}`;
+        try {
+          const user = await db.user.create({
+            data: {
+              email: data.email || null,
+              emailVerified: data.emailVerified ?? null,
+              username,
+              displayName: data.name ?? null,
+              avatarUrl: data.image ?? null,
+            },
+          });
+          return toAdapterUser(user);
+        } catch (e) {
+          if (isUniqueViolation(e)) continue;
+          throw e;
+        }
+      }
+      throw new Error("Could not generate a unique username");
+    },
+    updateUser: async ({ id, ...data }) => {
+      const user = await db.user.update({
+        where: { id },
+        data: {
+          email: data.email ?? undefined,
+          emailVerified: data.emailVerified ?? undefined,
+          displayName: data.name ?? undefined,
+          avatarUrl: data.image ?? undefined,
+        },
+      });
+      return toAdapterUser(user);
+    },
+  };
+}
+
+function toAdapterUser(u: {
+  id: string;
+  email: string | null;
+  emailVerified: Date | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+}): AdapterUser {
+  return {
+    id: u.id,
+    email: u.email ?? "",
+    emailVerified: u.emailVerified,
+    name: u.displayName,
+    image: u.avatarUrl,
+  };
+}
+
+function isUniqueViolation(e: unknown): boolean {
+  return typeof e === "object" && e !== null && "code" in e && e.code === "P2002";
+}

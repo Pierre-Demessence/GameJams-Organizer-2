@@ -26,7 +26,8 @@ environments are supported:
 
 1. **1Password**: create items `gamejams-dev` and `gamejams-prod` in the `K8S`
    vault with fields `postgres-password`, `nextauth-secret`, `discord-id`,
-   `discord-secret`.
+   `discord-secret`. Optionally add `initial-admin-emails` (comma-separated) to
+   bootstrap the first Site Admin — see "Bootstrapping the first admin" below.
 2. **Discord OAuth**: add redirect URIs
    `https://gamejams.corniland.ovh/api/auth/callback/discord` and
    `https://dev.gamejams.corniland.ovh/api/auth/callback/discord`
@@ -54,6 +55,21 @@ kubectl -n gamejams-dev create -f k8s/dev/manual/seed-job.yaml
 
 The Job lives in `k8s/dev/manual/`, which ArgoCD ignores (non-recursive sync), so
 it never runs automatically or gets pruned.
+
+## Bootstrapping the first admin
+
+Prod starts with an empty database and is not seeded, so no Site Admin exists and
+`/admin` is unreachable. To bootstrap:
+
+1. Add an `initial-admin-emails` field (comma-separated) to the `gamejams-prod`
+   (and/or `gamejams-dev`) 1Password item with your account email.
+2. ArgoCD syncs the `gamejams-admin` ExternalSecret; restart the app so it picks
+   up the new env: `kubectl -n gamejams-prod rollout restart deploy/gamejams`.
+3. Sign in once with that email \u2014 you're granted `SITE_ADMIN` automatically
+   (idempotent). From then on, manage admins from `/admin`.
+
+The value is consumed via an *optional* `envFrom`, so if the field is absent the
+app still starts normally (admin bootstrap just stays inactive).
 
 For local runs (app + Postgres + migrations) use [`docker-compose.yml`](../docker-compose.yml)
 — see the [README](../README.md#production-deployment-docker).
