@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
+import { isStaff } from "@/lib/staff-permissions";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export async function Navbar() {
   const session = await auth();
+  const staff = session?.user?.id ? await isStaff(session.user.id) : false;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -21,6 +23,14 @@ export async function Navbar() {
           >
             Browse Jams
           </Link>
+          {staff && (
+            <Link
+              href="/admin"
+              className="text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Admin
+            </Link>
+          )}
         </nav>
 
         <div className="ml-auto flex items-center gap-2">

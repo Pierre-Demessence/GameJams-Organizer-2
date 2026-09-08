@@ -13,5 +13,7 @@ export const config = {
     "/jams/:slug/rate",
     "/submissions/:id/edit",
     "/settings",
+    "/admin",
+    "/admin/:path*",
   ],
 };

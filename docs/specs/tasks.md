@@ -242,7 +242,7 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 - [ ] **T-861** Mandatory TOTP 2FA enrollment + enforcement for staff
 - [x] **T-862** Soft-delete (`deletedAt`) on jams/submissions _(restore deferred to a later milestone)_
 - [x] **T-863** Audit log (`AuditLogEntry`) for staff actions
-- [ ] **T-864** Build platform admin page (`/admin`)
+- [x] **T-864** Build platform admin page (`/admin`)
 
 ### Content
 
