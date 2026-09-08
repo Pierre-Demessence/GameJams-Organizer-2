@@ -55,6 +55,7 @@ export default async function SubmissionDetailPage({
           hideSubmissionsBeforeEnd: true,
           maxTeamSize: true,
           allowContributorsAfterClose: true,
+          deletedAt: true,
         },
       },
       members: {
@@ -70,6 +71,7 @@ export default async function SubmissionDetailPage({
   });
 
   if (!submission) notFound();
+  if (submission.deletedAt || submission.jam.deletedAt) notFound();
 
   const status = computeJamStatus(submission.jam);
 

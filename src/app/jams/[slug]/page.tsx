@@ -67,7 +67,7 @@ export default async function JamDetailPage({
       _count: { select: { participants: true, submissions: true } },
       criteria: { select: { id: true, name: true, description: true, weight: true } },
       submissions: {
-        where: { status: "SUBMITTED", visible: true },
+        where: { status: "SUBMITTED", visible: true, deletedAt: null },
         include: {
           members: {
             include: { user: { select: { username: true, displayName: true } } },

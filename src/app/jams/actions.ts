@@ -4,6 +4,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { jamSchema, slugPattern } from "@/lib/validations";
 import { checkJamPermission } from "@/lib/permissions";
+import { checkStaffPermission } from "@/lib/staff-permissions";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 
@@ -229,6 +230,34 @@ export async function publishJamAction(jamId: string) {
   await db.jam.update({
     where: { id: jamId },
     data: { visibility: "PUBLIC" },
+  });
+
+  revalidatePath("/jams");
+  revalidatePath(`/jams/${jam.slug}`);
+  return { success: true };
+}
+
+export async function softDeleteJamAction(jamId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "You must be signed in" };
+  }
+
+  const jam = await db.jam.findUnique({ where: { id: jamId } });
+  if (!jam) return { error: "Jam not found" };
+  if (jam.deletedAt) return { success: true };
+
+  const canDelete =
+    (await checkJamPermission(jamId, session.user.id, "delete_jam")) ||
+    (await checkStaffPermission(session.user.id, "delete_any_jam"));
+  if (!canDelete) {
+    return { error: "You do not have permission to delete this jam" };
+  }
+
+  // Free the slug so a new jam can reuse it while this one is soft-deleted.
+  await db.jam.update({
+    where: { id: jamId },
+    data: { deletedAt: new Date(), slug: `${jam.slug}__del__${jam.id}` },
   });
 
   revalidatePath("/jams");

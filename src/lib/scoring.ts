@@ -41,7 +41,7 @@ export async function computeJamResults(jamId: string) {
 
   // Submissions that compete in the official ranking.
   const submissions = await db.submission.findMany({
-    where: { jamId, status: "SUBMITTED", competing: true },
+    where: { jamId, status: "SUBMITTED", competing: true, deletedAt: null },
     select: { id: true },
   });
 
@@ -51,7 +51,7 @@ export async function computeJamResults(jamId: string) {
   // display scores; the global stats below are still computed from competing entries only.
   const allRatings = await db.rating.findMany({
     where: {
-      submission: { jamId, status: "SUBMITTED" },
+      submission: { jamId, status: "SUBMITTED", deletedAt: null },
     },
   });
 
@@ -202,6 +202,7 @@ export async function computeJamResults(jamId: string) {
       jamId,
       status: "SUBMITTED",
       competing: false,
+      deletedAt: null,
       ratings: { some: {} },
     },
     select: { id: true },

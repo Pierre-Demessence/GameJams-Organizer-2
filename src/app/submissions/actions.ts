@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { submissionSchema, findMissingRequiredFields } from "@/lib/validations";
 import { computeJamStatus } from "@/lib/jam-status";
 import { checkJamPermission } from "@/lib/permissions";
+import { checkStaffPermission } from "@/lib/staff-permissions";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   generateVerificationCode,
@@ -42,7 +43,7 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
   const existingMembership = await db.submissionMember.findFirst({
     where: {
       userId: session.user.id,
-      submission: { jamId: jam.id },
+      submission: { jamId: jam.id, deletedAt: null },
     },
   });
   if (existingMembership) {
@@ -558,15 +559,21 @@ export async function deleteSubmissionAction(submissionId: string) {
     include: { jam: true },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt) return { success: true };
 
-  const canDelete = await checkJamPermission(
-    submission.jamId,
-    session.user.id,
-    "delete_submission"
-  );
+  const canDelete =
+    (await checkJamPermission(
+      submission.jamId,
+      session.user.id,
+      "delete_submission"
+    )) ||
+    (await checkStaffPermission(session.user.id, "moderate_any_submission"));
   if (!canDelete) return { error: "You do not have permission" };
 
-  await db.submission.delete({ where: { id: submissionId } });
+  await db.submission.update({
+    where: { id: submissionId },
+    data: { deletedAt: new Date() },
+  });
 
   revalidatePath(`/jams/${submission.jam.slug}`);
   return { success: true };

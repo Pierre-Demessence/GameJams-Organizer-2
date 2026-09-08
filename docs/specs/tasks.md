@@ -240,7 +240,7 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 - [x] **T-860** Add `StaffRole` (seeded Site Admin) + permission-based staff checks
 - [ ] **T-861** Mandatory TOTP 2FA enrollment + enforcement for staff
-- [ ] **T-862** Soft-delete (`deletedAt`) with restore on jams/submissions
+- [x] **T-862** Soft-delete (`deletedAt`) on jams/submissions _(restore deferred to a later milestone)_
 - [ ] **T-863** Audit log (`AuditLogEntry`) for staff actions
 - [ ] **T-864** Build platform admin page (`/admin`)
 

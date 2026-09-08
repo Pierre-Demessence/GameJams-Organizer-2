@@ -47,6 +47,7 @@ export default async function JamsPage({
 
   const jams = await db.jam.findMany({
     where: {
+      deletedAt: null,
       visibility: "PUBLIC",
       ...(query
         ? {

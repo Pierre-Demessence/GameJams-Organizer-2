@@ -3,6 +3,7 @@ import type { JamRoleType } from "@/generated/prisma/client";
 
 export type JamPermission =
   | "edit_jam"
+  | "delete_jam"
   | "manage_roles"
   | "edit_submission"
   | "moderate_submission"
@@ -13,6 +14,7 @@ export type JamPermission =
 const ROLE_PERMISSIONS: Record<JamRoleType, JamPermission[]> = {
   ADMIN: [
     "edit_jam",
+    "delete_jam",
     "manage_roles",
     "edit_submission",
     "moderate_submission",

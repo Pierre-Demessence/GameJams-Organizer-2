@@ -26,6 +26,7 @@ export default async function HomePage() {
   const [ongoingJams, upcomingJams, recentlyFinished] = await Promise.all([
     db.jam.findMany({
       where: {
+        deletedAt: null,
         visibility: "PUBLIC",
         OR: [
           { startDate: { lte: now }, endDate: { gt: now } },
@@ -38,6 +39,7 @@ export default async function HomePage() {
     }),
     db.jam.findMany({
       where: {
+        deletedAt: null,
         visibility: "PUBLIC",
         startDate: { gt: now },
       },
@@ -47,6 +49,7 @@ export default async function HomePage() {
     }),
     db.jam.findMany({
       where: {
+        deletedAt: null,
         visibility: "PUBLIC",
         OR: [
           { ratingEnd: { lte: now } },
