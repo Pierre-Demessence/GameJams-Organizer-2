@@ -3,6 +3,9 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { jamSchema, slugPattern } from "@/lib/validations";
+import { checkJamPermission } from "@/lib/permissions";
+import { checkStaffPermission } from "@/lib/staff-permissions";
+import { recordAudit } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 
@@ -125,10 +128,7 @@ export async function updateJamAction(jamId: string, formData: FormData) {
     return { error: "You must be signed in" };
   }
 
-  const role = await db.jamRole.findUnique({
-    where: { jamId_userId: { jamId, userId: session.user.id } },
-  });
-  if (!role || role.role !== "ADMIN") {
+  if (!(await checkJamPermission(jamId, session.user.id, "edit_jam"))) {
     return { error: "You do not have permission to edit this jam" };
   }
 
@@ -214,11 +214,10 @@ export async function publishJamAction(jamId: string) {
 
   const jam = await db.jam.findUnique({
     where: { id: jamId },
-    include: { roles: { where: { userId: session.user.id } } },
   });
 
   if (!jam) return { error: "Jam not found" };
-  if (!jam.roles.length || jam.roles[0].role !== "ADMIN") {
+  if (!(await checkJamPermission(jamId, session.user.id, "edit_jam"))) {
     return { error: "You do not have permission to publish this jam" };
   }
 
@@ -233,6 +232,47 @@ export async function publishJamAction(jamId: string) {
     where: { id: jamId },
     data: { visibility: "PUBLIC" },
   });
+
+  revalidatePath("/jams");
+  revalidatePath(`/jams/${jam.slug}`);
+  return { success: true };
+}
+
+export async function softDeleteJamAction(jamId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "You must be signed in" };
+  }
+
+  const jam = await db.jam.findUnique({ where: { id: jamId } });
+  if (!jam) return { error: "Jam not found" };
+  if (jam.deletedAt) return { success: true };
+
+  const isOrganizer = await checkJamPermission(
+    jamId,
+    session.user.id,
+    "delete_jam"
+  );
+  const isStaff = await checkStaffPermission(session.user.id, "delete_any_jam");
+  if (!isOrganizer && !isStaff) {
+    return { error: "You do not have permission to delete this jam" };
+  }
+
+  // Free the slug so a new jam can reuse it while this one is soft-deleted.
+  await db.jam.update({
+    where: { id: jamId },
+    data: { deletedAt: new Date(), slug: `${jam.slug}__del__${jam.id}` },
+  });
+
+  if (isStaff) {
+    await recordAudit({
+      actorId: session.user.id,
+      action: "jam:soft_delete",
+      targetType: "jam",
+      targetId: jamId,
+      metadata: { slug: jam.slug, name: jam.name },
+    });
+  }
 
   revalidatePath("/jams");
   revalidatePath(`/jams/${jam.slug}`);

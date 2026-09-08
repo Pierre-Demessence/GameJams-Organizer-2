@@ -1,17 +1,12 @@
----
-post_title: "GameJam Organizer 2 — MVP Requirements"
-author1: "Pierre"
-post_slug: "gamejam-organizer-2-requirements"
-summary: "Structured requirements in EARS notation for the MVP of the GameJam Organizer 2 platform."
-post_date: 2026-03-08
----
+# GameJam Organizer 2 — MVP Requirements
 
 ## Overview
 
-This document defines the MVP requirements for the GameJam Organizer 2 platform — a web
+This document defines the MVP requirements for the GameJam Organizer platform — a web
 application for creating, managing, and participating in game jams. Requirements are written in
 [EARS notation](https://en.wikipedia.org/wiki/EARS_%28requirements_engineering%29) and organized
-by feature domain.
+by feature domain. The authoritative source is [product-spec.md](./product-spec.md); this
+document covers only the subset that spec marks `[MVP]`.
 
 ### MVP Scope Summary
 
@@ -21,11 +16,14 @@ by feature domain.
 - Jam CRUD with full lifecycle (DRAFT → UPCOMING → ONGOING → RATING → FINISHED)
 - Ranked and non-ranked jams
 - Manual themes (organizer-set, no community voting)
-- Submissions with contributors/teams
-- Bayesian average rating system with custom criteria
+- Submissions with contributors/teams, DRAFT/SUBMITTED lifecycle
+- itch.io ownership verification (code-on-page, mandatory to publish)
+- Bayesian average rating system with custom criteria (RATED source, optional primary)
+- Submission moderation via independent switches (visible / rateable / competing)
 - Filterable jam listing page
 - User profiles
-- Jam permissions (Admin, Moderator, Judge, Host)
+- Permission-based jam roles (stackable Admin, Moderator, Judge, Host)
+- Minimal platform administration (seeded Site Admin, mandatory 2FA, soft-delete + restore, audit log)
 
 **Deferred to post-MVP:**
 
@@ -33,10 +31,14 @@ by feature domain.
 - Notifications (email/in-app)
 - Calendar UI (visual)
 - Community message board
+- Comments on submissions
 - Prize system
-- Submission verification (code-on-page)
 - Late submissions
-- Site-wide admin/moderator panel
+- Verified itch.io profile (auto-verify all projects)
+- JURY criteria and manual placement
+- Rating queue / incentives
+- Site Moderator role, sudo-mode step-up, custom-role builder
+- Google / GitHub OAuth
 - Analytics dashboard
 
 ---
@@ -191,24 +193,39 @@ THE SYSTEM SHALL display its basic info, settings, current status, organizers, a
 
 ## REQ-PERM: Jam Permissions
 
-### REQ-PERM-01: Role Assignment
+Access is **permission-based**: a hardcoded catalog of jam permissions is enforced in code, and
+the named roles below are seeded bundles of those permissions. Roles are **stackable** — a user
+may hold several at once, and their effective powers are the union of their roles' permissions.
 
-WHEN a jam admin assigns a role to another user,
-THE SYSTEM SHALL grant them the corresponding permissions:
+### REQ-PERM-01: Permission Catalog
 
-- **Admin**: Edit jam, edit/disqualify/delete any submission, manage roles.
-- **Moderator**: Edit/disqualify/hide/delete submissions only.
-- **Judge**: Rate submissions even without a submission of their own.
-- **Host**: Credited on the jam page, no extra permissions.
+THE SYSTEM SHALL enforce each sensitive jam action against a specific permission from a hardcoded
+catalog (edit jam, manage roles, edit submission, moderate submission, delete submission, rate as
+judge), never against a role name directly.
 
-### REQ-PERM-02: Role Enforcement
+### REQ-PERM-02: Seeded Role Bundles
 
-THE SYSTEM SHALL enforce role-based access on all jam management actions, denying unauthorized
-operations with an appropriate error.
+THE SYSTEM SHALL provide the following roles as named bundles of permissions:
 
-### REQ-PERM-03: Creator Immutability
+- **Admin**: every jam permission — edit the jam and any submission, and manage roles.
+- **Moderator**: moderate submissions (edit, disqualify, exclude from ranking, hide, delete), but
+  not edit the jam or manage roles.
+- **Judge**: rate submissions even without a submission of their own.
+- **Host**: a credit only, with no permissions.
 
-THE SYSTEM SHALL prevent the jam creator's Admin role from being removed.
+### REQ-PERM-03: Stackable Roles
+
+WHEN a jam admin assigns roles to a user,
+THE SYSTEM SHALL allow multiple roles per user and grant the union of their permissions.
+
+### REQ-PERM-04: Role Enforcement
+
+THE SYSTEM SHALL check the required permission before every jam management action, denying
+unauthorized operations with an appropriate error.
+
+### REQ-PERM-05: Creator Immutability
+
+THE SYSTEM SHALL treat the jam creator as a permanent Admin and prevent that role from being removed.
 
 ---
 
@@ -221,10 +238,12 @@ THE SYSTEM SHALL create it with the user as the submitter (team leader).
 
 ### REQ-SUB-02: Submission Fields
 
-THE SYSTEM SHALL require: title.
+THE SYSTEM SHALL require: title and a single itch.io project URL (validated against the itch.io
+URL pattern).
 
-THE SYSTEM SHALL accept: description (Markdown), cover image URL, game links (Windows, Mac, Linux,
-Web URLs), screenshot URLs, video link URL, and any custom fields defined by the jam organizers.
+THE SYSTEM SHALL accept: description (Markdown), cover image URL, supported platforms (a
+multi-select of Windows, Mac, Linux, Web), screenshot URLs, video link URL, and any custom fields
+defined by the jam organizers.
 
 ### REQ-SUB-03: Custom Submission Fields
 
@@ -263,21 +282,27 @@ THE SYSTEM SHALL prevent adding or removing contributors from submissions,
 UNLESS the jam setting "allow contributors after submissions close" is enabled,
 in which case contributors may be added but not removed.
 
-### REQ-SUB-10: Submission Moderation
+### REQ-SUB-10: Moderation Switches
 
-WHEN a jam admin or moderator disqualifies a submission,
-THE SYSTEM SHALL mark it as disqualified, exclude it from ratings and rankings, but keep it
-visible on the jam page with a disqualification badge.
+THE SYSTEM SHALL express submission moderation through three independent switches — **visible**
+(appears on the jam page), **rateable** (can receive ratings), and **competing** (counts in the
+ranking) — so moderation states compose cleanly.
 
-### REQ-SUB-11: Submission Deletion
+### REQ-SUB-11: Moderation Presets
+
+WHEN a jam admin or moderator moderates a submission,
+THE SYSTEM SHALL offer these presets over the switches:
+
+- **Disqualify** — visible, but rank-excluded and rating-disabled; shown with a "Disqualified"
+  badge and reason.
+- **Exclude from ranking** — visible and still rateable, but rank-excluded; shown with a
+  "Not competing" badge.
+- **Hide** — removed from the jam page, data retained.
+
+### REQ-SUB-12: Submission Deletion
 
 WHEN a jam admin or moderator deletes a submission,
 THE SYSTEM SHALL remove it from the jam entirely.
-
-### REQ-SUB-12: Submission Hiding
-
-WHEN a jam admin or moderator hides a submission,
-THE SYSTEM SHALL make it invisible on the jam page but retain its data.
 
 ### REQ-SUB-13: Submission Edit Window
 
@@ -286,6 +311,42 @@ THE SYSTEM SHALL allow submitters and contributors to edit their submission.
 
 WHILE a jam is in RATING or FINISHED status,
 THE SYSTEM SHALL prevent submission edits.
+
+---
+
+## REQ-VERIFY: Submission Lifecycle & Ownership Verification
+
+### REQ-VERIFY-01: Submission Status
+
+THE SYSTEM SHALL give every submission a status of **DRAFT** (being prepared; visible only to the
+team and organizers; not rateable) or **SUBMITTED** (ownership-verified and required fields
+complete; publicly visible subject to jam settings, and rateable once rating opens).
+
+### REQ-VERIFY-02: Verification Required to Publish
+
+THE SYSTEM SHALL keep a submission in DRAFT until its itch.io project link is verified and required
+fields are filled; only then MAY it move to SUBMITTED, and only before the submission deadline.
+
+### REQ-VERIFY-03: Code-on-Page Verification
+
+WHEN a team requests verification,
+THE SYSTEM SHALL issue a unique code bound to the submission and its itch.io URL, and upon a
+"verify" action fetch the itch.io project page and confirm the code is present.
+
+### REQ-VERIFY-04: Manual Fallback
+
+IF automated verification cannot succeed,
+THEN THE SYSTEM SHALL allow a Jam Admin or Jam Moderator to mark the submission verified manually.
+
+### REQ-VERIFY-05: Re-verification on Link Change
+
+IF a verified submission's itch.io link is changed,
+THEN THE SYSTEM SHALL return it to DRAFT until it is re-verified.
+
+### REQ-VERIFY-06: Fetch Safety
+
+THE SYSTEM SHALL fetch only `itch.io` and `*.itch.io` URLs over HTTPS (a single-host allowlist),
+with a request timeout and a response-size cap.
 
 ---
 
@@ -325,11 +386,13 @@ THE SYSTEM SHALL prevent any rating submissions.
 ### REQ-RATING-06: Criteria Definition
 
 THE SYSTEM SHALL allow jam admins to define rating criteria, each with:
-name, optional description, and optional weight (defaults to 1, can be 0 for non-scoring
-criteria).
+name, optional description, optional weight (defaults to 1, can be 0 to collect a criterion
+without contributing to the averaged overall), a **source** (for the MVP always RATED — ranked
+from aggregated ratings), and an optional **primary** flag marking the one criterion that
+determines the overall ranking (with a single criterion, it is primary by default).
 
-A ranked jam MUST have at least one criterion with weight > 0. The system SHALL reject
-saving criteria configurations where all weights are 0.
+A ranked jam MUST have at least one criterion. WHERE the overall ranking is computed by averaging
+(no primary set), at least one RATED criterion MUST have a non-zero weight.
 
 ### REQ-RATING-07: Bayesian Average Scoring
 
@@ -347,11 +410,16 @@ Where:
 - $m$ = tuning parameter (median number of ratings across all submissions)
 - $C_c$ = global mean rating for criterion $c$ across all submissions
 
-Final weighted score:
+Each RATED criterion produces its own ranking from its weighted score $WS_c$.
+
+The **overall** ranking is optional:
+
+- **Primary set** — the overall equals that criterion's ranking.
+- **No primary** — the overall is the weighted average of the RATED criteria's weighted scores:
 
 $$\text{FinalScore} = \frac{\sum (WS_c \times w_c)}{\sum w_c}$$
 
-Where $w_c$ = weight of criterion $c$ (only criteria with $w_c > 0$).
+  where $w_c$ = weight of criterion $c$ (only criteria with $w_c > 0$).
 
 ### REQ-RATING-08: Tiebreaking
 
@@ -387,6 +455,35 @@ THE SYSTEM SHALL allow jam admins to configure:
 
 ---
 
+## REQ-ADMIN: Platform Administration
+
+### REQ-ADMIN-01: Permission-Based Staff Access
+
+THE SYSTEM SHALL enforce staff actions against specific platform permissions from a hardcoded
+catalog (edit/delete any jam, remove/hide/restore any submission, suspend/ban/delete accounts,
+manage staff, view audit log), never against a title directly.
+
+### REQ-ADMIN-02: Seeded Site Admin
+
+THE SYSTEM SHALL seed a single **Site Admin** role holding every platform permission.
+
+### REQ-ADMIN-03: Mandatory Two-Factor Authentication
+
+THE SYSTEM SHALL require every staff member to enrol a TOTP authenticator app, independently of
+how they sign in (including OAuth).
+
+### REQ-ADMIN-04: Soft Delete With Restore
+
+WHEN a staff member removes content,
+THE SYSTEM SHALL soft-delete it (mark deleted, retain data) so another admin can restore it.
+
+### REQ-ADMIN-05: Audit Log
+
+THE SYSTEM SHALL record every staff action — who did it, what, and when — for investigation and
+reversal.
+
+---
+
 ## Non-Functional Requirements
 
 ### REQ-NFR-01: No User Asset Hosting
@@ -404,8 +501,9 @@ THE SYSTEM SHALL provide a responsive UI that works on desktop and mobile browse
 
 ### REQ-NFR-04: Markdown Sanitization
 
-WHEN rendering user-provided Markdown/HTML,
-THE SYSTEM SHALL sanitize output to prevent XSS attacks.
+THE SYSTEM SHALL render all description fields as sanitized GitHub-Flavored Markdown: raw HTML is
+escaped rather than rendered, and link/image URLs are restricted to `http`, `https`, and `mailto`
+schemes (no scripts, iframes, inline event handlers, or inline styles).
 
 ### REQ-NFR-05: Input Validation
 

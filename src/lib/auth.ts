@@ -4,6 +4,8 @@ import Credentials from "next-auth/providers/credentials";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
+import { isStaff } from "@/lib/staff-permissions";
+import { recordAudit } from "@/lib/audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(db),
@@ -87,6 +89,18 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
       }
       return true;
+    },
+  },
+  events: {
+    async signIn({ user }) {
+      if (user?.id && (await isStaff(user.id))) {
+        await recordAudit({
+          actorId: user.id,
+          action: "auth:staff_signin",
+          targetType: "user",
+          targetId: user.id,
+        });
+      }
     },
   },
 });

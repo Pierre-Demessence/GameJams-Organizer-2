@@ -2,10 +2,16 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { submissionSchema } from "@/lib/validations";
+import { submissionSchema, findMissingRequiredFields } from "@/lib/validations";
 import { computeJamStatus } from "@/lib/jam-status";
 import { checkJamPermission } from "@/lib/permissions";
+import { checkStaffPermission } from "@/lib/staff-permissions";
+import { recordAudit } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  generateVerificationCode,
+  verifyCodeOnItchPage,
+} from "@/lib/verification";
 import { revalidatePath } from "next/cache";
 
 export async function createSubmissionAction(jamSlug: string, formData: FormData) {
@@ -38,7 +44,7 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
   const existingMembership = await db.submissionMember.findFirst({
     where: {
       userId: session.user.id,
-      submission: { jamId: jam.id },
+      submission: { jamId: jam.id, deletedAt: null },
     },
   });
   if (existingMembership) {
@@ -52,10 +58,8 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
       ? String(raw.screenshots).split(",").map((s) => s.trim()).filter(Boolean)
       : [],
     coverUrl: raw.coverUrl || undefined,
-    linkWindows: raw.linkWindows || undefined,
-    linkMac: raw.linkMac || undefined,
-    linkLinux: raw.linkLinux || undefined,
-    linkWeb: raw.linkWeb || undefined,
+    itchUrl: raw.itchUrl || undefined,
+    supportedPlatforms: formData.getAll("platforms").map(String),
     videoUrl: raw.videoUrl || undefined,
     description: raw.description || undefined,
   });
@@ -90,10 +94,11 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
         title: parsed.data.title,
         description: parsed.data.description || null,
         coverUrl: parsed.data.coverUrl || null,
-        linkWindows: parsed.data.linkWindows || null,
-        linkMac: parsed.data.linkMac || null,
-        linkLinux: parsed.data.linkLinux || null,
-        linkWeb: parsed.data.linkWeb || null,
+        itchUrl: parsed.data.itchUrl || null,
+        supportedPlatforms: parsed.data.supportedPlatforms ?? [],
+        verificationCode: parsed.data.itchUrl
+          ? generateVerificationCode()
+          : null,
         screenshots: parsed.data.screenshots ?? [],
         videoUrl: parsed.data.videoUrl || null,
         members: {
@@ -140,6 +145,7 @@ export async function updateSubmissionAction(
     },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt) return { error: "Submission not found" };
 
   const status = computeJamStatus(submission.jam);
   if (status !== "ONGOING") {
@@ -174,10 +180,8 @@ export async function updateSubmissionAction(
       ? String(raw.screenshots).split(",").map((s) => s.trim()).filter(Boolean)
       : [],
     coverUrl: raw.coverUrl || undefined,
-    linkWindows: raw.linkWindows || undefined,
-    linkMac: raw.linkMac || undefined,
-    linkLinux: raw.linkLinux || undefined,
-    linkWeb: raw.linkWeb || undefined,
+    itchUrl: raw.itchUrl || undefined,
+    supportedPlatforms: formData.getAll("platforms").map(String),
     videoUrl: raw.videoUrl || undefined,
     description: raw.description || undefined,
   });
@@ -186,18 +190,29 @@ export async function updateSubmissionAction(
     return { error: parsed.error.issues[0].message };
   }
 
+  // Changing the verified game link returns the submission to DRAFT for re-verification.
+  const newItchUrl = parsed.data.itchUrl || null;
+  const linkChanged = newItchUrl !== submission.itchUrl;
+
   await db.submission.update({
     where: { id: submissionId },
     data: {
       title: parsed.data.title,
       description: parsed.data.description || null,
       coverUrl: parsed.data.coverUrl || null,
-      linkWindows: parsed.data.linkWindows || null,
-      linkMac: parsed.data.linkMac || null,
-      linkLinux: parsed.data.linkLinux || null,
-      linkWeb: parsed.data.linkWeb || null,
+      itchUrl: newItchUrl,
+      supportedPlatforms: parsed.data.supportedPlatforms ?? [],
       screenshots: parsed.data.screenshots ?? [],
       videoUrl: parsed.data.videoUrl || null,
+      ...(linkChanged
+        ? {
+            verificationCode: newItchUrl ? generateVerificationCode() : null,
+            verified: false,
+            verifiedManually: false,
+            verifiedAt: null,
+            status: "DRAFT" as const,
+          }
+        : {}),
     },
   });
 
@@ -262,6 +277,7 @@ export async function addContributorAction(
     include: { jam: true, members: true },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt) return { error: "Submission not found" };
 
   // Only leader can add contributors
   const isLeader = submission.members.some(
@@ -406,8 +422,12 @@ export async function transferLeaderAction(
   return { success: true };
 }
 
-// Moderation actions
-export async function disqualifySubmissionAction(submissionId: string) {
+// Moderation actions — three independent switches (visible / rateable / competing)
+// composed through presets.
+export async function disqualifySubmissionAction(
+  submissionId: string,
+  reason?: string
+) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
@@ -417,16 +437,88 @@ export async function disqualifySubmissionAction(submissionId: string) {
   });
   if (!submission) return { error: "Submission not found" };
 
-  const canDisqualify = await checkJamPermission(
+  const canModerate = await checkJamPermission(
     submission.jamId,
     session.user.id,
-    "disqualify_submission"
+    "moderate_submission"
   );
-  if (!canDisqualify) return { error: "You do not have permission" };
+  if (!canModerate) return { error: "You do not have permission" };
+
+  // Disqualify: stays visible, but cannot be rated and does not compete.
+  await db.submission.update({
+    where: { id: submissionId },
+    data: {
+      rateable: false,
+      competing: false,
+      moderationReason: reason?.trim() || "Disqualified",
+    },
+  });
+
+  revalidatePath(`/submissions/${submissionId}`);
+  revalidatePath(`/jams/${submission.jam.slug}`);
+  return { success: true };
+}
+
+export async function excludeFromRankingAction(
+  submissionId: string,
+  reason?: string
+) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    include: { jam: true },
+  });
+  if (!submission) return { error: "Submission not found" };
+
+  const canModerate = await checkJamPermission(
+    submission.jamId,
+    session.user.id,
+    "moderate_submission"
+  );
+  if (!canModerate) return { error: "You do not have permission" };
+
+  // Exclude from ranking: stays visible and rateable, but does not compete.
+  await db.submission.update({
+    where: { id: submissionId },
+    data: {
+      rateable: true,
+      competing: false,
+      moderationReason: reason?.trim() || "Not competing",
+    },
+  });
+
+  revalidatePath(`/submissions/${submissionId}`);
+  revalidatePath(`/jams/${submission.jam.slug}`);
+  return { success: true };
+}
+
+export async function reinstateSubmissionAction(submissionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    include: { jam: true },
+  });
+  if (!submission) return { error: "Submission not found" };
+
+  const canModerate = await checkJamPermission(
+    submission.jamId,
+    session.user.id,
+    "moderate_submission"
+  );
+  if (!canModerate) return { error: "You do not have permission" };
 
   await db.submission.update({
     where: { id: submissionId },
-    data: { disqualified: true },
+    data: {
+      visible: true,
+      rateable: true,
+      competing: true,
+      moderationReason: null,
+    },
   });
 
   revalidatePath(`/submissions/${submissionId}`);
@@ -444,16 +536,16 @@ export async function hideSubmissionAction(submissionId: string) {
   });
   if (!submission) return { error: "Submission not found" };
 
-  const canHide = await checkJamPermission(
+  const canModerate = await checkJamPermission(
     submission.jamId,
     session.user.id,
-    "hide_submission"
+    "moderate_submission"
   );
-  if (!canHide) return { error: "You do not have permission" };
+  if (!canModerate) return { error: "You do not have permission" };
 
   await db.submission.update({
     where: { id: submissionId },
-    data: { hidden: !submission.hidden },
+    data: { visible: !submission.visible },
   });
 
   revalidatePath(`/submissions/${submissionId}`);
@@ -470,16 +562,179 @@ export async function deleteSubmissionAction(submissionId: string) {
     include: { jam: true },
   });
   if (!submission) return { error: "Submission not found" };
+  if (submission.deletedAt) return { success: true };
 
-  const canDelete = await checkJamPermission(
+  const isOrganizer = await checkJamPermission(
     submission.jamId,
     session.user.id,
     "delete_submission"
   );
-  if (!canDelete) return { error: "You do not have permission" };
+  const isStaff = await checkStaffPermission(
+    session.user.id,
+    "moderate_any_submission"
+  );
+  if (!isOrganizer && !isStaff) return { error: "You do not have permission" };
 
-  await db.submission.delete({ where: { id: submissionId } });
+  await db.submission.update({
+    where: { id: submissionId },
+    data: { deletedAt: new Date() },
+  });
 
+  if (isStaff) {
+    await recordAudit({
+      actorId: session.user.id,
+      action: "submission:soft_delete",
+      targetType: "submission",
+      targetId: submissionId,
+      metadata: { jamId: submission.jamId, title: submission.title },
+    });
+  }
+
+  revalidatePath(`/jams/${submission.jam.slug}`);
+  return { success: true };
+}
+
+// ─── Ownership verification & submission lifecycle ──────────────
+
+async function requireTeamMember(submissionId: string, userId: string) {
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    include: { jam: true, members: true },
+  });
+  if (!submission) return { error: "Submission not found" as const };
+  const isMember = submission.members.some((m) => m.userId === userId);
+  if (!isMember) return { error: "You are not on this team" as const };
+  return { submission };
+}
+
+export async function verifySubmissionAction(submissionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+
+  const { allowed } = checkRateLimit(`verify:${session.user.id}`);
+  if (!allowed) return { error: "Too many requests. Please try again later." };
+
+  const result = await requireTeamMember(submissionId, session.user.id);
+  if ("error" in result) return { error: result.error };
+  const { submission } = result;
+
+  if (!submission.itchUrl || !submission.verificationCode) {
+    return { error: "Add your itch.io project link first" };
+  }
+  if (submission.verified) return { success: true };
+
+  const ok = await verifyCodeOnItchPage(
+    submission.itchUrl,
+    submission.verificationCode
+  );
+  if (!ok) {
+    return {
+      error:
+        "Could not find the verification code on the itch.io page. Make sure it is published, then try again.",
+    };
+  }
+
+  await db.submission.update({
+    where: { id: submissionId },
+    data: { verified: true, verifiedAt: new Date() },
+  });
+
+  revalidatePath(`/submissions/${submissionId}`);
+  return { success: true };
+}
+
+export async function manualVerifySubmissionAction(submissionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    include: { jam: true },
+  });
+  if (!submission) return { error: "Submission not found" };
+
+  const canVerify = await checkJamPermission(
+    submission.jamId,
+    session.user.id,
+    "verify_submission"
+  );
+  if (!canVerify) return { error: "You do not have permission" };
+
+  await db.submission.update({
+    where: { id: submissionId },
+    data: { verified: true, verifiedManually: true, verifiedAt: new Date() },
+  });
+
+  revalidatePath(`/submissions/${submissionId}`);
+  return { success: true };
+}
+
+export async function submitSubmissionAction(submissionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+
+  const result = await requireTeamMember(submissionId, session.user.id);
+  if ("error" in result) return { error: result.error };
+  const { submission } = result;
+
+  const status = computeJamStatus(submission.jam);
+  if (status !== "ONGOING") {
+    return { error: "Submissions can only be finalized during the ongoing period" };
+  }
+  if (!submission.itchUrl) {
+    return { error: "Add your itch.io project link before submitting" };
+  }
+  if (!submission.verified) {
+    return { error: "Verify ownership of your itch.io project before submitting" };
+  }
+
+  const requiredFields = await db.customField.findMany({
+    where: { jamId: submission.jamId, required: true },
+    orderBy: { sortOrder: "asc" },
+    include: { values: { where: { submissionId } } },
+  });
+  const missingFields = findMissingRequiredFields(
+    requiredFields.map((field) => ({
+      name: field.name,
+      required: field.required,
+      value: field.values[0]?.value,
+    }))
+  );
+  if (missingFields.length > 0) {
+    return {
+      error: `Fill in all required fields before submitting: ${missingFields.join(", ")}`,
+    };
+  }
+
+  await db.submission.update({
+    where: { id: submissionId },
+    data: { status: "SUBMITTED" },
+  });
+
+  revalidatePath(`/submissions/${submissionId}`);
+  revalidatePath(`/jams/${submission.jam.slug}`);
+  return { success: true };
+}
+
+export async function unsubmitSubmissionAction(submissionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+
+  const result = await requireTeamMember(submissionId, session.user.id);
+  if ("error" in result) return { error: result.error };
+  const { submission } = result;
+
+  const status = computeJamStatus(submission.jam);
+  if (status !== "ONGOING") {
+    return { error: "Submissions can only be withdrawn during the ongoing period" };
+  }
+
+  await db.submission.update({
+    where: { id: submissionId },
+    data: { status: "DRAFT" },
+  });
+
+  revalidatePath(`/submissions/${submissionId}`);
   revalidatePath(`/jams/${submission.jam.slug}`);
   return { success: true };
 }

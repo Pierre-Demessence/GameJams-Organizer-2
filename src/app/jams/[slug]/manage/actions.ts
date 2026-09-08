@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { checkJamPermission, getJamRole } from "@/lib/permissions";
+import { checkJamPermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import type { JamRoleType } from "@/generated/prisma/client";
 
@@ -36,9 +36,15 @@ export async function assignRoleAction(
 
   try {
     await db.jamRole.upsert({
-      where: { jamId_userId: { jamId, userId: targetUser.id } },
+      where: {
+        jamId_userId_role: {
+          jamId,
+          userId: targetUser.id,
+          role: role as JamRoleType,
+        },
+      },
       create: { jamId, userId: targetUser.id, role: role as JamRoleType },
-      update: { role: role as JamRoleType },
+      update: {},
     });
   } catch {
     return { error: "Failed to assign role" };
@@ -52,12 +58,21 @@ export async function assignRoleAction(
   return { success: true };
 }
 
-export async function removeRoleAction(jamId: string, targetUserId: string) {
+export async function removeRoleAction(
+  jamId: string,
+  targetUserId: string,
+  role: string
+) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
   if (!(await checkJamPermission(jamId, session.user.id, "manage_roles"))) {
     return { error: "You do not have permission to manage roles" };
+  }
+
+  const validRoles: JamRoleType[] = ["ADMIN", "MODERATOR", "JUDGE", "HOST"];
+  if (!validRoles.includes(role as JamRoleType)) {
+    return { error: "Invalid role" };
   }
 
   // Prevent removing creator's admin role
@@ -67,7 +82,7 @@ export async function removeRoleAction(jamId: string, targetUserId: string) {
   });
   if (!jam) return { error: "Jam not found" };
 
-  if (targetUserId === jam.createdById) {
+  if (targetUserId === jam.createdById && role === "ADMIN") {
     return { error: "Cannot remove the creator's admin role" };
   }
 
@@ -77,7 +92,7 @@ export async function removeRoleAction(jamId: string, targetUserId: string) {
   }
 
   await db.jamRole.deleteMany({
-    where: { jamId, userId: targetUserId },
+    where: { jamId, userId: targetUserId, role: role as JamRoleType },
   });
 
   revalidatePath(`/jams/${jam.slug}/manage`);

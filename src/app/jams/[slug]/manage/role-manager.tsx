@@ -63,10 +63,10 @@ export function RoleManager({ jamId, creatorId, roles }: RoleManagerProps) {
     }
   }
 
-  async function handleRemove(userId: string) {
+  async function handleRemove(userId: string, role: string) {
     setError("");
     setLoading(true);
-    const result = await removeRoleAction(jamId, userId);
+    const result = await removeRoleAction(jamId, userId, role);
     setLoading(false);
     if (result.error) {
       setError(result.error);
@@ -74,6 +74,19 @@ export function RoleManager({ jamId, creatorId, roles }: RoleManagerProps) {
       router.refresh();
     }
   }
+
+  const members = Object.values(
+    roles.reduce<
+      Record<
+        string,
+        { userId: string; user: RoleEntry["user"]; roles: string[] }
+      >
+    >((acc, r) => {
+      acc[r.userId] ??= { userId: r.userId, user: r.user, roles: [] };
+      acc[r.userId].roles.push(r.role);
+      return acc;
+    }, {})
+  );
 
   return (
     <div className="space-y-6">
@@ -89,36 +102,47 @@ export function RoleManager({ jamId, creatorId, roles }: RoleManagerProps) {
           <CardTitle>Team Members</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {roles.map((r) => (
+          {members.map((m) => (
             <div
-              key={r.id}
+              key={m.userId}
               className="flex items-center justify-between rounded-md border p-3"
             >
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">
-                  {r.user.displayName ?? r.user.username}
+                  {m.user.displayName ?? m.user.username}
                 </span>
                 <span className="text-sm text-muted-foreground">
-                  @{r.user.username}
+                  @{m.user.username}
                 </span>
-                <Badge variant="outline">{r.role}</Badge>
-                {r.userId === creatorId && (
+                {m.userId === creatorId && (
                   <Badge variant="secondary" className="text-xs">
                     Creator
                   </Badge>
                 )}
+                {m.roles.map((role) => {
+                  const locked = m.userId === creatorId && role === "ADMIN";
+                  return (
+                    <Badge
+                      key={role}
+                      variant="outline"
+                      className="flex items-center gap-1"
+                    >
+                      {role}
+                      {!locked && (
+                        <button
+                          type="button"
+                          aria-label={`Remove ${role}`}
+                          className="text-destructive hover:text-destructive/80 disabled:opacity-50"
+                          onClick={() => handleRemove(m.userId, role)}
+                          disabled={loading}
+                        >
+                          ×
+                        </button>
+                      )}
+                    </Badge>
+                  );
+                })}
               </div>
-              {r.userId !== creatorId && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive"
-                  onClick={() => handleRemove(r.userId)}
-                  disabled={loading}
-                >
-                  Remove
-                </Button>
-              )}
             </div>
           ))}
         </CardContent>

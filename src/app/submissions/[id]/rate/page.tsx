@@ -14,9 +14,10 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true },
+    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission) return { title: "Submission Not Found" };
+  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+    return { title: "Submission Not Found" };
   return { title: `Rate ${submission.title}` };
 }
 
@@ -42,12 +43,14 @@ export default async function RateSubmissionPage({
           ratingEnd: true,
           ranked: true,
           ratingEligibility: true,
+          deletedAt: true,
         },
       },
       members: true,
     },
   });
   if (!submission) notFound();
+  if (submission.deletedAt || submission.jam.deletedAt) notFound();
 
   if (computeJamStatus(submission.jam) === "DRAFT") notFound();
 
@@ -86,11 +89,21 @@ export default async function RateSubmissionPage({
     );
   }
 
-  if (submission.disqualified) {
+  if (!submission.rateable) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <p className="text-muted-foreground">
-          This submission has been disqualified.
+          This submission cannot be rated.
+        </p>
+      </div>
+    );
+  }
+
+  if (submission.status !== "SUBMITTED") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <p className="text-muted-foreground">
+          This submission has not been finalized yet.
         </p>
       </div>
     );

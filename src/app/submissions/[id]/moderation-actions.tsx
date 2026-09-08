@@ -10,48 +10,40 @@ import {
 } from "@/components/ui/card";
 import {
   disqualifySubmissionAction,
+  excludeFromRankingAction,
+  reinstateSubmissionAction,
   hideSubmissionAction,
   deleteSubmissionAction,
+  manualVerifySubmissionAction,
 } from "@/app/submissions/actions";
 
 interface ModerationActionsProps {
   submissionId: string;
-  isDisqualified: boolean;
-  isHidden: boolean;
+  visible: boolean;
+  rateable: boolean;
+  competing: boolean;
+  verified: boolean;
 }
 
 export function ModerationActions({
   submissionId,
-  isDisqualified,
-  isHidden,
+  visible,
+  rateable,
+  competing,
+  verified,
 }: ModerationActionsProps) {
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
-  function handleDisqualify() {
+  function run(action: () => Promise<{ error?: string; success?: boolean }>) {
     setError("");
     startTransition(async () => {
-      const result = await disqualifySubmissionAction(submissionId);
+      const result = await action();
       if (result.error) setError(result.error);
     });
   }
 
-  function handleHide() {
-    setError("");
-    startTransition(async () => {
-      const result = await hideSubmissionAction(submissionId);
-      if (result.error) setError(result.error);
-    });
-  }
-
-  function handleDelete() {
-    if (!confirm("Permanently delete this submission? This cannot be undone.")) return;
-    setError("");
-    startTransition(async () => {
-      const result = await deleteSubmissionAction(submissionId);
-      if (result.error) setError(result.error);
-    });
-  }
+  const isModerated = !competing || !rateable;
 
   return (
     <Card>
@@ -60,32 +52,81 @@ export function ModerationActions({
       </CardHeader>
       <CardContent className="space-y-2">
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {!isDisqualified && (
+
+        {!verified && (
           <Button
             variant="outline"
             size="sm"
             className="w-full"
             disabled={isPending}
-            onClick={handleDisqualify}
+            onClick={() =>
+              run(() => manualVerifySubmissionAction(submissionId))
+            }
+          >
+            Mark verified
+          </Button>
+        )}
+
+        {competing && rateable && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={isPending}
+            onClick={() => run(() => disqualifySubmissionAction(submissionId))}
           >
             Disqualify
           </Button>
         )}
+
+        {competing && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={isPending}
+            onClick={() => run(() => excludeFromRankingAction(submissionId))}
+          >
+            Exclude from ranking
+          </Button>
+        )}
+
+        {isModerated && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            disabled={isPending}
+            onClick={() => run(() => reinstateSubmissionAction(submissionId))}
+          >
+            Reinstate
+          </Button>
+        )}
+
         <Button
           variant="outline"
           size="sm"
           className="w-full"
           disabled={isPending}
-          onClick={handleHide}
+          onClick={() => run(() => hideSubmissionAction(submissionId))}
         >
-          {isHidden ? "Unhide" : "Hide"}
+          {visible ? "Hide" : "Unhide"}
         </Button>
+
         <Button
           variant="destructive"
           size="sm"
           className="w-full"
           disabled={isPending}
-          onClick={handleDelete}
+          onClick={() => {
+            if (
+              !confirm(
+                "Permanently delete this submission? This cannot be undone."
+              )
+            )
+              return;
+            run(() => deleteSubmissionAction(submissionId));
+          }}
         >
           Delete
         </Button>

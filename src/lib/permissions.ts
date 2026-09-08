@@ -3,48 +3,50 @@ import type { JamRoleType } from "@/generated/prisma/client";
 
 export type JamPermission =
   | "edit_jam"
+  | "delete_jam"
   | "manage_roles"
   | "edit_submission"
-  | "disqualify_submission"
-  | "hide_submission"
+  | "moderate_submission"
   | "delete_submission"
+  | "verify_submission"
   | "rate_as_judge";
 
 const ROLE_PERMISSIONS: Record<JamRoleType, JamPermission[]> = {
   ADMIN: [
     "edit_jam",
+    "delete_jam",
     "manage_roles",
     "edit_submission",
-    "disqualify_submission",
-    "hide_submission",
+    "moderate_submission",
     "delete_submission",
+    "verify_submission",
   ],
   MODERATOR: [
     "edit_submission",
-    "disqualify_submission",
-    "hide_submission",
+    "moderate_submission",
     "delete_submission",
+    "verify_submission",
   ],
   JUDGE: ["rate_as_judge"],
   HOST: [],
 };
 
-export async function getJamRole(
+export async function getJamRoles(
   jamId: string,
   userId: string
-): Promise<JamRoleType | null> {
-  const role = await db.jamRole.findUnique({
-    where: { jamId_userId: { jamId, userId } },
+): Promise<JamRoleType[]> {
+  const roles = await db.jamRole.findMany({
+    where: { jamId, userId },
+    select: { role: true },
   });
-  return role?.role ?? null;
+  return roles.map((r) => r.role);
 }
 
 export function hasPermission(
-  role: JamRoleType | null,
+  roles: JamRoleType[],
   permission: JamPermission
 ): boolean {
-  if (!role) return false;
-  return ROLE_PERMISSIONS[role].includes(permission);
+  return roles.some((role) => ROLE_PERMISSIONS[role].includes(permission));
 }
 
 export async function checkJamPermission(
@@ -52,6 +54,6 @@ export async function checkJamPermission(
   userId: string,
   permission: JamPermission
 ): Promise<boolean> {
-  const role = await getJamRole(jamId, userId);
-  return hasPermission(role, permission);
+  const roles = await getJamRoles(jamId, userId);
+  return hasPermission(roles, permission);
 }

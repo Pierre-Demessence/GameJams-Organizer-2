@@ -4,9 +4,9 @@
 
 | Layer | Technology | Version | Purpose |
 |-------|-----------|---------|---------|
-| Framework | Next.js (App Router) | 16.1.6 | Full-stack React framework, standalone output |
-| Language | TypeScript | 5.x | Type safety across client and server |
-| Runtime | Node.js | 22+ | Server runtime |
+| Framework | Next.js (App Router) | 16.3.4 | Full-stack React framework, standalone output |
+| Language | TypeScript | 5.9.3 | Type safety across client and server |
+| Runtime | Node.js | 24.20.0 (pinned via Volta) | Server runtime |
 | Package Manager | pnpm | 9.12.3 (pinned) | Fast, disk-efficient package manager |
 
 ## Data & Auth
@@ -14,7 +14,7 @@
 | Technology | Version | Purpose |
 |-----------|---------|---------|
 | PostgreSQL | 16 (alpine) | Relational database |
-| Prisma | 7.4.2 | Type-safe ORM, schema-first |
+| Prisma | 7.10.0 | Type-safe ORM, schema-first, SQL migrations |
 | Auth.js (NextAuth v5) | 5.0.0-beta.30 | Authentication (JWT strategy) |
 
 ## UI
@@ -29,7 +29,14 @@
 
 | Technology | Version | Purpose |
 |-----------|---------|---------|
-| Zod | 4.3.6 | Runtime + type-level schema validation |
+| Zod | 4.5.4 | Runtime + type-level schema validation |
+
+## Testing
+
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| Vitest | 5.x | Unit tests (colocated `*.test.ts`) |
+| Playwright | 1.63 | End-to-end browser tests (`e2e/`) |
 
 ## Infrastructure
 
@@ -40,7 +47,7 @@
 
 ## Minimum Supported Versions
 
-- **Node.js**: 22+
+- **Node.js**: 24+
 - **pnpm**: 9.x
 - **PostgreSQL**: 16+
 - **Docker Engine**: 20+

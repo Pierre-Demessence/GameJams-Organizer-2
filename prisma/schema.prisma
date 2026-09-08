@@ -33,6 +33,8 @@ model User {
   jamParticipants JamParticipant[]
   submissions     SubmissionMember[]
   ratings         Rating[]
+  staffRoles      StaffRole[]
+  auditEntries    AuditLogEntry[]    @relation("AuditActor")
 }
 
 model Account {
@@ -51,6 +53,36 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+}
+
+// ─── Platform Administration ────────────────────
+
+enum StaffRoleType {
+  SITE_ADMIN
+}
+
+model StaffRole {
+  id     String        @id @default(cuid())
+  userId String
+  role   StaffRoleType
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, role])
+}
+
+model AuditLogEntry {
+  id         String   @id @default(cuid())
+  actorId    String
+  action     String
+  targetType String
+  targetId   String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  actor User @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([createdAt])
 }
 
 // ─── Jams ───────────────────────────────────────
@@ -94,7 +126,7 @@ model Jam {
   ratingEnd DateTime?
 
   theme              String?
-  revealThemeOnStart Boolean @default(false)
+  revealThemeOnStart Boolean @default(true)
 
   hideResults              Boolean @default(false)
   hideSubmissionsBeforeEnd Boolean @default(false)
@@ -110,6 +142,7 @@ model Jam {
   createdBy   User     @relation("JamCreator", fields: [createdById], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  deletedAt   DateTime? // Soft delete (jam admin / staff)
 
   roles        JamRole[]
   submissions  Submission[]
@@ -151,10 +184,22 @@ model JamRole {
   jam  Jam  @relation(fields: [jamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([jamId, userId])
+  @@unique([jamId, userId, role])
 }
 
 // ─── Submissions ────────────────────────────────
+
+enum SubmissionStatus {
+  DRAFT
+  SUBMITTED
+}
+
+enum Platform {
+  WINDOWS
+  MAC
+  LINUX
+  WEB
+}
 
 model Submission {
   id          String  @id @default(cuid())
@@ -163,19 +208,27 @@ model Submission {
   description String?
   coverUrl    String?
 
-  linkWindows String?
-  linkMac     String?
-  linkLinux   String?
-  linkWeb     String?
+  itchUrl            String?
+  supportedPlatforms Platform[]
 
   screenshots String[]
   videoUrl    String?
 
-  disqualified Boolean @default(false)
-  hidden       Boolean @default(false)
+  status SubmissionStatus @default(DRAFT)
+
+  verificationCode String?
+  verified         Boolean   @default(false)
+  verifiedAt       DateTime?
+  verifiedManually Boolean   @default(false)
+
+  visible          Boolean @default(true)
+  rateable         Boolean @default(true)
+  competing        Boolean @default(true)
+  moderationReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // Soft delete (organizer / staff)
 
   jam         Jam                @relation(fields: [jamId], references: [id], onDelete: Cascade)
   members     SubmissionMember[]
@@ -234,13 +287,20 @@ model CustomFieldValue {
 
 // ─── Rating ─────────────────────────────────────
 
+enum CriterionSource {
+  RATED
+  JURY
+}
+
 model Criterion {
-  id          String  @id @default(cuid())
+  id          String          @id @default(cuid())
   jamId       String
   name        String
   description String?
-  weight      Float   @default(1)
-  sortOrder   Int     @default(0)
+  weight      Float           @default(1)
+  source      CriterionSource @default(RATED)
+  isPrimary   Boolean         @default(false)
+  sortOrder   Int             @default(0)
 
   jam     Jam      @relation(fields: [jamId], references: [id], onDelete: Cascade)
   ratings Rating[]
@@ -270,7 +330,8 @@ model JamResult {
   id             String   @id @default(cuid())
   jamId          String
   submissionId   String
-  rank           Int
+  rank           Int?
+  competing      Boolean  @default(true)
   finalScore     Float
   totalRatings   Int
   rawAverage     Float

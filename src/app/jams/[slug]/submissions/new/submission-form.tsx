@@ -35,15 +35,20 @@ interface SubmissionFormProps {
     title: string;
     description: string | null;
     coverUrl: string | null;
-    linkWindows: string | null;
-    linkMac: string | null;
-    linkLinux: string | null;
-    linkWeb: string | null;
+    itchUrl: string | null;
+    supportedPlatforms: string[];
     screenshots: string[];
     videoUrl: string | null;
     fieldValues: { fieldId: string; value: string }[];
   };
 }
+
+const PLATFORM_OPTIONS = [
+  { value: "WINDOWS", label: "Windows" },
+  { value: "MAC", label: "Mac" },
+  { value: "LINUX", label: "Linux" },
+  { value: "WEB", label: "Web" },
+] as const;
 
 export function SubmissionForm({
   jamSlug,
@@ -155,47 +160,43 @@ export function SubmissionForm({
 
       <Card>
         <CardHeader>
-          <CardTitle>Download Links</CardTitle>
+          <CardTitle>Game Link</CardTitle>
           <CardDescription>
-            Where players can download or play your game.
+            Your itch.io project page. Ownership is verified after saving; builds
+            for each platform live on itch.io.
           </CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-4 sm:grid-cols-2">
+        <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="linkWindows">Windows</Label>
+            <Label htmlFor="itchUrl">itch.io Project URL</Label>
             <Input
-              id="linkWindows"
-              name="linkWindows"
+              id="itchUrl"
+              name="itchUrl"
               type="url"
-              defaultValue={submission?.linkWindows ?? ""}
+              defaultValue={submission?.itchUrl ?? ""}
+              placeholder="https://yourname.itch.io/your-game"
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="linkMac">Mac</Label>
-            <Input
-              id="linkMac"
-              name="linkMac"
-              type="url"
-              defaultValue={submission?.linkMac ?? ""}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="linkLinux">Linux</Label>
-            <Input
-              id="linkLinux"
-              name="linkLinux"
-              type="url"
-              defaultValue={submission?.linkLinux ?? ""}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="linkWeb">Web / Browser</Label>
-            <Input
-              id="linkWeb"
-              name="linkWeb"
-              type="url"
-              defaultValue={submission?.linkWeb ?? ""}
-            />
+            <Label>Supported Platforms</Label>
+            <div className="flex flex-wrap gap-4">
+              {PLATFORM_OPTIONS.map((p) => (
+                <label
+                  key={p.value}
+                  className="flex items-center gap-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    name="platforms"
+                    value={p.value}
+                    defaultChecked={submission?.supportedPlatforms?.includes(
+                      p.value
+                    )}
+                  />
+                  {p.label}
+                </label>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -248,7 +249,7 @@ export function SubmissionForm({
           {loading
             ? "Saving..."
             : mode === "create"
-              ? "Submit Entry"
+              ? "Save Draft"
               : "Update Entry"}
         </Button>
         <Button

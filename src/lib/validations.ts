@@ -2,6 +2,28 @@ import { z } from "zod";
 
 export const slugPattern = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 
+export const platformValues = ["WINDOWS", "MAC", "LINUX", "WEB"] as const;
+
+export function findMissingRequiredFields(
+  fields: { name: string; required: boolean; value: string | null | undefined }[]
+): string[] {
+  return fields
+    .filter((field) => field.required && !field.value?.trim())
+    .map((field) => field.name);
+}
+
+// itch.io project URL: HTTPS on itch.io or a *.itch.io subdomain.
+export function isItchProjectUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return false;
+    const host = url.hostname.toLowerCase();
+    return host === "itch.io" || host.endsWith(".itch.io");
+  } catch {
+    return false;
+  }
+}
+
 export const signUpSchema = z.object({
   email: z.string().email(),
   password: z
@@ -49,7 +71,7 @@ export const jamSchema = z.object({
   endDate: z.string().datetime().optional(),
   ratingEnd: z.string().datetime().optional(),
   theme: z.string().max(200).optional(),
-  revealThemeOnStart: z.boolean().default(false),
+  revealThemeOnStart: z.boolean().default(true),
   hideResults: z.boolean().default(false),
   hideSubmissionsBeforeEnd: z.boolean().default(false),
   submissionDetails: z.string().max(5000).optional(),
@@ -70,10 +92,12 @@ export const submissionSchema = z.object({
   title: z.string().min(1, "Title is required").max(100),
   description: z.string().max(50000).optional(),
   coverUrl: z.string().url().optional().or(z.literal("")),
-  linkWindows: z.string().url().optional().or(z.literal("")),
-  linkMac: z.string().url().optional().or(z.literal("")),
-  linkLinux: z.string().url().optional().or(z.literal("")),
-  linkWeb: z.string().url().optional().or(z.literal("")),
+  itchUrl: z
+    .string()
+    .refine(isItchProjectUrl, "Must be a valid itch.io project URL")
+    .optional()
+    .or(z.literal("")),
+  supportedPlatforms: z.array(z.enum(platformValues)).optional(),
   screenshots: z.array(z.string().url()).max(10).optional(),
   videoUrl: z.string().url().optional().or(z.literal("")),
 });
@@ -82,6 +106,8 @@ export const criterionSchema = z.object({
   name: z.string().min(1).max(50),
   description: z.string().max(200).optional(),
   weight: z.number().min(0).max(100).default(1),
+  source: z.enum(["RATED", "JURY"]).default("RATED"),
+  isPrimary: z.boolean().default(false),
 });
 
 export const ratingSchema = z.object({

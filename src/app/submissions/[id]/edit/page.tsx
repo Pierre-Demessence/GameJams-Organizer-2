@@ -13,9 +13,10 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true },
+    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission) return { title: "Submission Not Found" };
+  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+    return { title: "Submission Not Found" };
   return { title: `Edit ${submission.title}` };
 }
 
@@ -40,6 +41,7 @@ export default async function EditSubmissionPage({
           endDate: true,
           ratingEnd: true,
           ranked: true,
+          deletedAt: true,
         },
       },
       members: true,
@@ -47,6 +49,7 @@ export default async function EditSubmissionPage({
     },
   });
   if (!submission) notFound();
+  if (submission.deletedAt || submission.jam.deletedAt) notFound();
 
   const status = computeJamStatus(submission.jam);
   const isMember = submission.members.some(
@@ -91,10 +94,8 @@ export default async function EditSubmissionPage({
           title: submission.title,
           description: submission.description,
           coverUrl: submission.coverUrl,
-          linkWindows: submission.linkWindows,
-          linkMac: submission.linkMac,
-          linkLinux: submission.linkLinux,
-          linkWeb: submission.linkWeb,
+          itchUrl: submission.itchUrl,
+          supportedPlatforms: submission.supportedPlatforms,
           screenshots: submission.screenshots,
           videoUrl: submission.videoUrl,
           fieldValues: submission.fieldValues,

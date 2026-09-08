@@ -34,6 +34,14 @@ To configure Discord OAuth:
 3. Under OAuth2, add a redirect URI: `{NEXTAUTH_URL}/api/auth/callback/discord`
 4. Copy the Client ID and Client Secret into `.env`
 
+### Platform Administration
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `STAFF_ADMIN_EMAIL` | No | `alice@example.com` (dev seed) | Email of the user granted the Site Admin staff role when seeding |
+
+The seed script grants the `SITE_ADMIN` staff role to the user matching `STAFF_ADMIN_EMAIL`. In development it defaults to the seeded `alice@example.com`; set it explicitly before seeding a production database.
+
 ## Docker-Specific Notes
 
 In the docker-compose setup, `DATABASE_URL` is automatically constructed from `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`. You only need to set the individual `POSTGRES_*` variables in `.env`.

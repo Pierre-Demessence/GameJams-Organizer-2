@@ -15,6 +15,8 @@ import {
 } from "@/components/ui/card";
 import { TeamManager } from "./team-manager";
 import { ModerationActions } from "./moderation-actions";
+import { SubmissionOwnerPanel } from "./submission-owner-panel";
+import { Markdown } from "@/components/markdown";
 
 export async function generateMetadata({
   params,
@@ -24,9 +26,10 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true },
+    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission) return { title: "Submission Not Found" };
+  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+    return { title: "Submission Not Found" };
   return { title: submission.title };
 }
 
@@ -53,6 +56,7 @@ export default async function SubmissionDetailPage({
           hideSubmissionsBeforeEnd: true,
           maxTeamSize: true,
           allowContributorsAfterClose: true,
+          deletedAt: true,
         },
       },
       members: {
@@ -68,6 +72,7 @@ export default async function SubmissionDetailPage({
   });
 
   if (!submission) notFound();
+  if (submission.deletedAt || submission.jam.deletedAt) notFound();
 
   const status = computeJamStatus(submission.jam);
 
@@ -84,7 +89,8 @@ export default async function SubmissionDetailPage({
       )
     : false;
 
-  if (submission.hidden && !isMember && !canModerate) notFound();
+  if (!submission.visible && !isMember && !canModerate) notFound();
+  if (submission.status === "DRAFT" && !isMember && !canModerate) notFound();
 
   // Respect hideSubmissionsBeforeEnd
   if (
@@ -115,19 +121,13 @@ export default async function SubmissionDetailPage({
     !isMember &&
     status === "RATING" &&
     submission.jam.ranked &&
-    !submission.disqualified;
+    submission.status === "SUBMITTED" &&
+    submission.rateable;
 
   // Filter private fields for non-organizers
   const visibleFields = submission.fieldValues.filter(
     (fv) => !fv.field.isPrivate || canModerate
   );
-
-  const links = [
-    { label: "Windows", url: submission.linkWindows },
-    { label: "Mac", url: submission.linkMac },
-    { label: "Linux", url: submission.linkLinux },
-    { label: "Web", url: submission.linkWeb },
-  ].filter((l) => l.url);
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
@@ -141,12 +141,16 @@ export default async function SubmissionDetailPage({
         <div>
           <div className="mb-1 flex items-center gap-2">
             <h1 className="text-3xl font-bold">{submission.title}</h1>
-            {submission.disqualified && (
+            {submission.status === "DRAFT" && (
+              <Badge variant="secondary">Draft</Badge>
+            )}
+            {!submission.competing && !submission.rateable && (
               <Badge variant="destructive">Disqualified</Badge>
             )}
-            {submission.hidden && (
-              <Badge variant="outline">Hidden</Badge>
+            {!submission.competing && submission.rateable && (
+              <Badge variant="secondary">Not competing</Badge>
             )}
+            {!submission.visible && <Badge variant="outline">Hidden</Badge>}
           </div>
         </div>
         <div className="flex gap-2">
@@ -190,32 +194,34 @@ export default async function SubmissionDetailPage({
                 <CardTitle>About</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap">
-                  {submission.description}
-                </div>
+                <Markdown>{submission.description}</Markdown>
               </CardContent>
             </Card>
           )}
 
-          {links.length > 0 && (
+          {submission.itchUrl && (
             <Card>
               <CardHeader>
-                <CardTitle>Download / Play</CardTitle>
+                <CardTitle>Play on itch.io</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {links.map((link) => (
-                    <a
-                      key={link.label}
-                      href={link.url!}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={buttonVariants({ variant: "outline" })}
-                    >
-                      {link.label}
-                    </a>
-                  ))}
-                </div>
+              <CardContent className="space-y-3">
+                <a
+                  href={submission.itchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={buttonVariants({ variant: "outline" })}
+                >
+                  Open itch.io page →
+                </a>
+                {submission.supportedPlatforms.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {submission.supportedPlatforms.map((p) => (
+                      <Badge key={p} variant="secondary">
+                        {p.charAt(0) + p.slice(1).toLowerCase()}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
@@ -323,6 +329,17 @@ export default async function SubmissionDetailPage({
             </CardContent>
           </Card>
 
+          {isMember && (
+            <SubmissionOwnerPanel
+              submissionId={submission.id}
+              status={submission.status}
+              itchUrl={submission.itchUrl}
+              verificationCode={submission.verificationCode}
+              verified={submission.verified}
+              canFinalize={status === "ONGOING"}
+            />
+          )}
+
           {isLeader && status === "ONGOING" && (
             <TeamManager
               submissionId={submission.id}
@@ -340,8 +357,10 @@ export default async function SubmissionDetailPage({
           {canModerate && (
             <ModerationActions
               submissionId={submission.id}
-              isDisqualified={submission.disqualified}
-              isHidden={submission.hidden}
+              visible={submission.visible}
+              rateable={submission.rateable}
+              competing={submission.competing}
+              verified={submission.verified}
             />
           )}
         </div>
