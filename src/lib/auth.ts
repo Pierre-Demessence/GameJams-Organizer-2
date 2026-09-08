@@ -113,7 +113,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 async function promoteInitialAdmin(userId: string, email?: string | null) {
   if (!email) return;
   const allow = (process.env.INITIAL_ADMIN_EMAILS ?? "")
-    .split(",")
+    .split(/[\s,]+/)
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   if (!allow.includes(email.toLowerCase())) return;
