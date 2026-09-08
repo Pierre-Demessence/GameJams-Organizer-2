@@ -1,4 +1,4 @@
-import { Children, isValidElement, type ReactNode } from "react";
+import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { UserMenu } from "@/components/user-menu";
 
@@ -10,14 +10,19 @@ vi.mock("next-auth/react", () => ({
   signOut: signOutMock,
 }));
 
+type ElementWithProps = ReactElement<
+  Record<string, unknown> & { children?: ReactNode }
+>;
+
 function findElement(
   node: ReactNode,
-  predicate: (node: { props: Record<string, unknown> }) => boolean,
-) {
+  predicate: (node: ElementWithProps) => boolean,
+): ElementWithProps | undefined {
   if (!isValidElement(node)) return undefined;
-  if (predicate(node as { props: Record<string, unknown> })) return node;
+  const element = node as ElementWithProps;
+  if (predicate(element)) return element;
 
-  for (const child of Children.toArray(node.props.children)) {
+  for (const child of Children.toArray(element.props.children)) {
     const match = findElement(child, predicate);
     if (match) return match;
   }
@@ -46,9 +51,9 @@ describe("UserMenu", () => {
     );
 
     expect(signOutItem).toBeDefined();
-    (
-      signOutItem as { props: { onClick: () => void } }
-    ).props.onClick();
+    const onClick = signOutItem?.props.onClick;
+    expect(onClick).toBeTypeOf("function");
+    (onClick as () => void)();
     expect(signOutMock).toHaveBeenCalledWith({ callbackUrl: "/" });
   });
 });
