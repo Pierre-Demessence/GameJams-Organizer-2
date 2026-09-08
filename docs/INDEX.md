@@ -23,6 +23,7 @@
 ## Operations
 
 - [Agent Operational Guide](agent/README.md) — scripts, paths, and invariants for the AI agent
+- [Kubernetes Deployment](deployment.md) — ArgoCD GitOps deploy (dev + prod)
 - [Production Deployment](../README.md#production-deployment-docker) — Docker setup
 
 ## Changelog

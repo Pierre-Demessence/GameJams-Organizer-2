@@ -1,0 +1,135 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gamejams
+  namespace: gamejams-prod
+  annotations:
+    # Roll out after migrations (wave 1) have applied.
+    argocd.argoproj.io/sync-wave: "2"
+  labels:
+    app.kubernetes.io/name: gamejams
+    app.kubernetes.io/part-of: gamejams
+    environment: prod
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gamejams
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gamejams
+        app.kubernetes.io/part-of: gamejams
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+      containers:
+        - name: app
+          # Promotion: pin prod to an immutable tag (e.g. :sha-<commit>) and bump
+          # this line to deploy. :latest tracks the newest build on main.
+          image: ghcr.io/pierre-demessence/gamejams-organizer-2:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: gamejams
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NEXTAUTH_URL
+              value: https://gamejams.vps.corniland.ovh
+            # Auth.js v5 sits behind the Traefik proxy; trust the forwarded host.
+            - name: AUTH_TRUST_HOST
+              value: "true"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: next-cache
+              mountPath: /app/.next/cache
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gamejams
+  namespace: gamejams-prod
+  labels:
+    app.kubernetes.io/name: gamejams
+    app.kubernetes.io/part-of: gamejams
+spec:
+  selector:
+    app.kubernetes.io/name: gamejams
+  ports:
+    - name: http
+      port: 3000
+      targetPort: http
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gamejams
+  namespace: gamejams-prod
+  labels:
+    app.kubernetes.io/name: gamejams
+    app.kubernetes.io/part-of: gamejams
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gamejams
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: gamejams
+  namespace: gamejams-prod
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  tls:
+    - hosts:
+        - gamejams.vps.corniland.ovh
+      secretName: gamejams-tls
+  rules:
+    - host: gamejams.vps.corniland.ovh
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gamejams
+                port:
+                  number: 3000

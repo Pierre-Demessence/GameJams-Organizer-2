@@ -1,0 +1,75 @@
+# Manual, on-demand DEV seed. NOT synced by ArgoCD: the gamejams-dev Application
+# syncs only the top level of k8s/dev (directory.recurse defaults to false), so
+# this subfolder is ignored by GitOps.
+#
+# WARNING: seed.ts is destructive (deleteMany + createMany) — it RESETS seed data
+# to the known dataset and wipes conflicting manual test data. Dev only.
+#
+# Run it (uses generateName, so just create a fresh Job each time):
+#   kubectl -n gamejams-dev create -f k8s/dev/manual/seed-job.yaml
+# Watch:
+#   kubectl -n gamejams-dev logs -f job/<generated-name>
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: gamejams-seed-
+  namespace: gamejams-dev
+  labels:
+    app.kubernetes.io/name: gamejams-seed
+    app.kubernetes.io/part-of: gamejams
+spec:
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: gamejams-seed
+        app.kubernetes.io/part-of: gamejams
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+      initContainers:
+        - name: wait-for-db
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - "until pg_isready -h gamejams-db -U gamejams; do echo 'waiting for db'; sleep 2; done"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+      containers:
+        - name: seed
+          image: ghcr.io/pierre-demessence/gamejams-organizer-2:migrate
+          imagePullPolicy: Always
+          command: ["pnpm", "db:seed"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: gamejams
+                  key: DATABASE_URL
+            - name: HOME
+              value: /tmp
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
