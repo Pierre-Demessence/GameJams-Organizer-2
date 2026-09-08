@@ -27,12 +27,14 @@ export default async function UserProfilePage({ params }: Props) {
     where: { username },
     include: {
       jamParticipants: {
+        where: { jam: { deletedAt: null } },
         include: {
           jam: { select: { name: true, slug: true, startDate: true, endDate: true, ratingEnd: true, ranked: true } },
         },
         take: 20,
       },
       submissions: {
+        where: { submission: { deletedAt: null, jam: { deletedAt: null } } },
         include: {
           submission: {
             select: { id: true, title: true, jam: { select: { name: true, slug: true } } },

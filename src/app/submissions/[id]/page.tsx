@@ -26,9 +26,10 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true },
+    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission) return { title: "Submission Not Found" };
+  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+    return { title: "Submission Not Found" };
   return { title: submission.title };
 }
 
