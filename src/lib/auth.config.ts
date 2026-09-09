@@ -4,6 +4,7 @@ import Credentials from "next-auth/providers/credentials";
 
 // Edge-compatible auth config (no Prisma / Node.js imports)
 export const authConfig = {
+  trustHost: true,
   pages: {
     signIn: "/sign-in",
     newUser: "/sign-up",

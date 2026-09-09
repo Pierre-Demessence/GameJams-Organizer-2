@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { signUpAction } from "./actions";
 
 export function SignUpForm() {
   const router = useRouter();
+  const { update } = useSession();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -64,6 +65,7 @@ export function SignUpForm() {
       return;
     }
 
+    await update();
     router.push("/");
     router.refresh();
   }

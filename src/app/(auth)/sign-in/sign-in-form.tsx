@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ import { signInAction } from "./actions";
 
 export function SignInForm() {
   const router = useRouter();
+  const { update } = useSession();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
   const [error, setError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export function SignInForm() {
       return;
     }
 
+    await update();
     router.push(callbackUrl);
     router.refresh();
   }

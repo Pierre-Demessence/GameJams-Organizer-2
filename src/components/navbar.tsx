@@ -1,13 +1,14 @@
+"use client";
+
 import Link from "next/link";
-import { auth } from "@/lib/auth";
-import { isStaff } from "@/lib/staff-permissions";
+import { useSession } from "next-auth/react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export async function Navbar() {
-  const session = await auth();
-  const staff = session?.user?.id ? await isStaff(session.user.id) : false;
+export function Navbar() {
+  const { data: session, status } = useSession();
+  const staff = session?.user?.isStaff ?? false;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -35,7 +36,12 @@ export async function Navbar() {
 
         <div className="ml-auto flex items-center gap-2">
           <ThemeToggle />
-          {session?.user ? (
+          {status === "loading" ? (
+            <div
+              className="h-8 w-8 animate-pulse rounded-full bg-muted"
+              aria-hidden
+            />
+          ) : session?.user ? (
             <UserMenu user={session.user} />
           ) : (
             <>

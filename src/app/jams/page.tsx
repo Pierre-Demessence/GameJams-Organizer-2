@@ -147,7 +147,7 @@ export default async function JamsPage({
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {jamsWithStatus.map((jam) => (
-            <Link key={jam.id} href={`/jams/${jam.slug}`}>
+            <Link key={jam.id} href={`/jams/${jam.slug}`} prefetch={false}>
               <Card className="h-full transition-colors hover:border-primary/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">

@@ -124,7 +124,7 @@ function JamSection({
         {jams.map((jam) => {
           const status = computeJamStatus(jam);
           return (
-            <Link key={jam.id} href={`/jams/${jam.slug}`}>
+            <Link key={jam.id} href={`/jams/${jam.slug}`} prefetch={false}>
               <Card className="h-full transition-colors hover:bg-accent/50">
                 <CardHeader className="pb-2">
                   <div className="flex items-center gap-2">

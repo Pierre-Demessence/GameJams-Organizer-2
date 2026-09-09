@@ -10,6 +10,7 @@ import { recordAudit } from "@/lib/audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: customPrismaAdapter(),
+  trustHost: true,
   session: { strategy: "jwt" },
   pages: {
     signIn: "/sign-in",
@@ -47,6 +48,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id;
+        if (user.id) token.isStaff = await isStaff(user.id);
       }
       if (account) {
         token.provider = account.provider;
@@ -57,6 +59,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (token.id) {
         session.user.id = token.id as string;
       }
+      session.user.isStaff = token.isStaff ?? false;
       return session;
     },
     async signIn({ user, account }) {
