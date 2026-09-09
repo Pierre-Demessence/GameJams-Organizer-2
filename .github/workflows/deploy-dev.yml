@@ -89,6 +89,9 @@ jobs:
       env_name: dev
       commit_message: "chore(k8s): deploy {sha} to dev"
       environment: dev
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
 
   notify:
     needs: [resolve, build, deploy]

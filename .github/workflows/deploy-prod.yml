@@ -34,3 +34,6 @@ jobs:
       env_name: prod
       commit_message: "chore(k8s): deploy {sha} to prod"
       environment: prod
+    secrets:
+      APP_ID: ${{ secrets.APP_ID }}
+      APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}

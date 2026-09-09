@@ -24,9 +24,9 @@ second (migrator) image.
 
 - The deploy commit only touches `k8s/**`; the dev push trigger has
   `paths-ignore: k8s/**`, so the bump commit never retriggers a build.
-- Commits use the default `GITHUB_TOKEN`, whose pushes do not trigger workflows —
-  a second layer of loop protection. (Upgrade to a GitHub App token if `main` gains
-  branch protection that blocks Actions pushes.)
+- Commit-back uses a **GitHub App token** (required to push past `main`'s
+  PR-required ruleset). App-token pushes *do* trigger workflows, so `paths-ignore`
+  is the loop guard.
 
 ## Tasks
 
@@ -39,8 +39,8 @@ second (migrator) image.
 
 ## Prerequisites
 
-- `main` must allow the Actions bot (`GITHUB_TOKEN`) to push directly — no branch
-  ruleset blocking it. If `main` is protected, either exempt GitHub Actions or
-  switch the commit-back step to a GitHub App token (as UDC-Bot does).
+- A GitHub App with **Contents: write**, installed on this repo; its `APP_ID` and
+  `APP_PRIVATE_KEY` stored as repo secrets. The app must be in `main`'s ruleset
+  **bypass list** so its commits skip the PR requirement.
 - Optionally create GitHub Environments `dev` and `prod` (add required reviewers to
   `prod` for a manual approval gate).
