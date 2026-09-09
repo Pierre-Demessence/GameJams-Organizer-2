@@ -28,7 +28,7 @@ spec:
         fsGroup: 1001
       containers:
         - name: app
-          image: ghcr.io/pierre-demessence/gamejams-organizer-2:latest
+          image: ghcr.io/pierre-demessence/gamejams-organizer-2:a7d756c
           imagePullPolicy: Always
           ports:
             - name: http
