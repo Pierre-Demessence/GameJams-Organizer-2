@@ -1,0 +1,36 @@
+name: Deploy to Prod
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (tag, branch, or SHA) to deploy to prod"
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  build:
+    uses: ./.github/workflows/build.yml
+    with:
+      # Release: the published tag. Manual: the provided ref.
+      checkout_ref: ${{ github.event.release.tag_name || inputs.ref || 'main' }}
+
+  deploy:
+    needs: build
+    uses: ./.github/workflows/deploy.yml
+    with:
+      short_sha: ${{ needs.build.outputs.short_sha }}
+      env_name: prod
+      commit_message: "chore(k8s): deploy {sha} to prod"
+      environment: prod

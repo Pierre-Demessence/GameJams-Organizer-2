@@ -1,0 +1,74 @@
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      short_sha:
+        description: "Image tag (short SHA) to pin in the manifests"
+        required: true
+        type: string
+      env_name:
+        description: "Environment directory under k8s/ (dev | prod)"
+        required: true
+        type: string
+      commit_message:
+        description: "Commit message ({sha} is replaced with the short SHA)"
+        required: true
+        type: string
+      environment:
+        description: "GitHub Environment name (for protection rules)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# Serialize all manifest commit-backs so concurrent dev/prod deploys don't
+# race on pushing to main.
+concurrency:
+  group: deploy-manifest
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/pierre-demessence/gamejams-organizer-2
+
+jobs:
+  deploy:
+    name: Bump image tags & commit
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Pin image tags in manifests
+        env:
+          SHA: ${{ inputs.short_sha }}
+          ENV: ${{ inputs.env_name }}
+        run: |
+          APP="k8s/${ENV}/app.yaml"
+          MIG="k8s/${ENV}/migrate-job.yaml"
+          sed -i "s|image: ${IMAGE}:.*|image: ${IMAGE}:${SHA}|" "$APP"
+          sed -i "s|image: ${IMAGE}:.*|image: ${IMAGE}:migrate-${SHA}|" "$MIG"
+          grep -q "image: ${IMAGE}:${SHA}$" "$APP" || { echo "::error::app image not updated in $APP"; exit 1; }
+          grep -q "image: ${IMAGE}:migrate-${SHA}$" "$MIG" || { echo "::error::migrator image not updated in $MIG"; exit 1; }
+
+      - name: Commit & push
+        env:
+          MSG: ${{ inputs.commit_message }}
+          SHA: ${{ inputs.short_sha }}
+          ENV: ${{ inputs.env_name }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "k8s/${ENV}/app.yaml" "k8s/${ENV}/migrate-job.yaml"
+          if git diff --cached --quiet; then
+            echo "No manifest changes (already at ${SHA})."
+            exit 0
+          fi
+          FINAL_MSG=$(echo "$MSG" | sed "s/{sha}/${SHA}/g")
+          git commit -m "$FINAL_MSG"
+          git pull --rebase --autostash origin main
+          git push origin HEAD:main

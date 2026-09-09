@@ -10,10 +10,10 @@ environments are supported:
 
 ## How it fits together
 
-- **Images** are built by [`.github/workflows/image.yml`](../.github/workflows/image.yml)
-  on every push to `main` and pushed to GHCR:
-  - app: `ghcr.io/pierre-demessence/gamejams-organizer-2:latest` (+ `:sha-<commit>`)
-  - migrator (Prisma CLI + migrations): `…:migrate`
+- **Images** are built by the reusable [`build.yml`](../.github/workflows/build.yml)
+  and pushed to GHCR:
+  - app: `ghcr.io/pierre-demessence/gamejams-organizer-2:<sha>` (+ `:latest`)
+  - migrator (Prisma CLI + migrations): `…:migrate-<sha>` (+ `:migrate`)
 - **Manifests** live in this repo under `k8s/<env>/`:
   - `externalsecret.yaml` — pulls secrets from 1Password and templates `DATABASE_URL`.
   - `postgres.yaml` — in-cluster Postgres (StatefulSet + PVC), backed up by Velero.
@@ -41,9 +41,21 @@ environments are supported:
 
 ## Deploying changes
 
-- **dev**: push to `main` → new image → ArgoCD rolls it out (tracks `:latest`).
-- **prod**: pin `image:` in [`k8s/prod/app.yaml`](../k8s/prod/app.yaml) to an
-  immutable `:sha-<commit>` tag and commit to promote a specific build.
+Deploys are **commit-back GitOps**: CI builds an immutable image, rewrites the
+`image:` tags in `k8s/<env>/`, and commits to `main`; ArgoCD then rolls the change.
+
+- **dev**: push to `main` → [`deploy-dev.yml`](../.github/workflows/deploy-dev.yml)
+  builds and pins `k8s/dev` to the new `:<sha>` → ArgoCD deploys. The commit only
+  touches `k8s/**`, which the trigger ignores, so it never loops.
+- **PR → dev**: run `deploy-dev.yml` via **workflow_dispatch** with a `pr_number`
+  (or `ref`) to test a branch on dev; it comments the result on the PR.
+- **prod**: publish a GitHub **Release** →
+  [`deploy-prod.yml`](../.github/workflows/deploy-prod.yml) builds the release
+  commit and pins `k8s/prod` to that `:<sha>` → ArgoCD deploys. `workflow_dispatch`
+  (with a `ref`) also works for manual promotion.
+
+Roll back by re-running `deploy-prod.yml` against an earlier tag/ref (or reverting
+the manifest commit).
 
 ## Seeding dev with test data
 

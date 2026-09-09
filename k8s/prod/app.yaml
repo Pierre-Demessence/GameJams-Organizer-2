@@ -28,8 +28,7 @@ spec:
         fsGroup: 1001
       containers:
         - name: app
-          # Promotion: pin prod to an immutable tag (e.g. :sha-<commit>) and bump
-          # this line to deploy. :latest tracks the newest build on main.
+          # Pinned by CI (deploy-prod.yml) to the released commit's immutable tag.
           image: ghcr.io/pierre-demessence/gamejams-organizer-2:latest
           imagePullPolicy: Always
           ports:

@@ -1,0 +1,125 @@
+name: Deploy to Dev
+
+on:
+  push:
+    branches: [main]
+    # The deploy commit only touches k8s/**; ignoring it here prevents a loop.
+    paths-ignore:
+      - "k8s/**"
+      - "docs/**"
+      - "**/*.md"
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to deploy (leave empty to use ref)"
+        required: false
+        type: string
+      ref:
+        description: "Git ref to build (branch, tag, or SHA). Ignored if pr_number is set."
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    name: Resolve build ref
+    runs-on: ubuntu-latest
+    outputs:
+      checkout_ref: ${{ steps.resolve.outputs.checkout_ref }}
+      is_pr: ${{ steps.resolve.outputs.is_pr }}
+      pr_number: ${{ steps.resolve.outputs.pr_number }}
+    steps:
+      - id: resolve
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ inputs.pr_number }}
+          REF: ${{ inputs.ref }}
+        with:
+          script: |
+            if (context.eventName === 'push') {
+              core.setOutput('checkout_ref', context.sha);
+              core.setOutput('is_pr', 'false');
+              return;
+            }
+            const prStr = process.env.PR_NUMBER;
+            const ref = process.env.REF || 'main';
+            const pr = prStr ? Number(prStr) : null;
+            if (prStr && (isNaN(pr) || pr <= 0)) {
+              core.setFailed(`Invalid pr_number: "${prStr}"`);
+              return;
+            }
+            if (pr) {
+              const { data } = await github.rest.pulls.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: pr,
+              });
+              if (data.state !== 'open') {
+                core.setFailed(`PR #${pr} is not open (state: ${data.state})`);
+                return;
+              }
+              core.setOutput('checkout_ref', data.head.sha);
+              core.setOutput('is_pr', 'true');
+              core.setOutput('pr_number', String(pr));
+            } else {
+              core.setOutput('checkout_ref', ref);
+              core.setOutput('is_pr', 'false');
+            }
+
+  build:
+    needs: resolve
+    uses: ./.github/workflows/build.yml
+    with:
+      checkout_ref: ${{ needs.resolve.outputs.checkout_ref }}
+
+  deploy:
+    needs: [resolve, build]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      short_sha: ${{ needs.build.outputs.short_sha }}
+      env_name: dev
+      commit_message: "chore(k8s): deploy {sha} to dev"
+      environment: dev
+
+  notify:
+    needs: [resolve, build, deploy]
+    if: always() && needs.resolve.outputs.is_pr == 'true'
+    name: Comment on PR
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - if: needs.deploy.result == 'success'
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
+          SHORT_SHA: ${{ needs.build.outputs.short_sha }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              body: `✅ Deployed to **dev** (\`${process.env.SHORT_SHA}\`). ArgoCD will sync shortly.`,
+            });
+      - if: needs.deploy.result == 'failure'
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ needs.resolve.outputs.pr_number }}
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              body: `❌ Dev deploy failed. See the [run](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}).`,
+            });
