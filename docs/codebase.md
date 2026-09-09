@@ -6,7 +6,9 @@
 ├── docs/               Documentation
 │   ├── agent/          Agent operational docs
 │   └── specs/          Requirements, design, tasks, draft
-├── e2e/                Playwright end-to-end tests (*.spec.ts)
+├── tests/              Standalone test suites
+│   ├── e2e/            Playwright end-to-end tests (*.spec.ts)
+│   └── integration/    Server-action integration tests (real Postgres)
 ├── prisma/
 │   ├── migrations/     SQL migration history
 │   ├── schema.prisma   Database schema (single source of truth)
@@ -82,7 +84,7 @@ Edge middleware that handles auth-related redirects and route protection.
 - **Validation**: All user input validated with Zod schemas from `lib/validations.ts`.
 - **Auth checks**: Use `auth()` from `lib/auth.ts` in server components and actions.
 - **Access control**: Gate every mutation with `checkJamPermission(jamId, userId, permission)`; never inline `role === "ADMIN"`.
-- **Testing**: Unit tests colocated as `*.test.ts` (Vitest); server-action integration tests in `integration/` against a real Postgres test DB (`pnpm test:integration`); E2E in `e2e/*.spec.ts` (Playwright).
+- **Testing**: Unit tests colocated as `*.test.ts` (Vitest); server-action integration tests in `tests/integration/` against a real Postgres test DB (`pnpm test:integration`); E2E in `tests/e2e/*.spec.ts` (Playwright).
 - **Naming**: kebab-case files, PascalCase components, camelCase functions/variables.
 - **Imports**: Use `@/` path alias (maps to `src/`).
 - **Prisma client**: Import from `@/generated/prisma/client`, access via `@/lib/db`.
@@ -99,5 +101,5 @@ Edge middleware that handles auth-related redirects and route protection.
 | Zod schema | `src/lib/validations.ts` |
 | Database model | `prisma/schema.prisma` then `pnpm db:migrate` |
 | Unit test | Colocate `*.test.ts` next to the module |
-| E2E test | `e2e/*.spec.ts` |
+| E2E test | `tests/e2e/*.spec.ts` |
 | Type extension | `src/types/` |

@@ -16,9 +16,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["integration/**/*.test.ts"],
-    globalSetup: ["./integration/global-setup.ts"],
-    setupFiles: ["./integration/setup.ts"],
+    include: ["tests/integration/**/*.test.ts"],
+    globalSetup: ["./tests/integration/global-setup.ts"],
+    setupFiles: ["./tests/integration/setup.ts"],
     // Tests share one database and truncate between tests, so files must not run
     // concurrently against it.
     fileParallelism: false,

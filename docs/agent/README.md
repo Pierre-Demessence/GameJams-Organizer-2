@@ -54,7 +54,7 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 - **Server Actions**: Colocated in `actions.ts` next to pages.
 - **All user input** validated with Zod schemas before database operations.
 - **Rate limiting** via `checkRateLimit()` in `src/lib/rate-limit.ts` on all mutating actions.
-- **Tests**: unit tests colocated as `*.test.ts` (Vitest); E2E in `e2e/*.spec.ts` (Playwright).
+- **Tests**: unit tests colocated as `*.test.ts` (Vitest); E2E in `tests/e2e/*.spec.ts` (Playwright).
 - **`export const dynamic = "force-dynamic"`** is required on any page that queries the DB without `auth()`/`cookies()` (currently: homepage).
 - Build must produce **0 errors** before any task is marked done.
 - `node_modules/`, `.next/`, `src/generated/` are gitignored.

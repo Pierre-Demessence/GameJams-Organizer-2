@@ -46,9 +46,9 @@ export default defineConfig({
         test: {
           name: "integration",
           environment: "node",
-          include: ["integration/**/*.test.ts"],
-          globalSetup: ["./integration/global-setup.ts"],
-          setupFiles: ["./integration/setup.ts"],
+          include: ["tests/integration/**/*.test.ts"],
+          globalSetup: ["./tests/integration/global-setup.ts"],
+          setupFiles: ["./tests/integration/setup.ts"],
           fileParallelism: false,
           testTimeout: 20_000,
           env: { DATABASE_URL: TEST_DATABASE_URL },
