@@ -42,7 +42,7 @@ spec:
               drop: [ALL]
       containers:
         - name: migrate
-          image: ghcr.io/pierre-demessence/gamejams-organizer-2:migrate-a7d756c
+          image: ghcr.io/pierre-demessence/gamejams-organizer-2:migrate-660dcef
           imagePullPolicy: Always
           env:
             - name: DATABASE_URL
