@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
@@ -51,6 +52,60 @@ function formatDate(date: Date | null) {
   });
 }
 
+function SubmissionsSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="h-6 w-40 animate-pulse rounded bg-muted" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        {Array.from({ length: 2 }).map((_, i) => (
+          <div key={i} className="h-28 animate-pulse rounded-lg bg-muted" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+async function JamSubmissions({
+  jamId,
+  jamSlug,
+  status,
+  hasJoined,
+  userSubmissionId,
+  hideSubmissionsBeforeEnd,
+  isAdmin,
+}: {
+  jamId: string;
+  jamSlug: string;
+  status: string;
+  hasJoined: boolean;
+  userSubmissionId: string | null;
+  hideSubmissionsBeforeEnd: boolean;
+  isAdmin: boolean;
+}) {
+  const submissions = await db.submission.findMany({
+    where: { jamId, status: "SUBMITTED", visible: true, deletedAt: null },
+    include: {
+      members: {
+        include: { user: { select: { username: true, displayName: true } } },
+        orderBy: { isLeader: "desc" },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return (
+    <SubmissionList
+      submissions={submissions}
+      jamSlug={jamSlug}
+      status={status}
+      hasJoined={hasJoined}
+      userSubmissionId={userSubmissionId}
+      hideSubmissionsBeforeEnd={hideSubmissionsBeforeEnd}
+      isAdmin={isAdmin}
+    />
+  );
+}
+
 export default async function JamDetailPage({
   params,
 }: {
@@ -66,16 +121,6 @@ export default async function JamDetailPage({
       roles: { include: { user: { select: { username: true, displayName: true } } } },
       _count: { select: { participants: true, submissions: true } },
       criteria: { select: { id: true, name: true, description: true, weight: true } },
-      submissions: {
-        where: { status: "SUBMITTED", visible: true, deletedAt: null },
-        include: {
-          members: {
-            include: { user: { select: { username: true, displayName: true } } },
-            orderBy: { isLeader: "desc" },
-          },
-        },
-        orderBy: { createdAt: "desc" },
-      },
     },
   });
 
@@ -263,15 +308,17 @@ export default async function JamDetailPage({
           )}
 
           {/* Submissions */}
-          <SubmissionList
-            submissions={jam.submissions}
-            jamSlug={jam.slug}
-            status={status}
-            hasJoined={!!hasJoined}
-            userSubmissionId={userSubmission?.submissionId ?? null}
-            hideSubmissionsBeforeEnd={jam.hideSubmissionsBeforeEnd}
-            isAdmin={canEditJam}
-          />
+          <Suspense fallback={<SubmissionsSkeleton />}>
+            <JamSubmissions
+              jamId={jam.id}
+              jamSlug={jam.slug}
+              status={status}
+              hasJoined={!!hasJoined}
+              userSubmissionId={userSubmission?.submissionId ?? null}
+              hideSubmissionsBeforeEnd={jam.hideSubmissionsBeforeEnd}
+              isAdmin={canEditJam}
+            />
+          </Suspense>
         </div>
 
         {/* Sidebar */}

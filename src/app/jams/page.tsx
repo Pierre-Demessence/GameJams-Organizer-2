@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
@@ -34,7 +35,54 @@ const STATUS_OPTIONS: JamStatus[] = [
   "FINISHED",
 ];
 
-export default async function JamsPage({
+export default function JamsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; status?: string; tag?: string }>;
+}) {
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-8">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-bold">Game Jams</h1>
+        <Suspense fallback={null}>
+          <CreateJamButton />
+        </Suspense>
+      </div>
+
+      <Suspense fallback={<JamsBodySkeleton />}>
+        <JamsBody searchParams={searchParams} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function CreateJamButton() {
+  const session = await auth();
+  if (!session?.user) return null;
+  return (
+    <Link href="/jams/new" className={buttonVariants({ variant: "default" })}>
+      Create Jam
+    </Link>
+  );
+}
+
+function JamsBodySkeleton() {
+  return (
+    <>
+      <div className="mb-6 flex gap-3">
+        <div className="h-10 w-64 animate-pulse rounded bg-muted" />
+        <div className="h-10 w-72 animate-pulse rounded bg-muted" />
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-40 animate-pulse rounded-lg bg-muted" />
+        ))}
+      </div>
+    </>
+  );
+}
+
+async function JamsBody({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string; status?: string; tag?: string }>;
@@ -77,19 +125,7 @@ export default async function JamsPage({
     .filter((jam) => !statusFilter || jam.computedStatus === statusFilter);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Game Jams</h1>
-        {session?.user && (
-          <Link
-            href="/jams/new"
-            className={buttonVariants({ variant: "default" })}
-          >
-            Create Jam
-          </Link>
-        )}
-      </div>
-
+    <>
       {/* Filters */}
       <form className="mb-6 flex flex-wrap gap-3" action="/jams" method="GET">
         <Input
@@ -191,7 +227,7 @@ export default async function JamsPage({
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 }
 

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { computeJamStatus } from "@/lib/jam-status";
@@ -20,7 +21,37 @@ const statusColors: Record<string, string> = {
   FINISHED: "bg-purple-500",
 };
 
-export default async function HomePage() {
+export default function HomePage() {
+  return (
+    <div className="container mx-auto px-4 py-16">
+      <div className="mx-auto max-w-2xl text-center">
+        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
+          🎮 GameJam Organizer
+        </h1>
+        <p className="mt-4 text-lg text-muted-foreground">
+          Create, join, and rate game jams. Free and open source.
+        </p>
+        <div className="mt-8 flex justify-center gap-4">
+          <Link href="/jams" className={buttonVariants({ size: "lg" })}>
+            Browse Jams
+          </Link>
+          <Link
+            href="/jams/new"
+            className={buttonVariants({ size: "lg", variant: "outline" })}
+          >
+            Create a Jam
+          </Link>
+        </div>
+      </div>
+
+      <Suspense fallback={<HomeSectionsSkeleton />}>
+        <HomeSections />
+      </Suspense>
+    </div>
+  );
+}
+
+async function HomeSections() {
   const now = new Date();
 
   const [ongoingJams, upcomingJams, recentlyFinished] = await Promise.all([
@@ -63,38 +94,31 @@ export default async function HomePage() {
   ]);
 
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="mx-auto max-w-2xl text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          🎮 GameJam Organizer
-        </h1>
-        <p className="mt-4 text-lg text-muted-foreground">
-          Create, join, and rate game jams. Free and open source.
-        </p>
-        <div className="mt-8 flex justify-center gap-4">
-          <Link href="/jams" className={buttonVariants({ size: "lg" })}>
-            Browse Jams
-          </Link>
-          <Link
-            href="/jams/new"
-            className={buttonVariants({ size: "lg", variant: "outline" })}
-          >
-            Create a Jam
-          </Link>
-        </div>
-      </div>
+    <div className="mt-16 space-y-12">
+      {ongoingJams.length > 0 && (
+        <JamSection title="🔥 Happening Now" jams={ongoingJams} />
+      )}
+      {upcomingJams.length > 0 && (
+        <JamSection title="📅 Upcoming" jams={upcomingJams} />
+      )}
+      {recentlyFinished.length > 0 && (
+        <JamSection title="🏆 Recently Finished" jams={recentlyFinished} />
+      )}
+    </div>
+  );
+}
 
-      <div className="mt-16 space-y-12">
-        {ongoingJams.length > 0 && (
-          <JamSection title="🔥 Happening Now" jams={ongoingJams} />
-        )}
-        {upcomingJams.length > 0 && (
-          <JamSection title="📅 Upcoming" jams={upcomingJams} />
-        )}
-        {recentlyFinished.length > 0 && (
-          <JamSection title="🏆 Recently Finished" jams={recentlyFinished} />
-        )}
-      </div>
+function HomeSectionsSkeleton() {
+  return (
+    <div className="mt-16 space-y-12">
+      <section>
+        <div className="mb-4 h-8 w-48 animate-pulse rounded bg-muted" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-40 animate-pulse rounded-lg bg-muted" />
+          ))}
+        </div>
+      </section>
     </div>
   );
 }
