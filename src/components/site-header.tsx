@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button-variants";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/logo";
 import { UserMenu } from "@/components/user-menu";
+import { ThemeButtons } from "@/components/theme-buttons";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
@@ -117,6 +118,7 @@ export function SiteHeader() {
                   </>
                 )}
               </nav>
+              {!signedIn && status !== "loading" && <ThemeButtons />}
             </SheetContent>
           </Sheet>
         </div>

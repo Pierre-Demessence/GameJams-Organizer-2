@@ -3,7 +3,7 @@
 ## Principles
 
 - **Calm.** Quiet surfaces, thin borders and generous spacing; content leads, chrome recedes.
-- **Dark-first.** Dark is the default theme. Users pick System, Dark or Light from the account menu; the choice is stored in `localStorage` under `theme`.
+- **Dark-first.** Dark is the default theme. Users pick System, Dark or Light from the account menu (signed in) or from the header toggle and mobile menu sheet (signed out); the choice is stored in `localStorage` under `theme`.
 - **One accent.** The brand color is the only accent. It marks links, focus rings and the "Upcoming" status.
 - **Status colors carry meaning.** Green is live, amber is rating, grey is finished, red is danger. They are never used for decoration.
 - **No emoji in UI chrome.**

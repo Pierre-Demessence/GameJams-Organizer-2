@@ -10,13 +10,11 @@ vi.mock("next-auth/react", () => ({
   signOut: signOutMock,
 }));
 
-type ElementWithProps = ReactElement<
-  Record<string, unknown> & { children?: ReactNode }
->;
+type ElementWithProps = ReactElement<Record<string, unknown> & { children?: ReactNode }>;
 
 function findElement(
   node: ReactNode,
-  predicate: (node: ElementWithProps) => boolean,
+  predicate: (node: ElementWithProps) => boolean
 ): ElementWithProps | undefined {
   if (!isValidElement(node)) return undefined;
   const element = node as ElementWithProps;
@@ -62,7 +60,9 @@ describe("UserMenu", () => {
 
   it("hides the profile link for sessions without a username", () => {
     const menu = UserMenu({ user: { name: "Test User" } });
-    expect(findElement(menu, (n) => linkHref(n)?.startsWith("/users/") ?? false)).toBeUndefined();
+    expect(
+      findElement(menu, (n) => linkHref(n)?.startsWith("/users/") ?? false)
+    ).toBeUndefined();
     expect(findElement(menu, (n) => linkHref(n) === "/settings")).toBeDefined();
   });
 });

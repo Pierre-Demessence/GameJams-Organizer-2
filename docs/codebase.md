@@ -34,7 +34,7 @@
 
 | Path | Description |
 |------|-------------|
-| `page.tsx` | Homepage — lists featured/recent jams |
+| `page.tsx` | Homepage — live jam panel, upcoming schedule and recent results |
 | `layout.tsx` | Root layout (fonts, theme, site header, footer, Toaster) |
 | `(auth)/sign-in/` | Sign-in page |
 | `(auth)/sign-up/` | Sign-up page |

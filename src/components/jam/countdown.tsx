@@ -17,6 +17,10 @@ export function Countdown({ to, className }: { to: string; className?: string })
   }, []);
 
   useEffect(() => {
+    refreshed.current = false;
+  }, [target]);
+
+  useEffect(() => {
     // The phase is derived from dates on the server; re-render once the deadline passes.
     if (now >= target && !refreshed.current) {
       refreshed.current = true;

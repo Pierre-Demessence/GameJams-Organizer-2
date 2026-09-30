@@ -219,9 +219,9 @@ function ResultsSection({ jams }: { jams: FinishedJam[] }) {
               <div className="flex items-center justify-between gap-2 md:items-baseline">
                 <Link
                   href={jam.ranked ? `/jams/${jam.slug}/results` : `/jams/${jam.slug}`}
-                  className="inline-flex min-h-11 items-center truncate font-medium hover:underline md:min-h-0"
+                  className="flex min-h-11 min-w-0 items-center font-medium hover:underline md:min-h-0"
                 >
-                  {jam.name}
+                  <span className="truncate">{jam.name}</span>
                 </Link>
                 {jam.endDate && (
                   <span className="shrink-0 font-mono text-xs text-subtle-foreground">
@@ -231,7 +231,7 @@ function ResultsSection({ jams }: { jams: FinishedJam[] }) {
               </div>
               <p className="text-xs text-subtle-foreground">
                 {jam.ranked
-                  ? `${jam.entries} entries · ${jam.ratings} ratings`
+                  ? `${jam.entries} entries${jam.podium !== null ? ` · ${jam.ratings} ratings` : ""}`
                   : `Showcase · ${jam.entries} games`}
               </p>
             </div>

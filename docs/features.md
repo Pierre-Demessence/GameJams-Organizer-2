@@ -19,7 +19,7 @@
 | **Jam Management** | Edit jam details, manage roles, moderate submissions (visible/rateable/competing switches) | Medium |
 | **Ownership Verification** | itch.io code-on-page verification required to publish a submission | High |
 | **Rate Limiting** | In-memory rate limiter on server actions to prevent abuse | Medium |
-| **Visual design & themes** | Dark-first design with a light theme; account menu with profile, settings, theme and sign out | Medium |
+| **Visual design & themes** | Dark-first design with a light theme; homepage with live jam panel, upcoming schedule and recent results; account menu with profile, settings, theme and sign out | Medium |
 | **Responsive UI** | Mobile-friendly layout with Tailwind CSS breakpoints | Medium |
 | **Automated Tests** | Vitest unit tests + Playwright E2E, run in CI | Medium |
 

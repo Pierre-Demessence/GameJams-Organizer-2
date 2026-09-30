@@ -997,8 +997,8 @@ export function SiteHeader() {
 }
 ```
 
-Signed-out mobile users change the theme from the system setting (default `dark` until they
-pick); the theme picker lives in the account menu for signed-in users.
+Signed-out mobile users change the theme from the menu sheet (`ThemeButtons`); the theme
+picker lives in the account menu for signed-in users.
 
 - [x] **Step 3: Footer**
 
