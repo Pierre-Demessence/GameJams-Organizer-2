@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { MenuIcon, SearchIcon } from "lucide-react";
+import { MenuIcon, SearchIcon, XIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/logo";
@@ -65,8 +65,8 @@ export function SiteHeader() {
           </Link>
           {status === "loading" ? (
             <div className="h-9 w-24 animate-pulse rounded-full bg-muted" aria-hidden />
-          ) : signedIn ? (
-            <UserMenu user={session!.user} />
+          ) : session?.user ? (
+            <UserMenu user={session.user} />
           ) : (
             <div className="hidden items-center gap-2 md:flex">
               <ThemeToggle />
@@ -90,8 +90,16 @@ export function SiteHeader() {
             >
               <MenuIcon />
             </SheetTrigger>
-            <SheetContent side="right" className="data-[side=right]:w-72">
-              <SheetTitle className="px-4 pt-4">Menu</SheetTitle>
+            <SheetContent side="right" showCloseButton={false} className="data-[side=right]:w-72">
+              <div className="flex items-center justify-between pl-4 pr-2 pt-2">
+                <SheetTitle>Menu</SheetTitle>
+                <SheetClose
+                  aria-label="Close menu"
+                  className={cn(buttonVariants({ variant: "ghost", size: "icon-lg" }), "size-11")}
+                >
+                  <XIcon />
+                </SheetClose>
+              </div>
               <nav aria-label="Mobile" className="flex flex-col p-2">
                 {links.map((l) => (
                   <SheetClose nativeButton={false} key={l.href} render={<Link href={l.href} className={SHEET_LINK} />}>
