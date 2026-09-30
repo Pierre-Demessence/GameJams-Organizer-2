@@ -45,13 +45,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
       if (user) {
         token.id = user.id;
         if (user.id) token.isStaff = await isStaff(user.id);
       }
       if (account) {
         token.provider = account.provider;
+      }
+      // Loaded lazily so tokens issued before this field existed pick it up on their next
+      // request; refreshed on `update()` so a username change in settings shows at once.
+      if (token.id && (token.username === undefined || trigger === "update")) {
+        const row = await db.user.findUnique({
+          where: { id: token.id },
+          select: { username: true },
+        });
+        token.username = row?.username ?? null;
       }
       return token;
     },
@@ -60,6 +69,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
       }
       session.user.isStaff = token.isStaff ?? false;
+      session.user.username = token.username ?? null;
       return session;
     },
     async signIn({ user, account }) {

@@ -35,25 +35,34 @@ describe("UserMenu", () => {
     signOutMock.mockReset();
   });
 
-  it("triggers signOut when clicking the Sign Out item", () => {
-    const menu = UserMenu({
-      user: {
-        name: "Test User",
-        email: "test@example.com",
-      },
-    });
+  const linkHref = (node: ElementWithProps): string | undefined =>
+    isValidElement(node.props.render)
+      ? ((node.props.render as ElementWithProps).props.href as string | undefined)
+      : undefined;
 
-    const signOutItem = findElement(
+  it("triggers signOut when clicking Sign out", () => {
+    const menu = UserMenu({ user: { name: "Test User", username: "tester" } });
+    // The item renders an icon before its label, so children is an array.
+    const item = findElement(
       menu,
       (node) =>
         typeof node.props.onClick === "function" &&
-        node.props.children === "Sign Out",
+        Children.toArray(node.props.children).includes("Sign out")
     );
-
-    expect(signOutItem).toBeDefined();
-    const onClick = signOutItem?.props.onClick;
-    expect(onClick).toBeTypeOf("function");
-    (onClick as () => void)();
+    expect(item).toBeDefined();
+    (item?.props.onClick as () => void)();
     expect(signOutMock).toHaveBeenCalledWith({ callbackUrl: "/" });
+  });
+
+  it("links to the user's profile when the username is known", () => {
+    const menu = UserMenu({ user: { name: "Test User", username: "tester" } });
+    expect(findElement(menu, (n) => linkHref(n) === "/users/tester")).toBeDefined();
+    expect(findElement(menu, (n) => linkHref(n) === "/settings")).toBeDefined();
+  });
+
+  it("hides the profile link for sessions without a username", () => {
+    const menu = UserMenu({ user: { name: "Test User" } });
+    expect(findElement(menu, (n) => linkHref(n)?.startsWith("/users/") ?? false)).toBeUndefined();
+    expect(findElement(menu, (n) => linkHref(n) === "/settings")).toBeDefined();
   });
 });
