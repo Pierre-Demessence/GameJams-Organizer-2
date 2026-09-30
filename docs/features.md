@@ -10,7 +10,8 @@
 | **Account Settings** | Edit profile, link/unlink OAuth providers | Medium |
 | **Jam Creation** | Create game jams with name, description, dates, themes, rating criteria | High |
 | **Jam Lifecycle** | Explicit publish out of DRAFT, then phases derived from dates: UPCOMING → ONGOING → RATING → FINISHED | High |
-| **Jam Browsing** | List and filter jams by status, search by name | High |
+| **Jam Browsing** | Status tabs with counts, search, tags, format and sort, paging | High |
+| **Jam submissions tab** | Filter by platform, hide rated games, least-rated-first "Rate next game" | Medium |
 | **Jam Roles** | Stackable, permission-based roles (Admin, Moderator, Judge, Host) | High |
 | **Join Jams** | Participants can join during UPCOMING and ONGOING phases | High |
 | **Submissions** | Submit games (itch.io link + platforms), DRAFT/SUBMITTED lifecycle, contributors | High |

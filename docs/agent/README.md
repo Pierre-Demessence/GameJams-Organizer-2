@@ -38,6 +38,9 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `src/lib/permissions.ts` | Permission catalog + stackable-role checks |
 | `src/lib/jam-status-display.ts` | Jam status labels, tones and countdown formatting (pure, unit-tested) |
 | `src/lib/home-queries.ts` | Homepage database reads (integration-tested, excluded from unit coverage) |
+| `src/lib/jam-phase-where.ts` | `LISTED_JAM` and `jamPhaseWhere()`: SQL phase filters |
+| `src/lib/jam-list-params.ts`, `jam-page.ts`, `jam-entries.ts`, `jam-labels.ts`, `initials.ts` | Pure page helpers (unit-tested) |
+| `src/lib/jam-list-queries.ts`, `jam-page-queries.ts`, `jam-entries-queries.ts` | Page loaders (integration-tested, excluded from unit coverage) |
 | `src/lib/verification.ts` | itch.io ownership verification (allowlisted fetch) |
 | `src/app/` | All pages and server actions |
 | `src/components/ui/` | shadcn/ui components |
@@ -45,6 +48,8 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 
 ## Invariants
 
+- **Phase filters in SQL** go through `jamPhaseWhere()` / `LISTED_JAM`; never hand-write date conditions.
+- **URL params** (search, filters, paging) are parsed and clamped by `parseJamListParams` / `parseEntriesParams` before reaching a query.
 - **Colors** come from the tokens in `globals.css`; never hard-code hex values in components.
 - **`session.user.username`** may be `null`; hide profile links when it is.
 - **Prisma client** is imported from `@/generated/prisma/client`, wrapped by `@/lib/db`.

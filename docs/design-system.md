@@ -63,6 +63,18 @@ Shared components live in `src/components/jam/`:
 - `JamStatusBadge` renders the status pill for a phase.
 - `JamProgress` renders a thin progress bar on the `track` color, filled with the phase tone.
 - `Countdown` renders a live countdown to an ISO date string in Geist Mono.
+- `JamCard` is the jam list card: cover, status pill, stretched title link, progress, UTC dates.
+- `JamTimeline` is the labelled Upcoming / Jam / Rating bar with the next-deadline countdown.
+
+## Shared primitives
+
+- `CoverImage` (`src/components/cover-image.tsx`) renders an external image or, without a URL, the dotted placeholder with `initials(name)`.
+- `LinkTabs` (`src/components/link-tabs.tsx`) is a tab bar of real links with `aria-current="page"`; it scrolls horizontally on mobile.
+- The `no-scrollbar` utility in `globals.css` hides a scroll container's scrollbar.
+
+## Images
+
+Images are external URLs, never hosted assets. Render them with `<img loading="lazy" referrerPolicy="no-referrer">`, always with `alt` (empty when the title follows), and fall back to the dotted placeholder when the URL is missing.
 
 ## App shell
 

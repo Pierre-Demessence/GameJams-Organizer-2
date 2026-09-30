@@ -27,9 +27,8 @@ the app shell and the homepage are done — see
 [plans/done/redesign-foundations.md](plans/done/redesign-foundations.md). Still to plan,
 one plan per group:
 
-1. **Discover & play:** jam list (status tabs, tag chips, format/sort filters), jam page
-   (cover, timeline with countdown, tabs, "Your entry" side panel), jam submissions tab
-   (rating progress, platform filter), submission page.
+1. **Discover & play:** done — see [plans/done/redesign-discover-play.md](plans/done/redesign-discover-play.md).
+   Follow-up: push the "Manage" tab to the right on desktop (`LinkTabs` has no alignment option).
 2. **Rate & results:** rating form (1–5 segmented buttons per criterion, "Save & rate
    next"), results (criterion tabs, top-3 cards, ranking table, "Not competing" section).
 3. **People & account:** profile, settings (profile, sign-in methods, appearance, delete
