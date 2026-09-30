@@ -19,6 +19,29 @@ are not.
 4. Restore for soft-deleted jams and submissions, spec §10. The `/admin` page lists deleted
    items, but no restore action exists yet.
 
+## Redesign
+
+The approved design lives on the "GameJam Organizer — Website Design" canvas
+(<https://claude.ai/artifact/SPJeNxb9rsAiNeGNoeBXqB>, private to the owner). Foundations,
+the app shell and the homepage are planned in
+[plans/redesign-foundations.md](plans/redesign-foundations.md). Still to plan, one plan per
+group:
+
+1. **Discover & play:** jam list (status tabs, tag chips, format/sort filters), jam page
+   (cover, timeline with countdown, tabs, "Your entry" side panel), jam submissions tab
+   (rating progress, platform filter), submission page.
+2. **Rate & results:** rating form (1–5 segmented buttons per criterion, "Save & rate
+   next"), results (criterion tabs, top-3 cards, ranking table, "Not competing" section).
+3. **People & account:** profile, settings (profile, sign-in methods, appearance, delete
+   account), sign in / sign up (tabbed).
+4. **Organize:** host/edit jam form with the "Ready to publish?" checklist panel, submission
+   editor with the itch.io verification card and "Ready to submit?" panel, manage jam
+   (results banner, moderation switches table, organizers), platform admin.
+5. **Mobile organizer screens:** not designed yet (host/manage jam, submission editor,
+   sign in).
+6. **Search palette:** the header's "Search jams… ⌘K" opens a command palette. The
+   foundations plan ships it as a plain link to `/jams`.
+
 ## Known issues
 
 Defects outside the domain-layer plan.
