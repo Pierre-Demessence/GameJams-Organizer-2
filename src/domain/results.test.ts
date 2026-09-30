@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { canRevealResults, resultsAccess } from "@/domain/results";
+import { canRevealResults, podium, resultsAccess } from "@/domain/results";
+import type { JamResults, SubmissionResult } from "@/domain/scoring";
 import type { JamPhase } from "@/domain/jam-phase";
 
 const revealedAt = new Date("2026-06-10T00:00:00Z");
@@ -52,5 +53,37 @@ describe("canRevealResults", () => {
   it("has nothing to reveal when results are already public", () => {
     expect(canRevealResults(base).allowed).toBe(false);
     expect(canRevealResults({ ...hidden, resultsRevealedAt: revealedAt }).allowed).toBe(false);
+  });
+});
+
+const entry = (id: string, rank: number | null, totalRatings = 10): SubmissionResult => ({
+  submissionId: id,
+  competing: rank !== null,
+  rank,
+  finalScore: rank === null ? null : 5 - rank / 10,
+  totalRatings,
+  rawAverage: 4,
+  criteriaScores: {},
+});
+
+describe("podium", () => {
+  it("returns the top three competing entries in rank order", () => {
+    const results: JamResults = {
+      hasOverall: true,
+      competing: [entry("d", 4), entry("b", 2), entry("a", 1), entry("c", 3)],
+      notCompeting: [entry("x", null)],
+    };
+    expect(podium(results).map((r) => r.submissionId)).toEqual(["a", "b", "c"]);
+  });
+  it("skips entries nobody rated", () => {
+    const results: JamResults = {
+      hasOverall: true,
+      competing: [entry("a", 1, 0), entry("b", 2), entry("c", 3, 0)],
+      notCompeting: [],
+    };
+    expect(podium(results).map((r) => r.submissionId)).toEqual(["b"]);
+  });
+  it("is empty when the jam has no overall ranking", () => {
+    expect(podium({ hasOverall: false, competing: [entry("a", null)], notCompeting: [] })).toEqual([]);
   });
 });

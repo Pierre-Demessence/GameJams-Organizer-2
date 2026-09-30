@@ -1,5 +1,6 @@
 import { allow, deny, type Decision } from "@/domain/decision";
 import type { JamPhase } from "@/domain/jam-phase";
+import type { JamResults, SubmissionResult } from "@/domain/scoring";
 
 export type ResultsAccess = "none" | "preview" | "public";
 
@@ -36,4 +37,14 @@ export function canRevealResults(ctx: ResultsContext): Decision {
   if (ctx.phase !== "FINISHED") return deny("Results can only be revealed once the jam has finished");
   if (!ctx.hideResults || ctx.resultsRevealedAt) return deny("Results are already public");
   return allow;
+}
+
+// Unrated entries get the prior mean and a random tiebreak, so they must not be shown as
+// winners.
+export function podium(results: JamResults, size = 3): SubmissionResult[] {
+  if (!results.hasOverall) return [];
+  return results.competing
+    .filter((r) => r.rank !== null && r.totalRatings > 0)
+    .sort((a, b) => (a.rank as number) - (b.rank as number))
+    .slice(0, size);
 }
