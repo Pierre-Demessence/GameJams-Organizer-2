@@ -56,6 +56,8 @@ Defects outside the domain-layer plan.
   (`customPrismaAdapter` always sets a username). Remove it.
 - `src/components/markdown.tsx` renders sanitized raw HTML through `rehype-raw`, but spec §4.1
   says raw HTML is escaped. Drop `rehype-raw`, or amend the spec.
+- The settings page does not call `update()` after a username change, so the account menu shows
+  the old username until the next sign-in.
 
 ## Spec proposals
 

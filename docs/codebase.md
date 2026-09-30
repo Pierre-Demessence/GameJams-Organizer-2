@@ -35,7 +35,7 @@
 | Path | Description |
 |------|-------------|
 | `page.tsx` | Homepage — lists featured/recent jams |
-| `layout.tsx` | Root layout (fonts, navbar, footer, Toaster) |
+| `layout.tsx` | Root layout (fonts, theme, site header, footer, Toaster) |
 | `(auth)/sign-in/` | Sign-in page |
 | `(auth)/sign-up/` | Sign-up page |
 | `jams/page.tsx` | Browse all jams (filterable) |
@@ -80,6 +80,8 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `rating-queries.ts` | `loadRater`, `getUserRatings` (server-only; never exported from a `"use server"` file) |
 | `form-parsers.ts` | FormData → Zod parsing for jam and submission forms; custom-field value reader |
 | `validations.ts` | Zod schemas for forms and server actions |
+| `jam-status-display.ts` | Jam status labels, tone class maps, deadline, progress and countdown formatting (pure) |
+| `home-queries.ts` | `loadHomeData`: live, upcoming and finished jams with podiums for the homepage (server-only) |
 | `utils.ts` | General utilities (`cn` class merge, etc.) |
 
 ### Middleware (`src/middleware.ts`)
@@ -90,9 +92,12 @@ Edge middleware that handles auth-related redirects and route protection.
 
 | File | Purpose |
 |------|---------|
-| `navbar.tsx` | Site-wide navigation bar |
+| `site-header.tsx` | Site-wide header: logo, navigation, search link, account area |
+| `logo.tsx` | Site logo |
 | `footer.tsx` | Site-wide footer |
-| `user-menu.tsx` | Authenticated user dropdown menu |
+| `user-menu.tsx` | Authenticated account dropdown menu |
+| `theme-menu-items.tsx` | System / Dark / Light radio items for the account menu |
+| `jam/` | Jam status UI: `jam-status-badge`, `jam-progress`, `countdown` |
 | `ui/` | shadcn/ui primitive components |
 
 ## Conventions
