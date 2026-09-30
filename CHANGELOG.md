@@ -23,6 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed
 
 - New dark-first visual design: tokens, site header with account menu, footer and homepage
+- Redesigned jam list, jam page and submission page; new Submissions tab on jams
 - **BREAKING**: `Jam.status` replaced by `publishedAt`; publishing no longer changes visibility,
   and draft jams no longer go live when their dates arrive
 - **BREAKING**: Results are computed on read; the `JamResult` table and the "Recompute Results"
@@ -50,6 +51,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- Status filters on the jam list now run in the database, so filtered lists are complete
 - Submission edits no longer save partially when custom-field validation fails; optional
   custom fields can be cleared
 - Members of a deleted submission can join another team

@@ -28,7 +28,7 @@ export function JamCard({ jam, now }: { jam: JamSummary; now: Date }) {
         <div className="mt-auto flex flex-col gap-2.5 pt-2">
           <JamProgress phase={jam.phase} value={phaseProgress(jam, jam.phase, now)} />
           <div className="flex items-center justify-between gap-3">
-            <span className="font-mono text-xs">{dateRange(jam.startDate, jam.endDate)}</span>
+            <span className="font-mono text-xs">{dateRange(jam.startDate, jam.endDate)} UTC</span>
             <span className="text-xs text-subtle-foreground">
               {jam.ranked ? "Ranked" : "Showcase"} · {jam.joined} joined
             </span>

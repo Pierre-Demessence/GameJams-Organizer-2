@@ -74,4 +74,26 @@ test.describe("smoke", () => {
     await expect(page.getByText("Live now")).toBeVisible();
     await expect(page.getByRole("link", { name: "Ongoing Jam" }).first()).toBeVisible();
   });
+
+  test("jam list filters by status through the URL", async ({ page }) => {
+    await page.goto("/jams?status=live");
+    await expect(page.getByRole("link", { name: /Live/ }).first()).toHaveAttribute("aria-current", "page");
+    await expect(page.getByRole("link", { name: "Ongoing Jam" }).first()).toBeVisible();
+    await expect(page.getByRole("link", { name: "Upcoming Jam" })).toHaveCount(0);
+  });
+
+  test("hostile list parameters fall back to the default list", async ({ page }) => {
+    const response = await page.goto(`/jams?status=nope&show=99999&q=${"a".repeat(300)}`);
+    expect(response?.ok()).toBeTruthy();
+    await expect(page.getByRole("heading", { level: 1, name: "Jams" })).toBeVisible();
+  });
+
+  test("jam page has overview and submissions tabs", async ({ page }) => {
+    await page.goto("/jams/ongoing-jam");
+    const tabs = page.getByRole("navigation", { name: "Jam sections" });
+    await expect(tabs.getByRole("link", { name: "Overview" })).toHaveAttribute("aria-current", "page");
+    await tabs.getByRole("link", { name: /Submissions/ }).click();
+    await expect(page).toHaveURL(/\/jams\/ongoing-jam\/submissions$/);
+    await expect(tabs.getByRole("link", { name: /Submissions/ })).toHaveAttribute("aria-current", "page");
+  });
 });

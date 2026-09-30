@@ -16,6 +16,7 @@ import { Markdown } from "@/components/markdown";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { initials } from "@/lib/initials";
 import { platformLabel } from "@/lib/jam-labels";
+import { safeHttpUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
 import { TeamManager } from "./team-manager";
 import { ModerationActions } from "./moderation-actions";
@@ -183,6 +184,8 @@ export default async function SubmissionDetailPage({
   );
 
   const jam = submission.jam;
+  const videoUrl = safeHttpUrl(submission.videoUrl);
+  const screenshots = submission.screenshots.flatMap((u) => safeHttpUrl(u) ?? []);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 md:px-12">
@@ -232,9 +235,9 @@ export default async function SubmissionDetailPage({
               Play on itch.io ↗
             </a>
           )}
-          {submission.videoUrl && (
+          {videoUrl && (
             <a
-              href={submission.videoUrl}
+              href={videoUrl}
               target="_blank"
               rel="noopener noreferrer"
               className={cn(buttonVariants({ variant: "outline" }), FULL_BUTTON)}
@@ -260,9 +263,9 @@ export default async function SubmissionDetailPage({
             className="aspect-video w-full rounded-xl border"
           />
 
-          {submission.screenshots.length > 0 && (
+          {screenshots.length > 0 && (
             <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
-              {submission.screenshots.map((url, i) => (
+              {screenshots.map((url, i) => (
                 <a
                   key={i}
                   href={url}

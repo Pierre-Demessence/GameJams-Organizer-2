@@ -59,7 +59,7 @@ export function JamTimeline({ jam, phase, now }: { jam: JamPhaseInput; phase: Ja
                 {s.state === "current" && " — now"}
               </p>
               <p className={cn("font-mono", s.state !== "current" && "hidden sm:block", "text-subtle-foreground")}>
-                {s.dates}
+                {s.dates && `${s.dates} UTC`}
               </p>
             </div>
           ))}

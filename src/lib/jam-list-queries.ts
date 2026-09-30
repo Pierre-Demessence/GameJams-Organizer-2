@@ -58,9 +58,12 @@ function baseWhere(p: JamListParams): Prisma.JamWhereInput {
   return { AND: and };
 }
 
-function orderFor(p: JamListParams, phase: ListedPhase | null): Prisma.JamOrderByWithRelationInput {
+function orderFor(
+  p: JamListParams,
+  phase: ListedPhase | null
+): Prisma.JamOrderByWithRelationInput | Prisma.JamOrderByWithRelationInput[] {
   if (p.sort === "newest") return { publishedAt: "desc" };
-  if (p.sort === "joined") return { participants: { _count: "desc" } };
+  if (p.sort === "joined") return [{ participants: { _count: "desc" } }, { id: "asc" }];
   return phase ? PHASE_ORDER[phase] : { publishedAt: "desc" };
 }
 
@@ -85,7 +88,7 @@ export async function loadJamList(params: JamListParams, now = new Date()): Prom
     db.jam.count({ where: where("UPCOMING") }),
     db.jam.count({ where: where("RATING") }),
     db.jam.count({ where: where("FINISHED") }),
-    db.jam.findMany({ where: LISTED_JAM, select: { tags: true }, take: 500 }),
+    db.jam.findMany({ where: LISTED_JAM, select: { tags: true }, orderBy: { publishedAt: "desc" }, take: 500 }),
   ]);
   const counts: Record<ListStatus, number> = {
     all: live + upcoming + rating + finished, live, upcoming, rating, finished,

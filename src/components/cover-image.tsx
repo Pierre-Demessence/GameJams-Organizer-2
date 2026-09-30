@@ -1,4 +1,5 @@
 import { initials } from "@/lib/initials";
+import { safeHttpUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
 
 // Covers are external URLs (spec §2: no hosted assets); no-referrer keeps the viewer's
@@ -14,11 +15,12 @@ export function CoverImage({
   name: string;
   className?: string;
 }) {
-  if (src) {
+  const url = safeHttpUrl(src);
+  if (url) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
       <img
-        src={src}
+        src={url}
         alt={alt}
         loading="lazy"
         referrerPolicy="no-referrer"

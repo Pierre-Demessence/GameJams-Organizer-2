@@ -38,9 +38,11 @@
 | `layout.tsx` | Root layout (fonts, theme, site header, footer, Toaster) |
 | `(auth)/sign-in/` | Sign-in page |
 | `(auth)/sign-up/` | Sign-up page |
-| `jams/page.tsx` | Browse all jams (filterable) |
+| `jams/page.tsx` | Browse jams: status tabs with counts, search, tag chips, format and sort filters, paging (`jam-filters.tsx` is the client select controls) |
 | `jams/new/` | Create a new jam |
-| `jams/[slug]/page.tsx` | Jam detail page |
+| `jams/[slug]/page.tsx` | Jam overview tab (theme, about, criteria, "Your entry" panel, details) |
+| `jams/[slug]/jam-header.tsx` | Header shared by the jam tabs: cover, title, actions, timeline, tab bar |
+| `jams/[slug]/submissions/page.tsx` | Jam submissions tab: rating progress, platform filter, sort, "Rate next game" |
 | `jams/[slug]/edit/` | Edit jam (organizer only) |
 | `jams/[slug]/manage/` | Manage jam roles (stackable) — organizer only |
 | `jams/[slug]/submissions/new/` | Submit a game to this jam |
@@ -82,6 +84,15 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `validations.ts` | Zod schemas for forms and server actions |
 | `jam-status-display.ts` | Jam status labels, tone class maps, deadline, progress and countdown formatting (pure) |
 | `home-queries.ts` | `loadHomeData`: live, upcoming and finished jams with podiums for the homepage (server-only) |
+| `jam-phase-where.ts` | `LISTED_JAM` and `jamPhaseWhere(phase, now)`: the SQL mirror of `jamPhase()` |
+| `jam-list-params.ts` | Parse and serialise `/jams` search params (validated and clamped), `topTags` (pure) |
+| `jam-list-queries.ts` | `loadJamList`: filtered, counted, paged jam list (server-only) |
+| `jam-page.ts` | `jamTimeline`, `entryPanelState` (pure) |
+| `jam-page-queries.ts` | `loadJamPage`: jam, phase and viewer context, cached per request (server-only) |
+| `jam-entries.ts` | Submissions tab params and `nextToRate` (pure) |
+| `jam-entries-queries.ts` | `loadJamEntries`: visible entries with rater counts and rating progress (server-only) |
+| `jam-labels.ts` | Rating-eligibility, role and platform labels (pure) |
+| `initials.ts` | `initials(name)` for avatar and cover placeholders (pure) |
 | `utils.ts` | General utilities (`cn` class merge, etc.) |
 
 ### Middleware (`src/middleware.ts`)
@@ -97,7 +108,9 @@ Edge middleware that handles auth-related redirects and route protection.
 | `footer.tsx` | Site-wide footer |
 | `user-menu.tsx` | Authenticated account dropdown menu |
 | `theme-menu-items.tsx` | System / Dark / Light radio items for the account menu |
-| `jam/` | Jam status UI: `jam-status-badge`, `jam-progress`, `countdown` |
+| `cover-image.tsx` | External image or dotted placeholder with initials |
+| `link-tabs.tsx` | Link-based tab bar (`aria-current`), scrolls on mobile |
+| `jam/` | Jam UI: `jam-status-badge`, `jam-progress`, `countdown`, `jam-card`, `jam-timeline` |
 | `ui/` | shadcn/ui primitive components |
 
 ## Conventions
