@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { joinJamAction, publishJamAction } from "@/app/jams/actions";
 import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-export function JoinJamButton({ jamId }: { jamId: string }) {
+export function JoinJamButton({ jamId, className }: { jamId: string; className?: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -24,15 +25,23 @@ export function JoinJamButton({ jamId }: { jamId: string }) {
 
   return (
     <div>
-      <Button onClick={handleJoin} disabled={loading}>
-        {loading ? "Joining..." : "Join Jam"}
+      <Button
+        onClick={handleJoin}
+        disabled={loading}
+        className={cn("h-10 min-h-11 px-4 md:min-h-10", className)}
+      >
+        {loading ? "Joining…" : "Join jam"}
       </Button>
-      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
 
-export function PublishJamButton({ jamId }: { jamId: string }) {
+export function PublishJamButton({ jamId, className }: { jamId: string; className?: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
@@ -51,10 +60,19 @@ export function PublishJamButton({ jamId }: { jamId: string }) {
 
   return (
     <div>
-      <Button onClick={handlePublish} disabled={loading} variant="default">
-        {loading ? "Publishing..." : "Publish Jam"}
+      <Button
+        onClick={handlePublish}
+        disabled={loading}
+        variant="default"
+        className={cn("h-10 min-h-11 px-4 md:min-h-10", className)}
+      >
+        {loading ? "Publishing…" : "Publish jam"}
       </Button>
-      {error && <p className="mt-1 text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="mt-1 text-sm text-destructive">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
