@@ -101,7 +101,7 @@ function LivePanel({ jams, now, className }: { jams: HomeJam[]; now: Date; class
             const deadline = nextDeadline(jam, jam.phase);
             const tone = jamStatus(jam.phase).tone;
             return (
-              <li key={jam.id} className="flex flex-col gap-3 p-4">
+              <li key={jam.id} className="relative flex flex-col gap-3 p-4">
                 <div className="flex items-center gap-3">
                   <span
                     aria-hidden
@@ -110,7 +110,7 @@ function LivePanel({ jams, now, className }: { jams: HomeJam[]; now: Date; class
                     {initials(jam.name)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/jams/${jam.slug}`} className="-my-2.5 block truncate py-2.5 text-sm font-medium hover:underline">
+                    <Link href={`/jams/${jam.slug}`} className="block truncate text-sm font-medium hover:underline after:absolute after:inset-0 after:content-['']">
                       {jam.name}
                     </Link>
                     <p className="text-xs text-subtle-foreground">
@@ -182,12 +182,12 @@ function UpcomingSection({ jams, now }: { jams: HomeJam[]; now: Date }) {
       </table>
       <ul className="divide-y border-y md:hidden">
         {jams.map((jam) => (
-          <li key={jam.id} className="flex items-start gap-4 py-3">
-            <span className="w-20 shrink-0 font-mono text-sm text-muted-foreground">
+          <li key={jam.id} className="relative flex items-start gap-4 py-3">
+            <span className="w-24 shrink-0 whitespace-nowrap font-mono text-sm text-muted-foreground">
               {jam.startDate ? `${DAY.format(jam.startDate)} UTC` : "—"}
             </span>
             <div className="min-w-0">
-              <Link href={`/jams/${jam.slug}`} className="-my-2.5 block truncate py-2.5 text-sm font-medium hover:underline">
+              <Link href={`/jams/${jam.slug}`} className="block truncate text-sm font-medium hover:underline after:absolute after:inset-0 after:content-['']">
                 {jam.name}
               </Link>
               <p className="text-xs text-subtle-foreground">
@@ -216,10 +216,10 @@ function ResultsSection({ jams }: { jams: FinishedJam[] }) {
         {jams.map((jam) => (
           <article key={jam.id} className="flex flex-col gap-3 rounded-xl border bg-card p-4">
             <div>
-              <div className="flex items-baseline justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 md:items-baseline">
                 <Link
                   href={jam.ranked ? `/jams/${jam.slug}/results` : `/jams/${jam.slug}`}
-                  className="truncate font-medium hover:underline"
+                  className="inline-flex min-h-11 items-center truncate font-medium hover:underline md:min-h-0"
                 >
                   {jam.name}
                 </Link>
@@ -246,16 +246,19 @@ function ResultsSection({ jams }: { jams: FinishedJam[] }) {
 function PodiumBody({ jam }: { jam: FinishedJam }) {
   if (jam.podium && jam.podium.length > 0) {
     return (
-      <ol className="flex flex-col gap-1.5 text-sm">
+      <ol className="flex flex-col text-sm">
         {jam.podium.map((p) => (
-          <li key={p.submissionId} className="flex items-center gap-3">
-            <span className={cn("w-4 font-mono", p.place === 1 ? "text-rating" : "text-muted-foreground")}>
-              {p.place}
-            </span>
-            <Link href={`/submissions/${p.submissionId}`} className="-my-2.5 min-w-0 flex-1 truncate py-2.5 hover:underline">
-              {p.title}
+          <li key={p.submissionId}>
+            <Link
+              href={`/submissions/${p.submissionId}`}
+              className="flex min-h-11 items-center gap-3 hover:underline"
+            >
+              <span className={cn("w-4 font-mono", p.place === 1 ? "text-rating" : "text-muted-foreground")}>
+                {p.place}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{p.title}</span>
+              <span className="font-mono text-muted-foreground">{p.score?.toFixed(2)}</span>
             </Link>
-            <span className="font-mono text-muted-foreground">{p.score?.toFixed(2)}</span>
           </li>
         ))}
       </ol>
