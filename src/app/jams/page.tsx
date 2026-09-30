@@ -1,54 +1,47 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { auth } from "@/lib/auth";
-import { jamPhase } from "@/domain/jam-phase";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { JamCard } from "@/components/jam/jam-card";
 import { buttonVariants } from "@/components/ui/button-variants";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import type { JamPhase } from "@/domain/jam-phase";
+  JAM_LIST_PAGE_SIZE,
+  jamListHref,
+  parseJamListParams,
+  type JamListParams,
+  type ListStatus,
+} from "@/lib/jam-list-params";
+import { loadJamList } from "@/lib/jam-list-queries";
+import { cn } from "@/lib/utils";
+import { JamFilters } from "./jam-filters";
 
 export const metadata = {
   title: "Jams",
   description: "Browse game jams",
 };
 
-const statusColors: Record<string, string> = {
-  DRAFT: "bg-gray-500",
-  UPCOMING: "bg-blue-500",
-  ONGOING: "bg-green-500",
-  RATING: "bg-yellow-500",
-  FINISHED: "bg-purple-500",
-};
+type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
-const STATUS_OPTIONS: JamPhase[] = [
-  "UPCOMING",
-  "ONGOING",
-  "RATING",
-  "FINISHED",
+const STATUS_TABS: { status: ListStatus; label: string }[] = [
+  { status: "all", label: "All" },
+  { status: "live", label: "Live" },
+  { status: "upcoming", label: "Upcoming" },
+  { status: "rating", label: "Rating" },
+  { status: "finished", label: "Finished" },
 ];
 
-export default function JamsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; status?: string; tag?: string }>;
-}) {
+export default function JamsPage({ searchParams }: { searchParams: SearchParams }) {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Game Jams</h1>
-        <Suspense fallback={null}>
-          <CreateJamButton />
-        </Suspense>
+    <div className="mx-auto max-w-7xl px-4 py-8 md:px-12 md:py-12">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-semibold tracking-tight">Jams</h1>
+          <p className="mt-1 text-muted-foreground">
+            Find something to build this weekend — or next month.
+          </p>
+        </div>
+        <Link href="/jams/new" className={cn(buttonVariants(), "h-10 min-h-11 px-4 md:min-h-10")}>
+          Host a jam
+        </Link>
       </div>
-
       <Suspense fallback={<JamsBodySkeleton />}>
         <JamsBody searchParams={searchParams} />
       </Suspense>
@@ -56,192 +49,136 @@ export default function JamsPage({
   );
 }
 
-async function CreateJamButton() {
-  const session = await auth();
-  if (!session?.user) return null;
-  return (
-    <Link href="/jams/new" className={buttonVariants({ variant: "default" })}>
-      Create Jam
-    </Link>
-  );
-}
-
 function JamsBodySkeleton() {
   return (
     <>
-      <div className="mb-6 flex gap-3">
-        <div className="h-10 w-64 animate-pulse rounded bg-muted" />
-        <div className="h-10 w-72 animate-pulse rounded bg-muted" />
-      </div>
+      <div className="mb-6 h-11 w-full animate-pulse rounded-lg bg-muted" />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="h-40 animate-pulse rounded-lg bg-muted" />
+          <div key={i} className="h-64 animate-pulse rounded-xl bg-muted" />
         ))}
       </div>
     </>
   );
 }
 
-async function JamsBody({
-  searchParams,
-}: {
-  searchParams: Promise<{ q?: string; status?: string; tag?: string }>;
-}) {
-  const params = await searchParams;
-  const session = await auth();
-  const query = params.q?.trim() ?? "";
-  const statusFilter = params.status ?? "";
-  const tagFilter = params.tag?.trim() ?? "";
-
-  const jams = await db.jam.findMany({
-    where: {
-      deletedAt: null,
-      visibility: "PUBLIC",
-      publishedAt: { not: null },
-      ...(query
-        ? {
-            OR: [
-              { name: { contains: query, mode: "insensitive" as const } },
-              { shortDesc: { contains: query, mode: "insensitive" as const } },
-            ],
-          }
-        : {}),
-      ...(tagFilter ? { tags: { has: tagFilter } } : {}),
-    },
-    include: {
-      _count: {
-        select: {
-          participants: true,
-          submissions: { where: { status: "SUBMITTED", visible: true, deletedAt: null } },
-        },
-      },
-      createdBy: { select: { username: true, displayName: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-
-  // Compute status client-side and filter
-  const jamsWithStatus = jams
-    .map((jam) => ({
-      ...jam,
-      computedStatus: jamPhase(jam),
-    }))
-    .filter((jam) => jam.computedStatus !== "DRAFT")
-    .filter((jam) => !statusFilter || jam.computedStatus === statusFilter);
+async function JamsBody({ searchParams }: { searchParams: SearchParams }) {
+  const params = parseJamListParams(await searchParams);
+  const list = await loadJamList(params);
+  const now = new Date();
 
   return (
     <>
-      {/* Filters */}
-      <form className="mb-6 flex flex-wrap gap-3" action="/jams" method="GET">
-        <Input
-          name="q"
-          placeholder="Search jams..."
-          defaultValue={query}
-          className="max-w-xs"
-        />
-        <div className="flex gap-1">
+      <div className="flex flex-wrap items-center gap-3 border-b pb-5">
+        <nav
+          aria-label="Jam status"
+          className="no-scrollbar flex max-w-full gap-1 overflow-x-auto rounded-lg border bg-card p-1"
+        >
+          {STATUS_TABS.map(({ status, label }) => {
+            const active = params.status === status;
+            return (
+              <Link
+                key={status}
+                href={jamListHref(params, { status })}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  "flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 text-sm transition-colors md:min-h-8",
+                  active
+                    ? "bg-muted font-medium text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+                <span className="font-mono text-xs text-subtle-foreground">{list.counts[status]}</span>
+              </Link>
+            );
+          })}
+        </nav>
+        <SearchForm params={params} />
+        <JamFilters params={params} />
+      </div>
+
+      {list.tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 py-4">
+          <span className="text-sm text-subtle-foreground">Tags</span>
+          {list.tags.map((tag) => {
+            const active = params.tag === tag;
+            return (
+              <Link
+                key={tag}
+                href={jamListHref(params, { tag: active ? "" : tag })}
+                aria-current={active ? "true" : undefined}
+                className={cn(
+                  "inline-flex min-h-11 items-center rounded-full border px-3 text-xs transition-colors md:min-h-7",
+                  active
+                    ? "border-foreground text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tag}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {list.jams.length === 0 ? (
+        <div className="py-16 text-center">
+          <p className="text-muted-foreground">No jams match these filters.</p>
           <Link
-            href={buildFilterUrl("", tagFilter, query)}
-            className={buttonVariants({
-              variant: statusFilter === "" ? "default" : "outline",
-              size: "sm",
-            })}
+            href="/jams"
+            className="mt-3 inline-flex min-h-11 items-center text-sm text-foreground underline underline-offset-4"
           >
-            All
+            Clear filters
           </Link>
-          {STATUS_OPTIONS.map((s) => (
-            <Link
-              key={s}
-              href={buildFilterUrl(s, tagFilter, query)}
-              className={buttonVariants({
-                variant: statusFilter === s ? "default" : "outline",
-                size: "sm",
-              })}
-            >
-              {s.charAt(0) + s.slice(1).toLowerCase()}
-            </Link>
+        </div>
+      ) : (
+        <div className="mt-2 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {list.jams.map((jam) => (
+            <JamCard key={jam.id} jam={jam} now={now} />
           ))}
         </div>
-        {tagFilter && (
-          <div className="flex items-center gap-1">
-            <Badge variant="secondary">{tagFilter}</Badge>
-            <Link
-              href={buildFilterUrl(statusFilter, "", query)}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              ✕
-            </Link>
-          </div>
-        )}
-      </form>
+      )}
 
-      {/* Results */}
-      {jamsWithStatus.length === 0 ? (
-        <p className="text-center text-muted-foreground py-12">
-          No jams found.{" "}
-          {session?.user && (
-            <Link href="/jams/new" className="text-primary hover:underline">
-              Create one!
-            </Link>
-          )}
-        </p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {jamsWithStatus.map((jam) => (
-            <Link key={jam.id} href={`/jams/${jam.slug}`} prefetch={false}>
-              <Card className="h-full transition-colors hover:border-primary/50">
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="line-clamp-1">{jam.name}</CardTitle>
-                    <Badge className={statusColors[jam.computedStatus]}>
-                      {jam.computedStatus}
-                    </Badge>
-                  </div>
-                  <CardDescription className="line-clamp-2">
-                    {jam.shortDesc}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between text-sm text-muted-foreground">
-                    <span>
-                      by{" "}
-                      {jam.createdBy.displayName ?? jam.createdBy.username}
-                    </span>
-                    <span>
-                      {jam._count.participants} participant
-                      {jam._count.participants !== 1 ? "s" : ""}
-                    </span>
-                  </div>
-                  {jam.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {jam.tags.slice(0, 3).map((tag) => (
-                        <Badge key={tag} variant="outline" className="text-xs">
-                          {tag}
-                        </Badge>
-                      ))}
-                      {jam.tags.length > 3 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{jam.tags.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+      {list.hasMore && (
+        <div className="mt-8 flex justify-center">
+          <Link
+            href={jamListHref(params, { show: params.show + JAM_LIST_PAGE_SIZE })}
+            scroll={false}
+            className={cn(buttonVariants({ variant: "outline" }), "h-10 min-h-11 px-4 md:min-h-10")}
+          >
+            Load more
+          </Link>
         </div>
       )}
     </>
   );
 }
 
-function buildFilterUrl(status: string, tag: string, q: string) {
-  const params = new URLSearchParams();
-  if (q) params.set("q", q);
-  if (status) params.set("status", status);
-  if (tag) params.set("tag", tag);
-  const qs = params.toString();
-  return qs ? `/jams?${qs}` : "/jams";
+// GET form: the query string is the state, so search works without client JS.
+function SearchForm({ params }: { params: JamListParams }) {
+  const hidden: [string, string][] = [];
+  if (params.status !== "all") hidden.push(["status", params.status]);
+  if (params.tag) hidden.push(["tag", params.tag]);
+  if (params.format !== "any") hidden.push(["format", params.format]);
+  if (params.sort !== "relevant") hidden.push(["sort", params.sort]);
+  return (
+    <form action="/jams" method="GET" role="search" className="flex-1 md:max-w-xs">
+      <label className="sr-only" htmlFor="jam-search">
+        Search jams
+      </label>
+      <input
+        id="jam-search"
+        type="search"
+        name="q"
+        defaultValue={params.q}
+        maxLength={100}
+        placeholder="Search jams"
+        className="min-h-11 w-full rounded-lg border border-input bg-card px-3 text-sm md:h-10 md:min-h-10"
+      />
+      {hidden.map(([name, value]) => (
+        <input key={name} type="hidden" name={name} value={value} />
+      ))}
+    </form>
+  );
 }
