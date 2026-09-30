@@ -31,6 +31,7 @@ export default defineConfig({
         "src/lib/rating-queries.ts",
         "src/lib/jam-list-queries.ts",
         "src/lib/jam-phase-where.ts",
+        "src/lib/jam-page-queries.ts",
       ],
     },
   },
