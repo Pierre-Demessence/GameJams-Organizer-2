@@ -52,4 +52,26 @@ test.describe("smoke", () => {
     await expect(page.getByRole("heading", { name: "404" })).toBeVisible();
     await expect(page.getByText("Draft Jam (WIP)")).toHaveCount(0);
   });
+
+  test("the page is dark when no theme is stored", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(bg).toBe("rgb(11, 12, 14)");
+  });
+
+  test("a stored light theme is applied", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("theme", "light"));
+    await page.goto("/");
+    await expect(page.locator("html")).not.toHaveClass(/\bdark\b/);
+    const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    expect(bg).toBe("rgb(250, 250, 250)");
+  });
+
+  test("homepage shows the hero and the live panel", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { level: 1, name: /Game jams/ })).toBeVisible();
+    await expect(page.getByText("Live now")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Ongoing Jam" }).first()).toBeVisible();
+  });
 });

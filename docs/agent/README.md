@@ -36,6 +36,8 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `src/lib/db.ts` | Prisma client singleton + soft-delete read filter |
 | `src/lib/validations.ts` | All Zod schemas |
 | `src/lib/permissions.ts` | Permission catalog + stackable-role checks |
+| `src/lib/jam-status-display.ts` | Jam status labels, tones and countdown formatting (pure, unit-tested) |
+| `src/lib/home-queries.ts` | Homepage database reads (integration-tested, excluded from unit coverage) |
 | `src/lib/verification.ts` | itch.io ownership verification (allowlisted fetch) |
 | `src/app/` | All pages and server actions |
 | `src/components/ui/` | shadcn/ui components |
@@ -43,6 +45,8 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 
 ## Invariants
 
+- **Colors** come from the tokens in `globals.css`; never hard-code hex values in components.
+- **`session.user.username`** may be `null`; hide profile links when it is.
 - **Prisma client** is imported from `@/generated/prisma/client`, wrapped by `@/lib/db`.
 - **Schema changes** go through SQL migrations (`pnpm db:migrate`), not `db push`.
 - **Access control** is permission-based: gate mutations with `checkJamPermission(jamId, userId, permission)`. Jam roles are **stackable** — effective powers are the union of a user's roles (`getJamRoles` + `hasPermission`). Never inline `role === "ADMIN"`.

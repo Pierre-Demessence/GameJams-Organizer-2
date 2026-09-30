@@ -18,9 +18,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Submission lifecycle: DRAFT / SUBMITTED states with a submit/withdraw owner panel
 - Criterion `source` (RATED/JURY) and primary-criterion selection for overall ranking
 - Vitest unit tests, Playwright E2E smoke tests, and a GitHub Actions CI workflow
+- `username` on the session
 
 ### Changed
 
+- New dark-first visual design: tokens, site header with account menu, footer and homepage
 - **BREAKING**: `Jam.status` replaced by `publishedAt`; publishing no longer changes visibility,
   and draft jams no longer go live when their dates arrive
 - **BREAKING**: Results are computed on read; the `JamResult` table and the "Recompute Results"

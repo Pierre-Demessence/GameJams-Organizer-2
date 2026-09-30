@@ -27,6 +27,7 @@ export default defineConfig({
         "src/lib/audit.ts",
         // Database I/O only; the logic lives in src/domain and is unit-tested there.
         "src/lib/scoring.ts",
+        "src/lib/home-queries.ts",
         "src/lib/rating-queries.ts",
       ],
     },

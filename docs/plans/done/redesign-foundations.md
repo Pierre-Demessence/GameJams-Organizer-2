@@ -21,12 +21,12 @@ on `@base-ui/react`, `next-themes`, `next-auth` v5, Prisma 7, Vitest 5, Playwrig
 (<https://claude.ai/artifact/SPJeNxb9rsAiNeGNoeBXqB>, private to the owner). The boards this
 plan implements: **Foundations**, **Header (shared component)**, **Header — account menu
 open**, **Home — desktop**, **Home — mobile**. Product rules come from
-[product-spec.md](../specs/product-spec.md).
+[product-spec.md](../../specs/product-spec.md).
 
 **Scope:** This plan covers the foundations, the app shell and the homepage only. The other
 pages (jam listing, jam page, submissions, rating, results, profile, settings, admin,
 organizer screens) are redesigned in follow-up plans, recorded in
-[backlog.md](../backlog.md#redesign).
+[backlog.md](../../backlog.md#redesign).
 
 ## Global Constraints
 
@@ -113,7 +113,7 @@ and chrome edges do not line up on wide screens.
   opacity forms such as `bg-live/12`. Existing shadcn names (`bg-card`, `text-muted-foreground`,
   `border-border`, `bg-primary` …) keep working with the new colors.
 
-- [ ] **Step 1: Add the new token mappings to `@theme inline`**
+- [x] **Step 1: Add the new token mappings to `@theme inline`**
 
 Insert after `--font-mono: var(--font-geist-mono);`:
 
@@ -126,7 +126,7 @@ Insert after `--font-mono: var(--font-geist-mono);`:
   --color-subtle-foreground: var(--subtle-foreground);
 ```
 
-- [ ] **Step 2: Replace the `:root` (light) color values**
+- [x] **Step 2: Replace the `:root` (light) color values**
 
 Keep the `--chart-*` and `--sidebar-*` lines as they are; replace the others and add the new
 tokens:
@@ -162,7 +162,7 @@ tokens:
 }
 ```
 
-- [ ] **Step 3: Replace the `.dark` color values**
+- [x] **Step 3: Replace the `.dark` color values**
 
 ```css
 .dark {
@@ -197,7 +197,7 @@ tokens:
 Note: `--radius` drops from `0.625rem` to `0.5rem`, which tightens the corners of every
 existing shadcn component (buttons 8px, cards `rounded-xl` about 11px). This is intended.
 
-- [ ] **Step 4: Make dark the default theme**
+- [x] **Step 4: Make dark the default theme**
 
 `src/components/theme-provider.tsx`:
 
@@ -205,13 +205,13 @@ existing shadcn component (buttons 8px, cards `rounded-xl` about 11px). This is 
 <NextThemesProvider attribute="class" defaultTheme="dark" enableSystem>
 ```
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `pnpm lint && pnpm build`
 Expected: both succeed. Then `pnpm dev`, open `/` in a fresh private window: the page is dark
 on first paint; body text is `#EDEEF0` on `#0B0C0E` (check with devtools).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/app/globals.css src/components/theme-provider.tsx docs/plans/redesign-foundations.md docs/backlog.md
@@ -242,7 +242,7 @@ git commit -m "feat(ui): add dark-first design tokens"
   - `formatTimeLeftShort(ms: number): string` → `"9d 03h"` / `"05h 12m"`
   - `formatDuration(start: Date, end: Date): string` → `"72 hours"` / `"7 days"`
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 ```ts
 import { describe, it, expect } from "vitest";
@@ -361,12 +361,12 @@ describe("formatDuration", () => {
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `pnpm test src/lib/jam-status-display.test.ts`
 Expected: FAIL — cannot resolve `@/lib/jam-status-display`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 ```ts
 import type { JamPhase, JamPhaseInput } from "@/domain/jam-phase";
@@ -464,12 +464,12 @@ export function formatDuration(start: Date, end: Date): string {
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `pnpm test src/lib/jam-status-display.test.ts`
 Expected: PASS (all tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/lib/jam-status-display.ts src/lib/jam-status-display.test.ts
@@ -496,7 +496,7 @@ git commit -m "feat(ui): add jam status and countdown formatting helpers"
   - `<Countdown to={string /* ISO date */} className? />` (client component; refreshes the
     route once when it reaches zero, so the phase and lists update)
 
-- [ ] **Step 1: Status badge**
+- [x] **Step 1: Status badge**
 
 ```tsx
 import type { JamPhase } from "@/domain/jam-phase";
@@ -521,7 +521,7 @@ export function JamStatusBadge({ phase, className }: { phase: JamPhase; classNam
 }
 ```
 
-- [ ] **Step 2: Progress bar**
+- [x] **Step 2: Progress bar**
 
 ```tsx
 import type { JamPhase } from "@/domain/jam-phase";
@@ -553,7 +553,7 @@ export function JamProgress({
 }
 ```
 
-- [ ] **Step 3: Countdown**
+- [x] **Step 3: Countdown**
 
 ```tsx
 "use client";
@@ -591,12 +591,12 @@ export function Countdown({ to, className }: { to: string; className?: string })
 }
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `pnpm lint && pnpm exec tsc --noEmit`
 Expected: no errors. (These components are exercised visually in Task 6.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/components/jam
@@ -620,7 +620,7 @@ git commit -m "feat(ui): add jam status badge, progress bar and countdown"
 - Produces: `session.user.username?: string | null`;
   `<UserMenu user={{ name?, email?, image?, username? }} />`.
 
-- [ ] **Step 1: Update the failing tests**
+- [x] **Step 1: Update the failing tests**
 
 Add next to the existing `vi.mock("next-auth/react", …)`:
 
@@ -669,12 +669,12 @@ describe("UserMenu", () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm test src/components/user-menu.test.ts`
 Expected: FAIL — "Sign out" not found (current label is "Sign Out") and no `/users/tester` link.
 
-- [ ] **Step 3: Add `username` to the session**
+- [x] **Step 3: Add `username` to the session**
 
 `src/types/next-auth.d.ts` — add `username?: string | null;` to `Session["user"]` and to `JWT`.
 
@@ -706,7 +706,7 @@ and in `session`, after the `isStaff` line: `session.user.username = token.usern
 
 The settings page does not call `update()` yet; recording that is part of Task 7 step 3.
 
-- [ ] **Step 4: Theme radio items**
+- [x] **Step 4: Theme radio items**
 
 `src/components/theme-menu-items.tsx`:
 
@@ -744,7 +744,7 @@ export function ThemeMenuItems() {
 }
 ```
 
-- [ ] **Step 5: Rewrite the account menu**
+- [x] **Step 5: Rewrite the account menu**
 
 `src/components/user-menu.tsx`:
 
@@ -821,12 +821,12 @@ export function UserMenu({ user }: UserMenuProps) {
 }
 ```
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pnpm test src/components/user-menu.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/types/next-auth.d.ts src/lib/auth.ts src/components/theme-menu-items.tsx src/components/user-menu.tsx src/components/user-menu.test.ts
@@ -850,7 +850,7 @@ git commit -m "feat(ui): account menu with profile, settings, theme and sign out
 - Consumes: `UserMenu` (Task 4), `ThemeToggle` (existing; signed-out users, `md` and up).
 - Produces: `<Logo />`, `<SiteHeader />`, `<Footer />`.
 
-- [ ] **Step 1: Logo**
+- [x] **Step 1: Logo**
 
 ```tsx
 import Link from "next/link";
@@ -868,7 +868,7 @@ export function Logo() {
 }
 ```
 
-- [ ] **Step 2: Header**
+- [x] **Step 2: Header**
 
 The header is responsive: from `md` up it shows the nav, the search field, and either the
 account menu or theme toggle + Sign in + Sign up. Below `md` it shows the logo, a search icon,
@@ -997,10 +997,10 @@ export function SiteHeader() {
 }
 ```
 
-Signed-out mobile users change the theme from the system setting (default `dark` until they
-pick); the theme picker lives in the account menu for signed-in users.
+Signed-out mobile users change the theme from the menu sheet (`ThemeButtons`); the theme
+picker lives in the account menu for signed-in users.
 
-- [ ] **Step 3: Footer**
+- [x] **Step 3: Footer**
 
 ```tsx
 import Link from "next/link";
@@ -1028,14 +1028,14 @@ export function Footer() {
 }
 ```
 
-- [ ] **Step 4: Wire into the layout**
+- [x] **Step 4: Wire into the layout**
 
 In `src/app/layout.tsx` replace `import { Navbar } from "@/components/navbar";` with
 `import { SiteHeader } from "@/components/site-header";` and `<Navbar />` with `<SiteHeader />`.
 Delete `src/components/navbar.tsx` (`git rm`). Confirm nothing else imports it:
 `grep -rn "components/navbar" src tests` → no output.
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `pnpm lint && pnpm exec tsc --noEmit && pnpm test`
 Expected: all pass. Then in `pnpm dev`, check by hand:
@@ -1048,7 +1048,7 @@ Expected: all pass. Then in `pnpm dev`, check by hand:
   stored choice after a reload.
 - Every tap target at 390px is at least 44px tall (devtools → inspect).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/components/logo.tsx src/components/site-header.tsx src/components/footer.tsx src/app/layout.tsx
@@ -1111,7 +1111,7 @@ export interface HomeData {
 }
 ```
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `src/domain/results.test.ts`, extend the existing import from `@/domain/results` with
 `podium`, add `import type { JamResults, SubmissionResult } from "@/domain/scoring";` to the
@@ -1234,14 +1234,14 @@ describe("loadHomeData", () => {
 `loadJamResults` only reads submitted entries. `ratings` counts the five distinct
 rater–submission pairs, including the hidden entry's.)
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `pnpm test src/domain/results.test.ts` → FAIL (`podium` is not exported).
 Run: `pnpm test:integration tests/integration/home-queries.integration.test.ts` → FAIL
 (cannot resolve `@/lib/home-queries`). Requires the local test Postgres from
-[installation.md](../installation.md).
+[installation.md](../../installation.md).
 
-- [ ] **Step 3: Implement `podium`**
+- [x] **Step 3: Implement `podium`**
 
 Add `import type { JamResults, SubmissionResult } from "@/domain/scoring";` to the imports of
 `src/domain/results.ts` and append:
@@ -1258,7 +1258,7 @@ export function podium(results: JamResults, size = 3): SubmissionResult[] {
 }
 ```
 
-- [ ] **Step 4: Implement `loadHomeData`**
+- [x] **Step 4: Implement `loadHomeData`**
 
 Before writing, confirm the field names against the schema:
 `grep -n "model Submission" -A 25 prisma/schema.prisma` (expects `title`, `status`, `visible`,
@@ -1379,7 +1379,7 @@ export async function loadHomeData(now = new Date()): Promise<HomeData> {
 If `@/generated/prisma/client` does not export `Prisma`, import it from wherever
 `src/lib/db.ts` gets the client (`grep -n "import" src/lib/db.ts`).
 
-- [ ] **Step 5: Rebuild the homepage**
+- [x] **Step 5: Rebuild the homepage**
 
 `src/app/page.tsx` keeps `export const dynamic = "force-dynamic"`, a Suspense boundary and a
 skeleton:
@@ -1500,19 +1500,19 @@ Implement the remaining components in the same file:
 
 Spacing: `pb-20` between sections; section headings `text-xl font-semibold tracking-tight`.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Run: `pnpm test && pnpm test:integration tests/integration/home-queries.integration.test.ts`
 Expected: PASS.
 
-- [ ] **Step 7: Verify visually**
+- [x] **Step 7: Verify visually**
 
 Run `pnpm db:seed && pnpm dev`. Compare `/` at 1440px and 390px with the **Home — desktop**
 and **Home — mobile** boards, in both themes. Check that the live panel counts down every
 second, that there is no horizontal scroll at 390px, and that with every jam unpublished
 (Prisma Studio: `pnpm db:studio`) the live panel shows the empty state.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add src/domain/results.ts src/domain/results.test.ts src/lib/home-queries.ts tests/integration/home-queries.integration.test.ts src/app/page.tsx vitest.config.mts
@@ -1531,7 +1531,7 @@ git commit -m "feat(home): rebuild homepage with live panel, schedule and result
   `docs/backlog.md`, `CHANGELOG.md`
 - Move: `docs/plans/redesign-foundations.md` → `docs/plans/done/`
 
-- [ ] **Step 1: Add the e2e checks**
+- [x] **Step 1: Add the e2e checks**
 
 Append inside the `smoke` describe:
 
@@ -1561,7 +1561,7 @@ test("homepage shows the hero and the live panel", async ({ page }) => {
 
 Run: `pnpm test:e2e` → Expected: all smoke tests pass, the existing ones included.
 
-- [ ] **Step 2: Write `docs/design-system.md`**
+- [x] **Step 2: Write `docs/design-system.md`**
 
 Present tense, no frontmatter, no dates. Sections: Principles (calm, dark-first, one accent;
 status colors carry meaning); Tokens (the two color tables from Global Constraints with the
@@ -1570,7 +1570,7 @@ use mono); Jam status (label and tone table, `TONE_*` maps, `JamStatusBadge`, `J
 `Countdown`); App shell (`SiteHeader`, `UserMenu`, `Footer`); Design source (the canvas link,
 private to the owner).
 
-- [ ] **Step 3: Update the other docs**
+- [x] **Step 3: Update the other docs**
 
 - `docs/INDEX.md` — add "[Design System](design-system.md) — tokens, typography and shared UI
   components" under Project.
@@ -1589,13 +1589,13 @@ private to the owner).
 - `CHANGELOG.md` — under Unreleased → Changed: "New dark-first visual design: tokens, site
   header with account menu, footer and homepage." Under Added: "`username` on the session."
 
-- [ ] **Step 4: Full verification**
+- [x] **Step 4: Full verification**
 
 Run: `pnpm lint && pnpm build && pnpm test && pnpm test:integration && pnpm test:e2e`
 Expected: all green. Every checkbox in this plan should already be ticked as each step was
 completed; confirm none are left.
 
-- [ ] **Step 5: Peer review loop**
+- [x] **Step 5: Peer review loop**
 
 Run a review subagent on a small model with this instruction: "You are a subAgent. Do not use
 `vscode_askQuestions`. Do NOT edit code. Review the diff from the commit before Task 1 to HEAD
@@ -1603,7 +1603,7 @@ for correctness, edge cases, types/tests, architecture and docs gaps against
 `docs/plans/redesign-foundations.md`; return a structured list or LGTM." Fix every finding,
 commit the fixes, and re-run until it returns LGTM.
 
-- [ ] **Step 6: Move the plan and fix its links, in the final commit**
+- [x] **Step 6: Move the plan and fix its links, in the final commit**
 
 Move the plan, then repoint its relative links, which gain one level
 (`../backlog.md` → `../../backlog.md`, `../specs/product-spec.md` →
@@ -1611,7 +1611,7 @@ Move the plan, then repoint its relative links, which gain one level
 
 ```bash
 git mv docs/plans/redesign-foundations.md docs/plans/done/redesign-foundations.md
-sed -i 's#](\.\./#](../../#g' docs/plans/done/redesign-foundations.md
+sed -i 's#](\.\./#](../../../#g' docs/plans/done/redesign-foundations.md
 git add docs/plans/done/redesign-foundations.md tests/e2e/smoke.spec.ts docs CHANGELOG.md
 git commit -m "docs: design system reference and redesign foundations wrap-up"
 ```

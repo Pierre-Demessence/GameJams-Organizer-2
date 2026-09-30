@@ -23,9 +23,9 @@ are not.
 
 The approved design lives on the "GameJam Organizer — Website Design" canvas
 (<https://claude.ai/artifact/SPJeNxb9rsAiNeGNoeBXqB>, private to the owner). Foundations,
-the app shell and the homepage are planned in
-[plans/redesign-foundations.md](plans/redesign-foundations.md). Still to plan, one plan per
-group:
+the app shell and the homepage are done — see
+[plans/done/redesign-foundations.md](plans/done/redesign-foundations.md). Still to plan,
+one plan per group:
 
 1. **Discover & play:** jam list (status tabs, tag chips, format/sort filters), jam page
    (cover, timeline with countdown, tabs, "Your entry" side panel), jam submissions tab
@@ -41,6 +41,12 @@ group:
    sign in).
 6. **Search palette:** the header's "Search jams… ⌘K" opens a command palette. The
    foundations plan ships it as a plain link to `/jams`.
+7. **Foundations follow-ups:** check the mobile header at 390px (logo, search, account chip
+   and menu may be tight); add a signed-in e2e session covering the account menu (profile
+   link, theme picker); guard `await update()` in the settings profile form against a
+   network error; add `Number.isFinite` guards for Invalid Date in `phaseProgress` /
+   `formatDuration`; the podium row link underlines place and score on hover; the dark
+   `--accent` equals `--secondary`, so hover on muted surfaces is flat.
 
 ## Known issues
 

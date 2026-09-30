@@ -7,6 +7,7 @@
 - [Tech Stack](tech-stack.md) — languages, runtimes, and dependencies
 - [Codebase](codebase.md) — directory map, conventions, and where to add new code
 - [Features](features.md) — product-level feature list
+- [Design System](design-system.md) — tokens, typography and shared UI components
 - [Backlog](backlog.md) — MVP gaps, known issues, spec proposals, and post-MVP features
 
 ## Specifications
