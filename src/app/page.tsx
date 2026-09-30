@@ -38,7 +38,8 @@ async function HomeContent() {
         <div className="flex flex-col gap-6 md:col-span-6 md:pt-6">
           <a
             href="https://github.com/Pierre-Demessence/GameJams-Organizer-2"
-            className="inline-flex min-h-8 items-center gap-2 self-start rounded-full border px-3 text-xs text-muted-foreground"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center gap-2 self-start md:min-h-8 rounded-full border px-3 text-xs text-muted-foreground"
           >
             <span aria-hidden className="size-1.5 rounded-full bg-brand" />
             Free and open source
@@ -109,7 +110,7 @@ function LivePanel({ jams, now, className }: { jams: HomeJam[]; now: Date; class
                     {initials(jam.name)}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <Link href={`/jams/${jam.slug}`} className="block truncate text-sm font-medium hover:underline">
+                    <Link href={`/jams/${jam.slug}`} className="-my-2.5 block truncate py-2.5 text-sm font-medium hover:underline">
                       {jam.name}
                     </Link>
                     <p className="text-xs text-subtle-foreground">
@@ -147,12 +148,12 @@ function UpcomingSection({ jams, now }: { jams: HomeJam[]; now: Date }) {
       <table className="hidden w-full text-sm md:table">
         <thead>
           <tr className="border-b text-left text-xs text-subtle-foreground">
-            <th className="py-2 pr-4 font-medium">Starts (UTC)</th>
-            <th className="py-2 pr-4 font-medium">Jam</th>
-            <th className="py-2 pr-4 font-medium">Format</th>
-            <th className="py-2 pr-4 font-medium">Duration</th>
-            <th className="py-2 pr-4 text-right font-medium">Joined</th>
-            <th className="py-2 text-right font-medium">Starts in</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Starts (UTC)</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Jam</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Format</th>
+            <th scope="col" className="py-2 pr-4 font-medium">Duration</th>
+            <th scope="col" className="py-2 pr-4 text-right font-medium">Joined</th>
+            <th scope="col" className="py-2 text-right font-medium">Starts in</th>
           </tr>
         </thead>
         <tbody>
@@ -182,11 +183,11 @@ function UpcomingSection({ jams, now }: { jams: HomeJam[]; now: Date }) {
       <ul className="divide-y border-y md:hidden">
         {jams.map((jam) => (
           <li key={jam.id} className="flex items-start gap-4 py-3">
-            <span className="w-14 shrink-0 font-mono text-sm text-muted-foreground">
-              {jam.startDate ? DAY.format(jam.startDate) : "—"}
+            <span className="w-20 shrink-0 font-mono text-sm text-muted-foreground">
+              {jam.startDate ? `${DAY.format(jam.startDate)} UTC` : "—"}
             </span>
             <div className="min-w-0">
-              <Link href={`/jams/${jam.slug}`} className="block truncate text-sm font-medium hover:underline">
+              <Link href={`/jams/${jam.slug}`} className="-my-2.5 block truncate py-2.5 text-sm font-medium hover:underline">
                 {jam.name}
               </Link>
               <p className="text-xs text-subtle-foreground">
@@ -224,7 +225,7 @@ function ResultsSection({ jams }: { jams: FinishedJam[] }) {
                 </Link>
                 {jam.endDate && (
                   <span className="shrink-0 font-mono text-xs text-subtle-foreground">
-                    {DAY.format(jam.endDate)}
+                    {DAY.format(jam.endDate)} UTC
                   </span>
                 )}
               </div>
@@ -251,7 +252,7 @@ function PodiumBody({ jam }: { jam: FinishedJam }) {
             <span className={cn("w-4 font-mono", p.place === 1 ? "text-rating" : "text-muted-foreground")}>
               {p.place}
             </span>
-            <Link href={`/submissions/${p.submissionId}`} className="min-w-0 flex-1 truncate hover:underline">
+            <Link href={`/submissions/${p.submissionId}`} className="-my-2.5 min-w-0 flex-1 truncate py-2.5 hover:underline">
               {p.title}
             </Link>
             <span className="font-mono text-muted-foreground">{p.score?.toFixed(2)}</span>
