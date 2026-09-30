@@ -17,7 +17,7 @@ export default defineConfig({
       // Unit-suite health: scope to the pure logic unit tests can/should own.
       // Server actions, pages and UI components belong to the overall report
       // (vitest.overall.config.mts), not here.
-      include: ["src/lib/**/*.ts", "src/components/markdown.tsx"],
+      include: ["src/lib/**/*.ts", "src/domain/**/*.ts", "src/components/markdown.tsx"],
       exclude: [
         "src/**/*.test.ts",
         "src/lib/auth.ts",
@@ -25,6 +25,9 @@ export default defineConfig({
         "src/lib/db.ts",
         "src/lib/rate-limit.ts",
         "src/lib/audit.ts",
+        // Database I/O only; the logic lives in src/domain and is unit-tested there.
+        "src/lib/scoring.ts",
+        "src/lib/rating-queries.ts",
       ],
     },
   },

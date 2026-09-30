@@ -3,39 +3,11 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { ratingSchema } from "@/lib/validations";
-import { computeJamStatus } from "@/lib/jam-status";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { jamPhase } from "@/domain/jam-phase";
+import { canRate } from "@/domain/rating";
+import { loadRater } from "@/lib/rating-queries";
 import { revalidatePath } from "next/cache";
-
-async function checkRatingEligibility(
-  jamId: string,
-  userId: string,
-  ratingEligibility: string
-): Promise<boolean> {
-  switch (ratingEligibility) {
-    case "EVERYONE":
-      return true;
-    case "JUDGES_ONLY": {
-      const judgeRole = await db.jamRole.findFirst({
-        where: { jamId, userId, role: "JUDGE" },
-      });
-      return !!judgeRole;
-    }
-    case "SUBMITTERS_ONLY": {
-      const membership = await db.submissionMember.findFirst({
-        where: { userId, submission: { jamId }, isLeader: true },
-      });
-      return !!membership;
-    }
-    case "SUBMITTERS_AND_CONTRIBUTORS":
-    default: {
-      const membership = await db.submissionMember.findFirst({
-        where: { userId, submission: { jamId } },
-      });
-      return !!membership;
-    }
-  }
-}
 
 export async function submitRatingAction(data: {
   submissionId: string;
@@ -43,8 +15,9 @@ export async function submitRatingAction(data: {
 }) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
 
-  const { allowed } = checkRateLimit(`rate:${session.user.id}`);
+  const { allowed } = checkRateLimit(`rate:${userId}`);
   if (!allowed) return { error: "Too many requests. Please try again later." };
 
   const parsed = ratingSchema.safeParse(data);
@@ -52,43 +25,22 @@ export async function submitRatingAction(data: {
 
   const submission = await db.submission.findUnique({
     where: { id: parsed.data.submissionId },
-    include: {
-      jam: true,
-      members: true,
-    },
+    include: { jam: true, members: true },
   });
-  if (!submission) return { error: "Submission not found" };
-  if (submission.deletedAt || submission.jam.deletedAt)
-    return { error: "Submission not found" };
-  if (!submission.jam.ranked)
-    return { error: "This jam is not ranked" };
-  if (submission.status !== "SUBMITTED")
-    return { error: "This submission is not finalized" };
-  if (!submission.rateable)
-    return { error: "This submission cannot be rated" };
+  if (!submission || submission.jam.deletedAt) return { error: "Submission not found" };
 
-  const status = computeJamStatus(submission.jam);
-  if (status !== "RATING") {
-    return { error: "Ratings are only accepted during the rating period" };
-  }
+  const decision = canRate({
+    phase: jamPhase(submission.jam),
+    ranked: submission.jam.ranked,
+    eligibility: submission.jam.ratingEligibility,
+    rater: await loadRater(submission.jamId, userId),
+    isOwnSubmission: submission.members.some((m) => m.userId === userId),
+    submission,
+  });
+  if (!decision.allowed) return { error: decision.reason };
 
-  // Self-rating prevention
-  const isMember = submission.members.some(
-    (m) => m.userId === session.user!.id
-  );
-  if (isMember) return { error: "You cannot rate your own submission" };
-
-  // Eligibility check
-  const eligible = await checkRatingEligibility(
-    submission.jamId,
-    session.user.id,
-    submission.jam.ratingEligibility
-  );
-  if (!eligible) return { error: "You are not eligible to rate in this jam" };
-
-  // Validate criterion IDs belong to this jam
   const criteria = await db.criterion.findMany({
-    where: { jamId: submission.jamId },
+    where: { jamId: submission.jamId, source: "RATED" },
     select: { id: true },
   });
   const criteriaIds = new Set(criteria.map((c) => c.id));
@@ -98,7 +50,6 @@ export async function submitRatingAction(data: {
     }
   }
 
-  // Upsert all ratings in a single transaction
   await db.$transaction(
     parsed.data.ratings.map((r) =>
       db.rating.upsert({
@@ -106,13 +57,13 @@ export async function submitRatingAction(data: {
           submissionId_criterionId_userId: {
             submissionId: parsed.data.submissionId,
             criterionId: r.criterionId,
-            userId: session.user!.id,
+            userId,
           },
         },
         create: {
           submissionId: parsed.data.submissionId,
           criterionId: r.criterionId,
-          userId: session.user!.id,
+          userId,
           score: r.score,
         },
         update: { score: r.score },
@@ -122,11 +73,4 @@ export async function submitRatingAction(data: {
 
   revalidatePath(`/submissions/${parsed.data.submissionId}`);
   return { success: true };
-}
-
-export async function getUserRatings(submissionId: string, userId: string) {
-  return db.rating.findMany({
-    where: { submissionId, userId },
-    select: { criterionId: true, score: true },
-  });
 }

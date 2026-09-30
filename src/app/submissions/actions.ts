@@ -2,8 +2,8 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { submissionSchema, findMissingRequiredFields } from "@/lib/validations";
-import { computeJamStatus } from "@/lib/jam-status";
+import { findMissingRequiredFields, validateCustomFieldValues } from "@/lib/validations";
+import { parseSubmissionForm, readCustomFieldValues } from "@/lib/form-parsers";
 import { checkJamPermission } from "@/lib/permissions";
 import { checkStaffPermission } from "@/lib/staff-permissions";
 import { recordAudit } from "@/lib/audit";
@@ -12,7 +12,43 @@ import {
   generateVerificationCode,
   verifyCodeOnItchPage,
 } from "@/lib/verification";
+import { jamPhase } from "@/domain/jam-phase";
+import {
+  canAddContributor,
+  canCreateSubmission,
+  canEditSubmission,
+  canFinalizeSubmission,
+  canRemoveContributor,
+  canTransferLeadership,
+  canUnsubmit,
+} from "@/domain/submission";
 import { revalidatePath } from "next/cache";
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: string }).code === "P2002"
+  );
+}
+
+// Soft-deleted submissions are filtered by the db extension; the included jam
+// is a relation, so its deletion must be checked here.
+async function loadSubmission(submissionId: string) {
+  const submission = await db.submission.findUnique({
+    where: { id: submissionId },
+    include: { jam: true, members: true },
+  });
+  if (!submission || submission.jam.deletedAt) return null;
+  return submission;
+}
+
+function hasLiveSubmissionIn(jamId: string, userId: string) {
+  return db.submissionMember.findFirst({
+    where: { userId, submission: { jamId, deletedAt: null } },
+  });
+}
 
 export async function createSubmissionAction(jamSlug: string, formData: FormData) {
   const session = await auth();
@@ -27,64 +63,27 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
   });
   if (!jam) return { error: "Jam not found" };
 
-  const status = computeJamStatus(jam);
-  if (status !== "ONGOING") {
-    return { error: "Submissions are only accepted during the ongoing period" };
-  }
-
-  // Check user is a participant
-  const participant = await db.jamParticipant.findUnique({
-    where: { jamId_userId: { jamId: jam.id, userId: session.user.id } },
+  const [participant, existingMembership] = await Promise.all([
+    db.jamParticipant.findUnique({
+      where: { jamId_userId: { jamId: jam.id, userId: session.user.id } },
+    }),
+    hasLiveSubmissionIn(jam.id, session.user.id),
+  ]);
+  const decision = canCreateSubmission({
+    phase: jamPhase(jam),
+    hasJoined: participant !== null,
+    hasSubmission: existingMembership !== null,
   });
-  if (!participant) {
-    return { error: "You must join this jam before submitting" };
-  }
+  if (!decision.allowed) return { error: decision.reason };
 
-  // One submission per user per jam
-  const existingMembership = await db.submissionMember.findFirst({
-    where: {
-      userId: session.user.id,
-      submission: { jamId: jam.id, deletedAt: null },
-    },
-  });
-  if (existingMembership) {
-    return { error: "You already have a submission in this jam" };
-  }
-
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = submissionSchema.safeParse({
-    ...raw,
-    screenshots: raw.screenshots
-      ? String(raw.screenshots).split(",").map((s) => s.trim()).filter(Boolean)
-      : [],
-    coverUrl: raw.coverUrl || undefined,
-    itchUrl: raw.itchUrl || undefined,
-    supportedPlatforms: formData.getAll("platforms").map(String),
-    videoUrl: raw.videoUrl || undefined,
-    description: raw.description || undefined,
-  });
-
+  const parsed = parseSubmissionForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
-  // Validate required custom fields and URL types
-  for (const field of jam.customFields) {
-    const value = (formData.get(`custom_${field.id}`) as string) ?? "";
-    if (field.required && !value.trim()) {
-      return { error: `${field.name} is required` };
-    }
-    if (field.type === "URL" && value.trim()) {
-      try {
-        const url = new URL(value.trim());
-        if (url.protocol !== "http:" && url.protocol !== "https:") {
-          return { error: `${field.name} must be an http or https URL` };
-        }
-      } catch {
-        return { error: `${field.name} must be a valid URL` };
-      }
-    }
-  }
+  const fieldValues = readCustomFieldValues(formData, jam.customFields);
+  const fieldError = validateCustomFieldValues(jam.customFields, fieldValues);
+  if (fieldError) return { error: fieldError };
 
   let submission;
   try {
@@ -105,22 +104,14 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
           create: { userId: session.user.id, isLeader: true },
         },
         fieldValues: {
-          create: jam.customFields
-            .map((field) => ({
-              fieldId: field.id,
-              value: (formData.get(`custom_${field.id}`) as string) ?? "",
-            }))
-            .filter((fv) => fv.value),
+          create: Object.entries(fieldValues)
+            .filter(([, value]) => value)
+            .map(([fieldId, value]) => ({ fieldId, value })),
         },
       },
     });
   } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code: string }).code === "P2002"
-    ) {
+    if (isUniqueViolation(err)) {
       return { error: "You already have a submission in this jam" };
     }
     return { error: "Failed to create submission" };
@@ -136,129 +127,68 @@ export async function updateSubmissionAction(
 ) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: {
-      jam: true,
-      members: true,
-    },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
-  if (submission.deletedAt) return { error: "Submission not found" };
 
-  const status = computeJamStatus(submission.jam);
-  if (status !== "ONGOING") {
-    // Check if admin/moderator can edit outside ONGOING
-    const canEditAny = await checkJamPermission(
-      submission.jamId,
-      session.user.id,
-      "edit_submission"
-    );
-    if (!canEditAny) {
-      return { error: "Submissions can only be edited during the ongoing period" };
-    }
-  } else {
-    // During ONGOING, check if user is a member
-    const isMember = submission.members.some(
-      (m) => m.userId === session.user!.id
-    );
-    const canEditAny = await checkJamPermission(
-      submission.jamId,
-      session.user.id,
-      "edit_submission"
-    );
-    if (!isMember && !canEditAny) {
-      return { error: "You do not have permission to edit this submission" };
-    }
-  }
-
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = submissionSchema.safeParse({
-    ...raw,
-    screenshots: raw.screenshots
-      ? String(raw.screenshots).split(",").map((s) => s.trim()).filter(Boolean)
-      : [],
-    coverUrl: raw.coverUrl || undefined,
-    itchUrl: raw.itchUrl || undefined,
-    supportedPlatforms: formData.getAll("platforms").map(String),
-    videoUrl: raw.videoUrl || undefined,
-    description: raw.description || undefined,
+  const decision = canEditSubmission({
+    phase: jamPhase(submission.jam),
+    isMember: submission.members.some((m) => m.userId === userId),
+    canEditAny: await checkJamPermission(submission.jamId, userId, "edit_submission"),
   });
+  if (!decision.allowed) return { error: decision.reason };
 
+  const parsed = parseSubmissionForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
+
+  const customFields = await db.customField.findMany({
+    where: { jamId: submission.jamId },
+  });
+  const fieldValues = readCustomFieldValues(formData, customFields);
+  const fieldError = validateCustomFieldValues(customFields, fieldValues);
+  if (fieldError) return { error: fieldError };
 
   // Changing the verified game link returns the submission to DRAFT for re-verification.
   const newItchUrl = parsed.data.itchUrl || null;
   const linkChanged = newItchUrl !== submission.itchUrl;
 
-  await db.submission.update({
-    where: { id: submissionId },
-    data: {
-      title: parsed.data.title,
-      description: parsed.data.description || null,
-      coverUrl: parsed.data.coverUrl || null,
-      itchUrl: newItchUrl,
-      supportedPlatforms: parsed.data.supportedPlatforms ?? [],
-      screenshots: parsed.data.screenshots ?? [],
-      videoUrl: parsed.data.videoUrl || null,
-      ...(linkChanged
-        ? {
-            verificationCode: newItchUrl ? generateVerificationCode() : null,
-            verified: false,
-            verifiedManually: false,
-            verifiedAt: null,
-            status: "DRAFT" as const,
-          }
-        : {}),
-    },
-  });
-
-  // Update custom field values in a single transaction
-  const jam = await db.jam.findUnique({
-    where: { id: submission.jamId },
-    include: { customFields: true },
-  });
-  if (jam) {
-    // Validate required custom fields and URL types
-    for (const field of jam.customFields) {
-      const value = (formData.get(`custom_${field.id}`) as string) ?? "";
-      if (field.required && !value.trim()) {
-        return { error: `${field.name} is required` };
-      }
-      if (field.type === "URL" && value.trim()) {
-        try {
-          const url = new URL(value.trim());
-          if (url.protocol !== "http:" && url.protocol !== "https:") {
-            return { error: `${field.name} must be an http or https URL` };
-          }
-        } catch {
-          return { error: `${field.name} must be a valid URL` };
-        }
-      }
-    }
-
-    const upserts = jam.customFields
-      .map((field) => ({
-        field,
-        value: (formData.get(`custom_${field.id}`) as string) ?? "",
-      }))
-      .filter((fv) => fv.value)
-      .map(({ field, value }) =>
-        db.customFieldValue.upsert({
-          where: {
-            fieldId_submissionId: { fieldId: field.id, submissionId },
-          },
-          create: { fieldId: field.id, submissionId, value },
+  const fieldWrites = Object.entries(fieldValues).map(([fieldId, value]) =>
+    value
+      ? db.customFieldValue.upsert({
+          where: { fieldId_submissionId: { fieldId, submissionId } },
+          create: { fieldId, submissionId, value },
           update: { value },
         })
-      );
-    if (upserts.length > 0) {
-      await db.$transaction(upserts);
-    }
-  }
+      : db.customFieldValue.deleteMany({ where: { fieldId, submissionId } })
+  );
+
+  await db.$transaction([
+    db.submission.update({
+      where: { id: submissionId },
+      data: {
+        title: parsed.data.title,
+        description: parsed.data.description || null,
+        coverUrl: parsed.data.coverUrl || null,
+        itchUrl: newItchUrl,
+        supportedPlatforms: parsed.data.supportedPlatforms ?? [],
+        screenshots: parsed.data.screenshots ?? [],
+        videoUrl: parsed.data.videoUrl || null,
+        ...(linkChanged
+          ? {
+              verificationCode: newItchUrl ? generateVerificationCode() : null,
+              verified: false,
+              verifiedManually: false,
+              verifiedAt: null,
+              status: "DRAFT" as const,
+            }
+          : {}),
+      },
+    }),
+    ...fieldWrites,
+  ]);
 
   revalidatePath(`/submissions/${submissionId}`);
   revalidatePath(`/jams/${submission.jam.slug}`);
@@ -271,35 +201,20 @@ export async function addContributorAction(
 ) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true, members: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
-  if (submission.deletedAt) return { error: "Submission not found" };
 
-  // Only leader can add contributors
-  const isLeader = submission.members.some(
-    (m) => m.userId === session.user!.id && m.isLeader
-  );
-  if (!isLeader) return { error: "Only the team leader can add contributors" };
-
-  const status = computeJamStatus(submission.jam);
-  if (status === "RATING" && !submission.jam.allowContributorsAfterClose) {
-    return { error: "Cannot add contributors during rating period" };
-  }
-  if (status === "FINISHED") {
-    return { error: "Cannot add contributors after jam is finished" };
-  }
-
-  // Check max team size
-  if (
-    submission.jam.maxTeamSize &&
-    submission.members.length >= submission.jam.maxTeamSize
-  ) {
-    return { error: "Team is already at maximum size" };
-  }
+  const decision = canAddContributor({
+    phase: jamPhase(submission.jam),
+    ranked: submission.jam.ranked,
+    allowContributorsAfterClose: submission.jam.allowContributorsAfterClose,
+    isMember: submission.members.some((m) => m.userId === userId),
+    teamSize: submission.members.length,
+    maxTeamSize: submission.jam.maxTeamSize,
+  });
+  if (!decision.allowed) return { error: decision.reason };
 
   const contributor = await db.user.findUnique({
     where: { username: contributorUsername },
@@ -307,7 +222,6 @@ export async function addContributorAction(
   });
   if (!contributor) return { error: "User not found" };
 
-  // Check contributor is a participant
   const isParticipant = await db.jamParticipant.findUnique({
     where: {
       jamId_userId: { jamId: submission.jamId, userId: contributor.id },
@@ -317,14 +231,7 @@ export async function addContributorAction(
     return { error: "User must join the jam first" };
   }
 
-  // One submission per jam
-  const existing = await db.submissionMember.findFirst({
-    where: {
-      userId: contributor.id,
-      submission: { jamId: submission.jamId },
-    },
-  });
-  if (existing) {
+  if (await hasLiveSubmissionIn(submission.jamId, contributor.id)) {
     return { error: "User is already part of a submission in this jam" };
   }
 
@@ -333,12 +240,7 @@ export async function addContributorAction(
       data: { submissionId, userId: contributor.id, isLeader: false },
     });
   } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code: string }).code === "P2002"
-    ) {
+    if (isUniqueViolation(err)) {
       return { error: "User is already on this team" };
     }
     return { error: "Failed to add contributor" };
@@ -354,31 +256,24 @@ export async function removeContributorAction(
 ) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true, members: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
 
-  const isLeader = submission.members.some(
-    (m) => m.userId === session.user!.id && m.isLeader
-  );
-  if (!isLeader) return { error: "Only the team leader can remove contributors" };
+  const target = submission.members.find((m) => m.userId === contributorUserId);
+  if (!target) return { error: "User is not on this team" };
 
-  const status = computeJamStatus(submission.jam);
-  if (status === "RATING" || status === "FINISHED") {
-    return { error: "Cannot remove contributors after submissions close" };
-  }
+  const decision = canRemoveContributor({
+    phase: jamPhase(submission.jam),
+    ranked: submission.jam.ranked,
+    allowContributorsAfterClose: submission.jam.allowContributorsAfterClose,
+    isMember: submission.members.some((m) => m.userId === userId),
+    targetIsLeader: target.isLeader,
+  });
+  if (!decision.allowed) return { error: decision.reason };
 
-  // Cannot remove the leader
-  const targetMember = submission.members.find(
-    (m) => m.userId === contributorUserId
-  );
-  if (!targetMember) return { error: "User is not on this team" };
-  if (targetMember.isLeader) return { error: "Cannot remove the team leader" };
-
-  await db.submissionMember.delete({ where: { id: targetMember.id } });
+  await db.submissionMember.delete({ where: { id: target.id } });
 
   revalidatePath(`/submissions/${submissionId}`);
   return { success: true };
@@ -390,22 +285,21 @@ export async function transferLeaderAction(
 ) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { members: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
 
-  const currentLeader = submission.members.find(
-    (m) => m.userId === session.user!.id && m.isLeader
-  );
-  if (!currentLeader) return { error: "Only the team leader can transfer leadership" };
+  const currentLeader = submission.members.find((m) => m.userId === userId && m.isLeader);
+  const newLeader = submission.members.find((m) => m.userId === newLeaderUserId);
 
-  const newLeader = submission.members.find(
-    (m) => m.userId === newLeaderUserId
-  );
-  if (!newLeader) return { error: "User is not on this team" };
+  const decision = canTransferLeadership({
+    isLeader: currentLeader !== undefined,
+    targetIsMember: newLeader !== undefined,
+  });
+  if (!decision.allowed || !currentLeader || !newLeader) {
+    return { error: decision.allowed ? "User is not on this team" : decision.reason };
+  }
 
   await db.$transaction([
     db.submissionMember.update({
@@ -422,21 +316,25 @@ export async function transferLeaderAction(
   return { success: true };
 }
 
-// Moderation actions — three independent switches (visible / rateable / competing)
-// composed through presets.
-export async function disqualifySubmissionAction(
+// ─── Moderation ─────────────────────────────────
+// Three independent switches (visible / rateable / competing) composed through presets.
+
+type ModerationSwitches = {
+  visible?: boolean;
+  rateable?: boolean;
+  competing?: boolean;
+  moderationReason?: string | null;
+};
+
+async function moderate(
   submissionId: string,
-  reason?: string
+  switches: (current: { visible: boolean }) => ModerationSwitches
 ) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
-
   const canModerate = await checkJamPermission(
     submission.jamId,
     session.user.id,
@@ -444,14 +342,9 @@ export async function disqualifySubmissionAction(
   );
   if (!canModerate) return { error: "You do not have permission" };
 
-  // Disqualify: stays visible, but cannot be rated and does not compete.
   await db.submission.update({
     where: { id: submissionId },
-    data: {
-      rateable: false,
-      competing: false,
-      moderationReason: reason?.trim() || "Disqualified",
-    },
+    data: switches(submission),
   });
 
   revalidatePath(`/submissions/${submissionId}`);
@@ -459,110 +352,43 @@ export async function disqualifySubmissionAction(
   return { success: true };
 }
 
-export async function excludeFromRankingAction(
-  submissionId: string,
-  reason?: string
-) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "You must be signed in" };
+// Disqualify: stays visible, but cannot be rated and does not compete.
+export async function disqualifySubmissionAction(submissionId: string, reason?: string) {
+  return moderate(submissionId, () => ({
+    rateable: false,
+    competing: false,
+    moderationReason: reason?.trim() || "Disqualified",
+  }));
+}
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true },
-  });
-  if (!submission) return { error: "Submission not found" };
-
-  const canModerate = await checkJamPermission(
-    submission.jamId,
-    session.user.id,
-    "moderate_submission"
-  );
-  if (!canModerate) return { error: "You do not have permission" };
-
-  // Exclude from ranking: stays visible and rateable, but does not compete.
-  await db.submission.update({
-    where: { id: submissionId },
-    data: {
-      rateable: true,
-      competing: false,
-      moderationReason: reason?.trim() || "Not competing",
-    },
-  });
-
-  revalidatePath(`/submissions/${submissionId}`);
-  revalidatePath(`/jams/${submission.jam.slug}`);
-  return { success: true };
+// Exclude from ranking: stays visible and rateable, but does not compete.
+export async function excludeFromRankingAction(submissionId: string, reason?: string) {
+  return moderate(submissionId, () => ({
+    rateable: true,
+    competing: false,
+    moderationReason: reason?.trim() || "Not competing",
+  }));
 }
 
 export async function reinstateSubmissionAction(submissionId: string) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "You must be signed in" };
-
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true },
-  });
-  if (!submission) return { error: "Submission not found" };
-
-  const canModerate = await checkJamPermission(
-    submission.jamId,
-    session.user.id,
-    "moderate_submission"
-  );
-  if (!canModerate) return { error: "You do not have permission" };
-
-  await db.submission.update({
-    where: { id: submissionId },
-    data: {
-      visible: true,
-      rateable: true,
-      competing: true,
-      moderationReason: null,
-    },
-  });
-
-  revalidatePath(`/submissions/${submissionId}`);
-  revalidatePath(`/jams/${submission.jam.slug}`);
-  return { success: true };
+  return moderate(submissionId, () => ({
+    visible: true,
+    rateable: true,
+    competing: true,
+    moderationReason: null,
+  }));
 }
 
 export async function hideSubmissionAction(submissionId: string) {
-  const session = await auth();
-  if (!session?.user?.id) return { error: "You must be signed in" };
-
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true },
-  });
-  if (!submission) return { error: "Submission not found" };
-
-  const canModerate = await checkJamPermission(
-    submission.jamId,
-    session.user.id,
-    "moderate_submission"
-  );
-  if (!canModerate) return { error: "You do not have permission" };
-
-  await db.submission.update({
-    where: { id: submissionId },
-    data: { visible: !submission.visible },
-  });
-
-  revalidatePath(`/submissions/${submissionId}`);
-  revalidatePath(`/jams/${submission.jam.slug}`);
-  return { success: true };
+  return moderate(submissionId, (current) => ({ visible: !current.visible }));
 }
 
 export async function deleteSubmissionAction(submissionId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
-  if (submission.deletedAt) return { success: true };
 
   const isOrganizer = await checkJamPermission(
     submission.jamId,
@@ -597,10 +423,7 @@ export async function deleteSubmissionAction(submissionId: string) {
 // ─── Ownership verification & submission lifecycle ──────────────
 
 async function requireTeamMember(submissionId: string, userId: string) {
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true, members: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" as const };
   const isMember = submission.members.some((m) => m.userId === userId);
   if (!isMember) return { error: "You are not on this team" as const };
@@ -647,10 +470,7 @@ export async function manualVerifySubmissionAction(submissionId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
-  const submission = await db.submission.findUnique({
-    where: { id: submissionId },
-    include: { jam: true },
-  });
+  const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
 
   const canVerify = await checkJamPermission(
@@ -677,34 +497,24 @@ export async function submitSubmissionAction(submissionId: string) {
   if ("error" in result) return { error: result.error };
   const { submission } = result;
 
-  const status = computeJamStatus(submission.jam);
-  if (status !== "ONGOING") {
-    return { error: "Submissions can only be finalized during the ongoing period" };
-  }
-  if (!submission.itchUrl) {
-    return { error: "Add your itch.io project link before submitting" };
-  }
-  if (!submission.verified) {
-    return { error: "Verify ownership of your itch.io project before submitting" };
-  }
-
   const requiredFields = await db.customField.findMany({
     where: { jamId: submission.jamId, required: true },
     orderBy: { sortOrder: "asc" },
     include: { values: { where: { submissionId } } },
   });
-  const missingFields = findMissingRequiredFields(
-    requiredFields.map((field) => ({
-      name: field.name,
-      required: field.required,
-      value: field.values[0]?.value,
-    }))
-  );
-  if (missingFields.length > 0) {
-    return {
-      error: `Fill in all required fields before submitting: ${missingFields.join(", ")}`,
-    };
-  }
+  const decision = canFinalizeSubmission({
+    phase: jamPhase(submission.jam),
+    hasItchUrl: Boolean(submission.itchUrl),
+    verified: submission.verified,
+    missingRequiredFields: findMissingRequiredFields(
+      requiredFields.map((field) => ({
+        name: field.name,
+        required: field.required,
+        value: field.values[0]?.value,
+      }))
+    ),
+  });
+  if (!decision.allowed) return { error: decision.reason };
 
   await db.submission.update({
     where: { id: submissionId },
@@ -724,10 +534,8 @@ export async function unsubmitSubmissionAction(submissionId: string) {
   if ("error" in result) return { error: result.error };
   const { submission } = result;
 
-  const status = computeJamStatus(submission.jam);
-  if (status !== "ONGOING") {
-    return { error: "Submissions can only be withdrawn during the ongoing period" };
-  }
+  const decision = canUnsubmit({ phase: jamPhase(submission.jam) });
+  if (!decision.allowed) return { error: decision.reason };
 
   await db.submission.update({
     where: { id: submissionId },

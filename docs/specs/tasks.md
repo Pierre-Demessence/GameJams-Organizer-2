@@ -80,10 +80,10 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 - [x] **T-210** Build jam detail page (`/jams/[slug]`)
 - [x] **T-211** Build jam listing page (`/jams`) with search + status/tag filters
-- [x] **T-212** Implement jam status computation from dates (lazy evaluation)
+- [x] **T-212** Derive jam phase from publication + dates (`src/domain/jam-phase.ts`)
 - [x] **T-213** Display appropriate content per status (upcoming info, submissions, results)
-- [x] **T-214** Implement "Publish Jam" action (validate required fields, set visibility to
-  PUBLIC — transitions DRAFT → UPCOMING)
+- [x] **T-214** Implement "Publish Jam" action (validate dates and criteria, set `publishedAt`
+  — transitions DRAFT → UPCOMING; visibility unchanged)
 
 ### Join Jam
 
@@ -172,9 +172,10 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 - [x] **T-520** Implement Bayesian average scoring algorithm (per design.md) _(extended in Phase 8: per-criterion + optional/primary overall)_
 - [x] **T-521** Implement tiebreaking logic
-- [x] **T-522** Store computed results in JamResult table
+- [x] **T-522** Compute results on read from live ratings (no stored snapshot)
 - [x] **T-523** Build results page (`/jams/[slug]/results`)
-- [x] **T-524** Respect "hide results" setting (show only to admins when enabled)
+- [x] **T-524** Results visibility: organizer preview from RATING; public at FINISHED unless
+  "hide results" is on, then after a manual reveal
 - [x] **T-525** Display per-criterion scores alongside final rank
 
 ---
@@ -250,7 +251,8 @@ role / sudo-mode / custom-role builder, Google/GitHub OAuth, analytics.
 
 ### Testing & CI
 
-- [x] **T-890** Vitest unit tests (jam-status, permissions, validations, verification, scoring)
+- [x] **T-890** Vitest unit tests (domain rules, permissions, validations, form parsers,
+  verification, scoring)
 - [x] **T-891** Playwright E2E smoke tests
 - [x] **T-892** GitHub Actions CI (typecheck, lint, unit, Postgres-backed E2E)
 

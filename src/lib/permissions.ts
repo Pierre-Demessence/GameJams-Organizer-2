@@ -9,6 +9,7 @@ export type JamPermission =
   | "moderate_submission"
   | "delete_submission"
   | "verify_submission"
+  | "preview_results"
   | "rate_as_judge";
 
 const ROLE_PERMISSIONS: Record<JamRoleType, JamPermission[]> = {
@@ -20,12 +21,14 @@ const ROLE_PERMISSIONS: Record<JamRoleType, JamPermission[]> = {
     "moderate_submission",
     "delete_submission",
     "verify_submission",
+    "preview_results",
   ],
   MODERATOR: [
     "edit_submission",
     "moderate_submission",
     "delete_submission",
     "verify_submission",
+    "preview_results",
   ],
   JUDGE: ["rate_as_judge"],
   HOST: [],

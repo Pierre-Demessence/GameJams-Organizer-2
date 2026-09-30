@@ -1,7 +1,6 @@
 import { PrismaClient } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { hashSync } from "bcryptjs";
-import { createHash } from "crypto";
 import "dotenv/config";
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
@@ -9,20 +8,6 @@ const prisma = new PrismaClient({ adapter });
 
 function days(n: number) {
   return n * 24 * 60 * 60 * 1000;
-}
-
-function median(values: number[]) {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[middle - 1] + sorted[middle]) / 2
-    : sorted[middle];
-}
-
-function deterministicRandom(submissionId: string) {
-  const hash = createHash("sha256").update(submissionId).digest("hex");
-  return parseInt(hash.slice(0, 8), 16) / 0xffffffff;
 }
 
 async function recreateCriteria(jamId: string) {
@@ -56,7 +41,6 @@ async function createSeedSubmissions(
     videoUrl: string;
   }>
 ) {
-  await prisma.jamResult.deleteMany({ where: { jamId } });
   await prisma.submission.deleteMany({ where: { jamId } });
 
   const submissions = await Promise.all(
@@ -124,141 +108,6 @@ async function createRatings(
   );
 }
 
-async function computeJamResults(jamId: string) {
-  const criteria = await prisma.criterion.findMany({
-    where: { jamId },
-  });
-  const scoredCriteria = criteria.filter((criterion) => criterion.weight > 0);
-
-  if (scoredCriteria.length === 0) return;
-
-  const submissions = await prisma.submission.findMany({
-    where: { jamId, status: "SUBMITTED", competing: true },
-    select: { id: true },
-  });
-
-  if (submissions.length === 0) return;
-
-  const allRatings = await prisma.rating.findMany({
-    where: {
-      submission: {
-        jamId,
-        status: "SUBMITTED",
-        competing: true,
-      },
-    },
-  });
-
-  const ratingsBySubmission = new Map<string, Map<string, number[]>>();
-  for (const rating of allRatings) {
-    if (!ratingsBySubmission.has(rating.submissionId)) {
-      ratingsBySubmission.set(rating.submissionId, new Map());
-    }
-
-    const ratingsByCriterion = ratingsBySubmission.get(rating.submissionId)!;
-    if (!ratingsByCriterion.has(rating.criterionId)) {
-      ratingsByCriterion.set(rating.criterionId, []);
-    }
-
-    ratingsByCriterion.get(rating.criterionId)!.push(rating.score);
-  }
-
-  const criterionStats = new Map<string, { globalMean: number; medianCount: number }>();
-  for (const criterion of scoredCriteria) {
-    const allScores: number[] = [];
-    const ratingsPerSubmission: number[] = [];
-
-    for (const submission of submissions) {
-      const scores = ratingsBySubmission.get(submission.id)?.get(criterion.id) ?? [];
-      ratingsPerSubmission.push(scores.length);
-      allScores.push(...scores);
-    }
-
-    const globalMean = allScores.length > 0
-      ? allScores.reduce((sum, score) => sum + score, 0) / allScores.length
-      : 3;
-
-    criterionStats.set(criterion.id, {
-      globalMean,
-      medianCount: median(ratingsPerSubmission),
-    });
-  }
-
-  const results = submissions.map((submission) => {
-    const scoresByCriterion = ratingsBySubmission.get(submission.id) ?? new Map();
-    let weightedSum = 0;
-    let totalWeight = 0;
-    let totalRatings = 0;
-    let rawScoreSum = 0;
-    let rawScoreCount = 0;
-    const criteriaScores: Record<string, { raw: number; weighted: number; count: number }> = {};
-
-    for (const criterion of scoredCriteria) {
-      const scores = scoresByCriterion.get(criterion.id) ?? [];
-      const ratingCount = scores.length;
-      const raw = ratingCount > 0
-        ? scores.reduce((sum: number, score: number) => sum + score, 0) / ratingCount
-        : 0;
-      const stats = criterionStats.get(criterion.id)!;
-      const weighted = (ratingCount * raw + stats.medianCount * stats.globalMean) / (ratingCount + stats.medianCount || 1);
-
-      totalRatings += ratingCount;
-      if (ratingCount > 0) {
-        rawScoreSum += raw;
-        rawScoreCount += 1;
-      }
-
-      criteriaScores[criterion.id] = {
-        raw,
-        weighted,
-        count: ratingCount,
-      };
-
-      weightedSum += weighted * criterion.weight;
-      totalWeight += criterion.weight;
-    }
-
-    return {
-      submissionId: submission.id,
-      finalScore: totalWeight > 0 ? weightedSum / totalWeight : 0,
-      totalRatings,
-      rawAverage: rawScoreCount > 0 ? rawScoreSum / rawScoreCount : 0,
-      criteriaScores,
-    };
-  });
-
-  const epsilon = 1e-9;
-  results.sort((left, right) => {
-    if (Math.abs(right.finalScore - left.finalScore) > epsilon) {
-      return right.finalScore - left.finalScore;
-    }
-    if (right.totalRatings !== left.totalRatings) {
-      return right.totalRatings - left.totalRatings;
-    }
-    if (Math.abs(right.rawAverage - left.rawAverage) > epsilon) {
-      return right.rawAverage - left.rawAverage;
-    }
-    return deterministicRandom(right.submissionId) - deterministicRandom(left.submissionId);
-  });
-
-  await prisma.$transaction([
-    prisma.jamResult.deleteMany({ where: { jamId } }),
-    ...results.map((result, index) =>
-      prisma.jamResult.create({
-        data: {
-          jamId,
-          submissionId: result.submissionId,
-          rank: index + 1,
-          finalScore: result.finalScore,
-          totalRatings: result.totalRatings,
-          rawAverage: result.rawAverage,
-          criteriaScores: result.criteriaScores,
-        },
-      })
-    ),
-  ]);
-}
-
 async function main() {
   const password = hashSync("password123", 12);
 
@@ -308,6 +157,7 @@ async function main() {
     });
   }
 
+  // Upserts refresh each jam's schedule, so re-seeding re-anchors every phase to now.
   const now = Date.now();
 
   // DRAFT: no dates, unlisted (default visibility)
@@ -329,7 +179,12 @@ async function main() {
   // UPCOMING: starts in 7 days, public
   const upcomingJam = await prisma.jam.upsert({
     where: { slug: "upcoming-jam" },
-    update: {},
+    update: {
+      publishedAt: new Date(now - days(45)),
+      startDate: new Date(now + days(7)),
+      endDate: new Date(now + days(14)),
+      ratingEnd: new Date(now + days(21)),
+    },
     create: {
       name: "Upcoming Jam",
       slug: "upcoming-jam",
@@ -338,6 +193,7 @@ async function main() {
       tags: ["upcoming", "beginner-friendly"],
       ranked: true,
       visibility: "PUBLIC",
+      publishedAt: new Date(now - days(45)),
       startDate: new Date(now + days(7)),
       endDate: new Date(now + days(14)),
       ratingEnd: new Date(now + days(21)),
@@ -394,7 +250,12 @@ async function main() {
   ].join("\n");
   const ongoingJam = await prisma.jam.upsert({
     where: { slug: "ongoing-jam" },
-    update: {},
+    update: {
+      publishedAt: new Date(now - days(45)),
+      startDate: new Date(now - days(2)),
+      endDate: new Date(now + days(5)),
+      ratingEnd: new Date(now + days(12)),
+    },
     create: {
       name: "Ongoing Jam",
       slug: "ongoing-jam",
@@ -403,6 +264,7 @@ async function main() {
       tags: ["active", "solo"],
       ranked: true,
       visibility: "PUBLIC",
+      publishedAt: new Date(now - days(45)),
       startDate: new Date(now - days(2)),
       endDate: new Date(now + days(5)),
       ratingEnd: new Date(now + days(12)),
@@ -416,7 +278,12 @@ async function main() {
   // RATING: submissions closed, rating in progress
   const ratingJam = await prisma.jam.upsert({
     where: { slug: "rating-jam" },
-    update: {},
+    update: {
+      publishedAt: new Date(now - days(45)),
+      startDate: new Date(now - days(14)),
+      endDate: new Date(now - days(3)),
+      ratingEnd: new Date(now + days(4)),
+    },
     create: {
       name: "Rating Jam",
       slug: "rating-jam",
@@ -425,6 +292,7 @@ async function main() {
       tags: ["rating", "competitive"],
       ranked: true,
       visibility: "PUBLIC",
+      publishedAt: new Date(now - days(45)),
       startDate: new Date(now - days(14)),
       endDate: new Date(now - days(3)),
       ratingEnd: new Date(now + days(4)),
@@ -438,7 +306,12 @@ async function main() {
   // FINISHED (ranked): rating period over
   const finishedRankedJam = await prisma.jam.upsert({
     where: { slug: "finished-ranked-jam" },
-    update: {},
+    update: {
+      publishedAt: new Date(now - days(45)),
+      startDate: new Date(now - days(30)),
+      endDate: new Date(now - days(20)),
+      ratingEnd: new Date(now - days(10)),
+    },
     create: {
       name: "Finished Ranked Jam",
       slug: "finished-ranked-jam",
@@ -447,6 +320,7 @@ async function main() {
       tags: ["finished", "competitive"],
       ranked: true,
       visibility: "PUBLIC",
+      publishedAt: new Date(now - days(45)),
       startDate: new Date(now - days(30)),
       endDate: new Date(now - days(20)),
       ratingEnd: new Date(now - days(10)),
@@ -460,7 +334,11 @@ async function main() {
   // FINISHED (non-ranked): no rating period at all
   const finishedUnrankedJam = await prisma.jam.upsert({
     where: { slug: "finished-unranked-jam" },
-    update: {},
+    update: {
+      publishedAt: new Date(now - days(45)),
+      startDate: new Date(now - days(21)),
+      endDate: new Date(now - days(14)),
+    },
     create: {
       name: "Finished Casual Jam",
       slug: "finished-unranked-jam",
@@ -469,6 +347,7 @@ async function main() {
       tags: ["finished", "casual"],
       ranked: false,
       visibility: "PUBLIC",
+      publishedAt: new Date(now - days(45)),
       startDate: new Date(now - days(21)),
       endDate: new Date(now - days(14)),
       createdById: bob.id,
@@ -478,7 +357,11 @@ async function main() {
   // UPCOMING + UNLISTED: private jam accessible only via link
   const unlistedJam = await prisma.jam.upsert({
     where: { slug: "private-friends-jam" },
-    update: {},
+    update: {
+      publishedAt: new Date(now - days(45)),
+      startDate: new Date(now + days(3)),
+      endDate: new Date(now + days(10)),
+    },
     create: {
       name: "Private Friends Jam",
       slug: "private-friends-jam",
@@ -487,6 +370,7 @@ async function main() {
       tags: ["private"],
       ranked: false,
       visibility: "UNLISTED",
+      publishedAt: new Date(now - days(45)),
       startDate: new Date(now + days(3)),
       endDate: new Date(now + days(10)),
       createdById: alice.id,
@@ -715,11 +599,8 @@ async function main() {
     { raterId: charlie.id, targetKey: "rewind-rally", scores: [3, 3, 4] },
   ]);
 
-  await computeJamResults(ratingJam.id);
-  await computeJamResults(finishedRankedJam.id);
-
   console.log(
-    `Seed complete: 3 users, ${allJams.length} jams, ${Object.keys(ongoingSubmissions).length + Object.keys(ratingSubmissions).length + Object.keys(finishedRankedSubmissions).length + Object.keys(finishedUnrankedSubmissions).length} submissions, ratings for 2 ranked jams, and computed results for rating + finished-ranked jams`
+    `Seed complete: 3 users, ${allJams.length} jams, ${Object.keys(ongoingSubmissions).length + Object.keys(ratingSubmissions).length + Object.keys(finishedRankedSubmissions).length + Object.keys(finishedUnrankedSubmissions).length} submissions, and ratings for 2 ranked jams`
   );
 }
 

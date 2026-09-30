@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
+import { jamPhase } from "@/domain/jam-phase";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { JamStatus } from "@/generated/prisma/client";
+import type { JamPhase } from "@/domain/jam-phase";
 
 export const metadata = {
   title: "Jams",
@@ -28,7 +28,7 @@ const statusColors: Record<string, string> = {
   FINISHED: "bg-purple-500",
 };
 
-const STATUS_OPTIONS: JamStatus[] = [
+const STATUS_OPTIONS: JamPhase[] = [
   "UPCOMING",
   "ONGOING",
   "RATING",
@@ -97,6 +97,7 @@ async function JamsBody({
     where: {
       deletedAt: null,
       visibility: "PUBLIC",
+      publishedAt: { not: null },
       ...(query
         ? {
             OR: [
@@ -108,7 +109,12 @@ async function JamsBody({
       ...(tagFilter ? { tags: { has: tagFilter } } : {}),
     },
     include: {
-      _count: { select: { participants: true, submissions: true } },
+      _count: {
+        select: {
+          participants: true,
+          submissions: { where: { status: "SUBMITTED", visible: true, deletedAt: null } },
+        },
+      },
       createdBy: { select: { username: true, displayName: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -119,7 +125,7 @@ async function JamsBody({
   const jamsWithStatus = jams
     .map((jam) => ({
       ...jam,
-      computedStatus: computeJamStatus(jam),
+      computedStatus: jamPhase(jam),
     }))
     .filter((jam) => jam.computedStatus !== "DRAFT")
     .filter((jam) => !statusFilter || jam.computedStatus === statusFilter);

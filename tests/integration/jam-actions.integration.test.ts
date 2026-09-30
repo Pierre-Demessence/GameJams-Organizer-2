@@ -101,8 +101,10 @@ describe("softDeleteJamAction authorization", () => {
     const res = await softDeleteJamAction(jam.id);
 
     expect(res.success).toBe(true);
-    const deleted = await db.jam.findUnique({ where: { id: jam.id } });
-    expect(deleted?.deletedAt).not.toBeNull();
+    expect(await db.jam.findUnique({ where: { id: jam.id } })).toBeNull();
+    const deleted = await db.jam.findFirst({
+      where: { id: jam.id, deletedAt: { not: null } },
+    });
     expect(deleted?.slug).toContain("__del__");
   });
 

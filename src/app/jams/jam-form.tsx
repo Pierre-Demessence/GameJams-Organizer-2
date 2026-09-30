@@ -57,7 +57,7 @@ export function JamForm({ mode, jam }: JamFormProps) {
 
   const [ranked, setRanked] = useState(jam?.ranked ?? false);
   const [revealThemeOnStart, setRevealThemeOnStart] = useState(
-    jam?.revealThemeOnStart ?? false
+    jam?.revealThemeOnStart ?? true
   );
   const [hideResults, setHideResults] = useState(jam?.hideResults ?? false);
   const [hideSubmissionsBeforeEnd, setHideSubmissionsBeforeEnd] = useState(
@@ -65,7 +65,7 @@ export function JamForm({ mode, jam }: JamFormProps) {
   );
   const [allowContributorsAfterClose, setAllowContributorsAfterClose] =
     useState(jam?.allowContributorsAfterClose ?? false);
-  const [visibility, setVisibility] = useState(jam?.visibility ?? "UNLISTED");
+  const [visibility, setVisibility] = useState(jam?.visibility ?? "PUBLIC");
   const [ratingEligibility, setRatingEligibility] = useState(
     jam?.ratingEligibility ?? "SUBMITTERS_AND_CONTRIBUTORS"
   );
@@ -288,7 +288,7 @@ export function JamForm({ mode, jam }: JamFormProps) {
             <div>
               <Label>Visibility</Label>
               <p className="text-xs text-muted-foreground">
-                Public jams appear in listings. Unlisted jams are only accessible via direct link.
+                Once published, public jams appear in listings. Unlisted jams are only accessible via direct link.
               </p>
             </div>
             <div className="flex gap-2">

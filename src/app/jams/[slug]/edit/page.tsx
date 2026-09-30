@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { computeJamStatus } from "@/lib/jam-status";
+import { hasPermission } from "@/lib/permissions";
+import { jamPhase } from "@/domain/jam-phase";
 import { JamForm } from "@/app/jams/jam-form";
 import { CustomFieldsManager } from "./custom-fields-manager";
 import { CriteriaManager } from "./criteria-manager";
@@ -35,11 +36,11 @@ export default async function EditJamPage({
   });
 
   if (!jam) notFound();
-  if (!jam.roles.length || jam.roles[0].role !== "ADMIN") {
+  if (!hasPermission(jam.roles.map((r) => r.role), "edit_jam")) {
     notFound();
   }
 
-  const status = computeJamStatus(jam);
+  const status = jamPhase(jam);
   const fieldsLocked = status === "RATING" || status === "FINISHED";
 
   return (

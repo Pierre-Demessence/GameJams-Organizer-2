@@ -4,6 +4,7 @@ import {
   submissionSchema,
   criterionSchema,
   findMissingRequiredFields,
+  validateCustomFieldValues,
 } from "@/lib/validations";
 
 describe("isItchProjectUrl", () => {
@@ -74,5 +75,36 @@ describe("findMissingRequiredFields", () => {
       { name: "Notes", required: false, value: "" },
     ]);
     expect(missing).toEqual([]);
+  });
+});
+
+describe("validateCustomFieldValues", () => {
+  const fields = [
+    { id: "f1", name: "Engine", type: "SINGLE_LINE", required: true },
+    { id: "f2", name: "Repo", type: "URL", required: false },
+  ];
+
+  it("accepts complete, well-formed values", () => {
+    expect(
+      validateCustomFieldValues(fields, { f1: "Godot", f2: "https://github.com/a/b" })
+    ).toBeNull();
+  });
+
+  it("reports missing required fields, including whitespace-only values", () => {
+    expect(validateCustomFieldValues(fields, { f1: "  " })).toBe("Engine is required");
+    expect(validateCustomFieldValues(fields, {})).toBe("Engine is required");
+  });
+
+  it("allows optional fields to be empty", () => {
+    expect(validateCustomFieldValues(fields, { f1: "Godot", f2: "" })).toBeNull();
+  });
+
+  it("rejects malformed and non-http URLs", () => {
+    expect(validateCustomFieldValues(fields, { f1: "Godot", f2: "not a url" })).toBe(
+      "Repo must be a valid URL"
+    );
+    expect(validateCustomFieldValues(fields, { f1: "Godot", f2: "javascript:alert(1)" })).toBe(
+      "Repo must be an http or https URL"
+    );
   });
 });

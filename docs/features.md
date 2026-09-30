@@ -9,13 +9,13 @@
 | **User Profiles** | Public profiles with username, bio, avatar, and jam/submission history | Medium |
 | **Account Settings** | Edit profile, link/unlink OAuth providers | Medium |
 | **Jam Creation** | Create game jams with name, description, dates, themes, rating criteria | High |
-| **Jam Lifecycle** | Automatic status transitions: DRAFT → UPCOMING → ONGOING → RATING → FINISHED | High |
+| **Jam Lifecycle** | Explicit publish out of DRAFT, then phases derived from dates: UPCOMING → ONGOING → RATING → FINISHED | High |
 | **Jam Browsing** | List and filter jams by status, search by name | High |
 | **Jam Roles** | Stackable, permission-based roles (Admin, Moderator, Judge, Host) | High |
-| **Join/Leave Jams** | Participants can join during UPCOMING and ONGOING phases | High |
+| **Join Jams** | Participants can join during UPCOMING and ONGOING phases | High |
 | **Submissions** | Submit games (itch.io link + platforms), DRAFT/SUBMITTED lifecycle, contributors | High |
 | **Rating System** | Rate submissions on custom criteria; Bayesian average scoring | High |
-| **Results** | View ranked results with scores per criterion after rating period | Medium |
+| **Results** | Live-computed rankings with per-criterion scores; organizer preview during rating, optional hide-and-reveal | Medium |
 | **Jam Management** | Edit jam details, manage roles, moderate submissions (visible/rateable/competing switches) | Medium |
 | **Ownership Verification** | itch.io code-on-page verification required to publish a submission | High |
 | **Rate Limiting** | In-memory rate limiter on server actions to prevent abuse | Medium |
@@ -31,6 +31,8 @@ Defined as MVP in the spec but not yet implemented (tracked in
 |---------|-------------|
 | Platform Admin | Seeded Site Admin, mandatory 2FA, soft-delete + restore, audit log, `/admin` page |
 | Markdown Rendering | Sanitized GFM rendering for jam/submission descriptions (currently plain text) |
+| Leave Jam / Submission | Rules exist in `src/domain/participation.ts`; actions and UI are in the [backlog](backlog.md) |
+| Contributor Invites | Invite-and-accept flow for contributors (currently added directly) |
 
 ## Deferred to Post-MVP
 

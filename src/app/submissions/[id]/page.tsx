@@ -2,8 +2,15 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
 import { checkJamPermission } from "@/lib/permissions";
+import { loadRater } from "@/lib/rating-queries";
+import { jamPhase } from "@/domain/jam-phase";
+import { canRate } from "@/domain/rating";
+import {
+  canAddContributor,
+  canEditSubmission,
+  canRemoveContributor,
+} from "@/domain/submission";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -26,9 +33,9 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
+    select: { title: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+  if (!submission || submission.jam.deletedAt)
     return { title: "Submission Not Found" };
   return { title: submission.title };
 }
@@ -49,6 +56,7 @@ export default async function SubmissionDetailPage({
           id: true,
           slug: true,
           name: true,
+          publishedAt: true,
           startDate: true,
           endDate: true,
           ratingEnd: true,
@@ -56,6 +64,7 @@ export default async function SubmissionDetailPage({
           hideSubmissionsBeforeEnd: true,
           maxTeamSize: true,
           allowContributorsAfterClose: true,
+          ratingEligibility: true,
           deletedAt: true,
         },
       },
@@ -72,9 +81,9 @@ export default async function SubmissionDetailPage({
   });
 
   if (!submission) notFound();
-  if (submission.deletedAt || submission.jam.deletedAt) notFound();
+  if (submission.jam.deletedAt) notFound();
 
-  const status = computeJamStatus(submission.jam);
+  const status = jamPhase(submission.jam);
 
   // Hidden submissions only visible to team + admins/mods
   const isMember = session?.user?.id
@@ -113,16 +122,38 @@ export default async function SubmissionDetailPage({
     (m) => m.userId === session?.user?.id && m.isLeader
   );
 
-  const canEdit =
-    (isMember && status === "ONGOING") || canModerate;
+  const canEdit = canEditSubmission({
+    phase: status,
+    isMember,
+    canEditAny: canModerate,
+  }).allowed;
 
   const showRateButton =
-    session?.user?.id &&
-    !isMember &&
-    status === "RATING" &&
-    submission.jam.ranked &&
-    submission.status === "SUBMITTED" &&
-    submission.rateable;
+    !!session?.user?.id &&
+    canRate({
+      phase: status,
+      ranked: submission.jam.ranked,
+      eligibility: submission.jam.ratingEligibility,
+      rater: await loadRater(submission.jamId, session.user.id),
+      isOwnSubmission: isMember,
+      submission,
+    }).allowed;
+
+  const teamContext = {
+    phase: status,
+    ranked: submission.jam.ranked,
+    allowContributorsAfterClose: submission.jam.allowContributorsAfterClose,
+    isMember,
+  };
+  const canAddMembers = canAddContributor({
+    ...teamContext,
+    teamSize: submission.members.length,
+    maxTeamSize: submission.jam.maxTeamSize,
+  }).allowed;
+  const canRemoveMembers = canRemoveContributor({
+    ...teamContext,
+    targetIsLeader: false,
+  }).allowed;
 
   // Filter private fields for non-organizers
   const visibleFields = submission.fieldValues.filter(
@@ -340,9 +371,12 @@ export default async function SubmissionDetailPage({
             />
           )}
 
-          {isLeader && status === "ONGOING" && (
+          {isMember && (canAddMembers || canRemoveMembers) && (
             <TeamManager
               submissionId={submission.id}
+              canAdd={canAddMembers}
+              canRemove={canRemoveMembers}
+              canTransfer={isLeader}
               members={submission.members.map((m) => ({
                 id: m.id,
                 userId: m.user.id,

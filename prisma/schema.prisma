@@ -87,14 +87,6 @@ model AuditLogEntry {
 
 // ─── Jams ───────────────────────────────────────
 
-enum JamStatus {
-  DRAFT
-  UPCOMING
-  ONGOING
-  RATING
-  FINISHED
-}
-
 enum JamVisibility {
   PUBLIC
   UNLISTED
@@ -117,8 +109,9 @@ model Jam {
   hashtag   String?
   tags      String[]
 
-  status     JamStatus     @default(DRAFT)
-  visibility JamVisibility @default(UNLISTED)
+  // Null while the jam is a draft; the live phase is derived from the dates once set.
+  publishedAt DateTime?
+  visibility  JamVisibility @default(UNLISTED)
 
   ranked    Boolean   @default(false)
   startDate DateTime?
@@ -128,8 +121,9 @@ model Jam {
   theme              String?
   revealThemeOnStart Boolean @default(true)
 
-  hideResults              Boolean @default(false)
-  hideSubmissionsBeforeEnd Boolean @default(false)
+  hideResults              Boolean   @default(false)
+  resultsRevealedAt        DateTime?
+  hideSubmissionsBeforeEnd Boolean   @default(false)
 
   submissionDetails String?
 
@@ -149,9 +143,8 @@ model Jam {
   criteria     Criterion[]
   customFields CustomField[]
   participants JamParticipant[]
-  results      JamResult[]
 
-  @@index([status, visibility])
+  @@index([visibility, publishedAt])
   @@index([createdAt])
 }
 
@@ -234,7 +227,6 @@ model Submission {
   members     SubmissionMember[]
   ratings     Rating[]
   fieldValues CustomFieldValue[]
-  results     JamResult[]
 }
 
 model SubmissionMember {
@@ -322,24 +314,4 @@ model Rating {
 
   @@unique([submissionId, criterionId, userId])
   @@index([submissionId])
-}
-
-// ─── Results (computed) ─────────────────────────
-
-model JamResult {
-  id             String   @id @default(cuid())
-  jamId          String
-  submissionId   String
-  rank           Int?
-  competing      Boolean  @default(true)
-  finalScore     Float
-  totalRatings   Int
-  rawAverage     Float
-  criteriaScores Json
-  computedAt     DateTime @default(now())
-
-  jam        Jam        @relation(fields: [jamId], references: [id], onDelete: Cascade)
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-  @@unique([jamId, submissionId])
 }

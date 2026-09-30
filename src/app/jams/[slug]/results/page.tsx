@@ -2,15 +2,18 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
 import { hasPermission } from "@/lib/permissions";
+import { loadJamResults } from "@/lib/scoring";
+import { jamPhase } from "@/domain/jam-phase";
+import { canRevealResults, resultsAccess } from "@/domain/results";
+import type { SubmissionResult } from "@/domain/scoring";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
-import { ComputeResultsButton } from "./compute-button";
+import { RevealResultsButton } from "./reveal-button";
 
 export async function generateMetadata({
   params,
@@ -20,11 +23,27 @@ export async function generateMetadata({
   const { slug } = await params;
   const jam = await db.jam.findUnique({
     where: { slug },
-    select: { name: true, startDate: true, endDate: true, ratingEnd: true, ranked: true },
+    select: {
+      name: true,
+      publishedAt: true,
+      startDate: true,
+      endDate: true,
+      ratingEnd: true,
+      ranked: true,
+    },
   });
   if (!jam) return { title: "Results Not Found" };
-  if (computeJamStatus(jam) === "DRAFT") return { title: "Results" };
+  if (jamPhase(jam) === "DRAFT") return { title: "Results" };
   return { title: `Results — ${jam.name}` };
+}
+
+function Notice({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-8">
+      <h1 className="text-2xl font-bold">{title}</h1>
+      <p className="mt-2 text-muted-foreground">{message}</p>
+    </div>
+  );
 }
 
 export default async function ResultsPage({
@@ -39,72 +58,65 @@ export default async function ResultsPage({
     where: { slug },
     include: {
       roles: true,
-      criteria: { where: { weight: { gt: 0 } }, orderBy: { sortOrder: "asc" } },
+      criteria: { where: { source: "RATED" }, orderBy: { sortOrder: "asc" } },
     },
   });
-  if (!jam) notFound();
-  if (!jam.ranked) notFound();
+  if (!jam || !jam.ranked) notFound();
 
-  const status = computeJamStatus(jam);
-
+  const phase = jamPhase(jam);
   const userRoles = session?.user?.id
-    ? jam.roles
-        .filter((r) => r.userId === session.user!.id)
-        .map((r) => r.role)
+    ? jam.roles.filter((r) => r.userId === session.user!.id).map((r) => r.role)
     : [];
-  const isAdmin = hasPermission(userRoles, "edit_jam");
 
-  if (status === "DRAFT") {
-    const isOrganizer = userRoles.length > 0;
-    if (!isOrganizer) notFound();
-  }
+  if (phase === "DRAFT" && userRoles.length === 0) notFound();
 
-  // Only show results when rating is finished (or admin preview)
-  if (jam.hideResults && status !== "FINISHED" && !isAdmin) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <h1 className="text-2xl font-bold">Results Hidden</h1>
-        <p className="mt-2 text-muted-foreground">
-          Results will be revealed after the jam finishes.
-        </p>
-      </div>
+  const access = resultsAccess({
+    ...jam,
+    phase,
+    canPreview: hasPermission(userRoles, "preview_results"),
+  });
+
+  if (access === "none") {
+    return phase === "FINISHED" ? (
+      <Notice
+        title="Results Hidden"
+        message="The organizers will reveal the results soon."
+      />
+    ) : (
+      <Notice
+        title="Results Not Available Yet"
+        message="Results are published once the rating period ends."
+      />
     );
   }
 
-  const results = await db.jamResult.findMany({
-    where: { jamId: jam.id },
-    include: {
-      submission: {
-        select: {
-          id: true,
-          title: true,
-          members: {
-            include: {
-              user: { select: { username: true, displayName: true } },
-            },
-            orderBy: { isLeader: "desc" },
-          },
-        },
+  const results = await loadJamResults(jam.id);
+  const submissionIds = [...results.competing, ...results.notCompeting].map(
+    (r) => r.submissionId
+  );
+  const submissions = await db.submission.findMany({
+    where: { id: { in: submissionIds } },
+    select: {
+      id: true,
+      title: true,
+      members: {
+        include: { user: { select: { username: true, displayName: true } } },
+        orderBy: { isLeader: "desc" },
       },
     },
-    orderBy: [{ rank: "asc" }, { finalScore: "desc" }],
   });
+  const submissionById = new Map(submissions.map((s) => [s.id, s]));
 
-  const competing = results.filter((r) => r.competing);
-  const notCompeting = results.filter((r) => !r.competing);
+  const canReveal =
+    hasPermission(userRoles, "edit_jam") &&
+    canRevealResults({ ...jam, phase }).allowed;
 
   const criteria = jam.criteria;
 
-  type CriterionScore = {
-    raw: number;
-    weighted: number;
-    count: number;
-    rank: number | null;
-  };
-
-  function ResultCard({ result }: { result: (typeof results)[number] }) {
-    const leader = result.submission.members.find((m) => m.isLeader);
-    const criteriaScores = result.criteriaScores as Record<string, CriterionScore>;
+  function ResultCard({ result }: { result: SubmissionResult }) {
+    const submission = submissionById.get(result.submissionId);
+    if (!submission) return null;
+    const leader = submission.members.find((m) => m.isLeader);
 
     return (
       <Card>
@@ -119,20 +131,22 @@ export default async function ResultsPage({
                   href={`/submissions/${result.submissionId}`}
                   className="font-medium text-primary hover:underline"
                 >
-                  {result.submission.title}
+                  {submission.title}
                 </Link>
                 <p className="text-xs text-muted-foreground">
                   by{" "}
                   {leader
                     ? (leader.user.displayName ?? leader.user.username)
                     : "Unknown"}
-                  {result.submission.members.length > 1 &&
-                    ` +${result.submission.members.length - 1}`}
+                  {submission.members.length > 1 &&
+                    ` +${submission.members.length - 1}`}
                 </p>
               </div>
             </div>
             <div className="text-right">
-              <p className="text-lg font-bold">{result.finalScore.toFixed(2)}</p>
+              {result.finalScore !== null && (
+                <p className="text-lg font-bold">{result.finalScore.toFixed(2)}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {result.totalRatings} ratings
               </p>
@@ -142,7 +156,7 @@ export default async function ResultsPage({
         <CardContent>
           <div className="flex flex-wrap gap-2">
             {criteria.map((c) => {
-              const cs = criteriaScores[c.id];
+              const cs = result.criteriaScores[c.id];
               return (
                 <Badge key={c.id} variant="outline">
                   {c.name}: {cs ? cs.weighted.toFixed(2) : "—"}
@@ -164,35 +178,44 @@ export default async function ResultsPage({
         </Link>
       </div>
 
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Results</h1>
-        {isAdmin && <ComputeResultsButton jamId={jam.id} />}
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold">Results</h1>
+          {access === "preview" && (
+            <Badge variant="outline">Organizer preview — not public yet</Badge>
+          )}
+        </div>
+        {canReveal && <RevealResultsButton jamId={jam.id} />}
       </div>
 
-      {results.length === 0 ? (
+      {results.competing.length === 0 && results.notCompeting.length === 0 ? (
         <Card>
           <CardContent className="py-8 text-center text-muted-foreground">
-            No results computed yet.
-            {isAdmin && " Click &quot;Recompute Results&quot; to generate rankings."}
+            No submissions have been rated yet.
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-8">
+          {!results.hasOverall && (
+            <p className="text-sm text-muted-foreground">
+              This jam has no overall ranking; see each criterion&apos;s placement below.
+            </p>
+          )}
           <div className="space-y-3">
-            {competing.map((r) => (
-              <ResultCard key={r.id} result={r} />
+            {results.competing.map((r) => (
+              <ResultCard key={r.submissionId} result={r} />
             ))}
           </div>
 
-          {notCompeting.length > 0 && (
+          {results.notCompeting.length > 0 && (
             <div>
               <h2 className="mb-1 text-lg font-semibold">Not competing</h2>
               <p className="mb-3 text-sm text-muted-foreground">
                 Rated but excluded from the ranking.
               </p>
               <div className="space-y-3">
-                {notCompeting.map((r) => (
-                  <ResultCard key={r.id} result={r} />
+                {results.notCompeting.map((r) => (
+                  <ResultCard key={r.submissionId} result={r} />
                 ))}
               </div>
             </div>

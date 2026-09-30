@@ -2,9 +2,10 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
+import { getUserRatings, loadRater } from "@/lib/rating-queries";
+import { jamPhase } from "@/domain/jam-phase";
+import { canRate } from "@/domain/rating";
 import { RatingForm } from "./rating-form";
-import { getUserRatings } from "./actions";
 
 export async function generateMetadata({
   params,
@@ -14,9 +15,9 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
+    select: { title: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+  if (!submission || submission.jam.deletedAt)
     return { title: "Submission Not Found" };
   return { title: `Rate ${submission.title}` };
 }
@@ -38,6 +39,7 @@ export default async function RateSubmissionPage({
           id: true,
           slug: true,
           name: true,
+          publishedAt: true,
           startDate: true,
           endDate: true,
           ratingEnd: true,
@@ -49,68 +51,30 @@ export default async function RateSubmissionPage({
       members: true,
     },
   });
-  if (!submission) notFound();
-  if (submission.deletedAt || submission.jam.deletedAt) notFound();
+  if (!submission || submission.jam.deletedAt) notFound();
 
-  if (computeJamStatus(submission.jam) === "DRAFT") notFound();
+  const phase = jamPhase(submission.jam);
+  if (phase === "DRAFT") notFound();
 
-  if (!submission.jam.ranked) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <p className="text-muted-foreground">This jam is not ranked.</p>
-      </div>
-    );
-  }
-
-  const status = computeJamStatus(submission.jam);
-  if (status !== "RATING") {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="text-2xl font-bold">Rating Not Open</h1>
-        <p className="mt-2 text-muted-foreground">
-          Ratings are only accepted during the rating period.
-        </p>
-      </div>
-    );
-  }
-
-  // Self-rating prevention
-  const isMember = submission.members.some(
-    (m) => m.userId === session.user!.id
-  );
-  if (isMember) {
+  const decision = canRate({
+    phase,
+    ranked: submission.jam.ranked,
+    eligibility: submission.jam.ratingEligibility,
+    rater: await loadRater(submission.jamId, session.user.id),
+    isOwnSubmission: submission.members.some((m) => m.userId === session.user!.id),
+    submission,
+  });
+  if (!decision.allowed) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-bold">Cannot Rate</h1>
-        <p className="mt-2 text-muted-foreground">
-          You cannot rate your own submission.
-        </p>
-      </div>
-    );
-  }
-
-  if (!submission.rateable) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <p className="text-muted-foreground">
-          This submission cannot be rated.
-        </p>
-      </div>
-    );
-  }
-
-  if (submission.status !== "SUBMITTED") {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <p className="text-muted-foreground">
-          This submission has not been finalized yet.
-        </p>
+        <p className="mt-2 text-muted-foreground">{decision.reason}</p>
       </div>
     );
   }
 
   const criteria = await db.criterion.findMany({
-    where: { jamId: submission.jamId },
+    where: { jamId: submission.jamId, source: "RATED" },
     orderBy: { sortOrder: "asc" },
   });
 

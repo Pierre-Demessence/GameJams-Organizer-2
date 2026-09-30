@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { computeJamStatus } from "@/lib/jam-status";
+import { jamPhase } from "@/domain/jam-phase";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -51,6 +51,12 @@ export default function HomePage() {
   );
 }
 
+const LIVE_SUBMISSIONS = {
+  status: "SUBMITTED",
+  visible: true,
+  deletedAt: null,
+} as const;
+
 async function HomeSections() {
   const now = new Date();
 
@@ -59,12 +65,13 @@ async function HomeSections() {
       where: {
         deletedAt: null,
         visibility: "PUBLIC",
+        publishedAt: { not: null },
         OR: [
           { startDate: { lte: now }, endDate: { gt: now } },
           { ranked: true, endDate: { lte: now }, ratingEnd: { gt: now } },
         ],
       },
-      include: { _count: { select: { participants: true, submissions: true } } },
+      include: { _count: { select: { participants: true, submissions: { where: LIVE_SUBMISSIONS } } } },
       orderBy: { endDate: "asc" },
       take: 6,
     }),
@@ -72,9 +79,10 @@ async function HomeSections() {
       where: {
         deletedAt: null,
         visibility: "PUBLIC",
+        publishedAt: { not: null },
         startDate: { gt: now },
       },
-      include: { _count: { select: { participants: true, submissions: true } } },
+      include: { _count: { select: { participants: true, submissions: { where: LIVE_SUBMISSIONS } } } },
       orderBy: { startDate: "asc" },
       take: 6,
     }),
@@ -82,12 +90,13 @@ async function HomeSections() {
       where: {
         deletedAt: null,
         visibility: "PUBLIC",
+        publishedAt: { not: null },
         OR: [
           { ratingEnd: { lte: now } },
           { endDate: { lte: now }, ranked: false },
         ],
       },
-      include: { _count: { select: { participants: true, submissions: true } } },
+      include: { _count: { select: { participants: true, submissions: { where: LIVE_SUBMISSIONS } } } },
       orderBy: { endDate: "desc" },
       take: 6,
     }),
@@ -133,6 +142,7 @@ function JamSection({
     slug: string;
     name: string;
     shortDesc: string;
+    publishedAt: Date | null;
     startDate: Date | null;
     endDate: Date | null;
     ratingEnd: Date | null;
@@ -146,7 +156,7 @@ function JamSection({
       <h2 className="mb-4 text-2xl font-bold">{title}</h2>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {jams.map((jam) => {
-          const status = computeJamStatus(jam);
+          const status = jamPhase(jam);
           return (
             <Link key={jam.id} href={`/jams/${jam.slug}`} prefetch={false}>
               <Card className="h-full transition-colors hover:bg-accent/50">

@@ -20,7 +20,7 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `pnpm test:e2e` | Playwright E2E tests |
 | `pnpm db:migrate` | Create and apply migrations (`prisma migrate dev`) |
 | `pnpm db:generate` | Regenerate Prisma client |
-| `pnpm db:seed` | Seed sample users, jams, submissions, ratings, and results |
+| `pnpm db:seed` | Seed sample users, jams, submissions and ratings (re-running re-anchors jam dates to now) |
 | `pnpm db:studio` | Open Prisma Studio GUI |
 | `docker compose up -d --build` | Build and start production stack |
 | `docker compose run --rm migrate` | Run DB migration in Docker |
@@ -32,7 +32,8 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `prisma/schema.prisma` | Database schema (single source of truth) |
 | `src/lib/auth.ts` | Auth.js exports (`auth`, `signIn`, `signOut`) |
 | `src/lib/auth.config.ts` | Auth providers and callbacks |
-| `src/lib/db.ts` | Prisma client singleton |
+| `src/domain/` | Pure spec rules (phase, participation, submission, rating, results, scoring) |
+| `src/lib/db.ts` | Prisma client singleton + soft-delete read filter |
 | `src/lib/validations.ts` | All Zod schemas |
 | `src/lib/permissions.ts` | Permission catalog + stackable-role checks |
 | `src/lib/verification.ts` | itch.io ownership verification (allowlisted fetch) |
@@ -45,6 +46,11 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 - **Prisma client** is imported from `@/generated/prisma/client`, wrapped by `@/lib/db`.
 - **Schema changes** go through SQL migrations (`pnpm db:migrate`), not `db push`.
 - **Access control** is permission-based: gate mutations with `checkJamPermission(jamId, userId, permission)`. Jam roles are **stackable** — effective powers are the union of a user's roles (`getJamRoles` + `hasPermission`). Never inline `role === "ADMIN"`.
+- **Rules live in `src/domain/`**: pure functions returning a `Decision`. Actions and pages load data, call the rule, and surface `reason`; they never re-implement a phase or permission rule inline.
+- **Jam phase** comes from `jamPhase()`; there is no stored status. A jam is DRAFT until `publishedAt` is set (via `canPublish`). Listings require `publishedAt != null` and `visibility = PUBLIC`.
+- **Soft delete**: top-level `Jam`/`Submission` reads are filtered by the `db` extension. Relation filters, `include`s and `_count` are not — add `deletedAt: null` there. Name `deletedAt` in the `where` to read deleted rows (staff trash view).
+- **Results** are computed on read (`loadJamResults`); visibility goes through `resultsAccess`. There is no results table.
+- **`"use server"` files export only actions**: every export is a public endpoint, so read helpers go in `src/lib/` modules.
 - **Moderation** is three independent switches on `Submission` (`visible` / `rateable` / `competing`) + `moderationReason`, applied via presets (disqualify / exclude / hide / reinstate).
 - **Submission lifecycle**: DRAFT → SUBMITTED; a submission may only become SUBMITTED once its itch.io link is ownership-verified. Changing the verified link resets it to DRAFT.
 - **itch.io fetch** uses a single-host allowlist (`itch.io` / `*.itch.io`), HTTPS only, with per-hop redirect re-validation, a timeout, and a size cap.

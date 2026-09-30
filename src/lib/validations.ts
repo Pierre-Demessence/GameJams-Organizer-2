@@ -12,6 +12,28 @@ export function findMissingRequiredFields(
     .map((field) => field.name);
 }
 
+export function validateCustomFieldValues(
+  fields: { id: string; name: string; type: string; required: boolean }[],
+  values: Record<string, string>
+): string | null {
+  for (const field of fields) {
+    const value = values[field.id]?.trim() ?? "";
+    if (field.required && !value) return `${field.name} is required`;
+    if (field.type === "URL" && value) {
+      let url: URL;
+      try {
+        url = new URL(value);
+      } catch {
+        return `${field.name} must be a valid URL`;
+      }
+      if (url.protocol !== "http:" && url.protocol !== "https:") {
+        return `${field.name} must be an http or https URL`;
+      }
+    }
+  }
+  return null;
+}
+
 // itch.io project URL: HTTPS on itch.io or a *.itch.io subdomain.
 export function isItchProjectUrl(value: string): boolean {
   try {
