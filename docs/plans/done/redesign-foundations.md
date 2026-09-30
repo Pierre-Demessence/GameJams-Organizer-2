@@ -21,12 +21,12 @@ on `@base-ui/react`, `next-themes`, `next-auth` v5, Prisma 7, Vitest 5, Playwrig
 (<https://claude.ai/artifact/SPJeNxb9rsAiNeGNoeBXqB>, private to the owner). The boards this
 plan implements: **Foundations**, **Header (shared component)**, **Header — account menu
 open**, **Home — desktop**, **Home — mobile**. Product rules come from
-[product-spec.md](../specs/product-spec.md).
+[product-spec.md](../../specs/product-spec.md).
 
 **Scope:** This plan covers the foundations, the app shell and the homepage only. The other
 pages (jam listing, jam page, submissions, rating, results, profile, settings, admin,
 organizer screens) are redesigned in follow-up plans, recorded in
-[backlog.md](../backlog.md#redesign).
+[backlog.md](../../backlog.md#redesign).
 
 ## Global Constraints
 
@@ -1239,7 +1239,7 @@ rater–submission pairs, including the hidden entry's.)
 Run: `pnpm test src/domain/results.test.ts` → FAIL (`podium` is not exported).
 Run: `pnpm test:integration tests/integration/home-queries.integration.test.ts` → FAIL
 (cannot resolve `@/lib/home-queries`). Requires the local test Postgres from
-[installation.md](../installation.md).
+[installation.md](../../installation.md).
 
 - [x] **Step 3: Implement `podium`**
 
@@ -1595,7 +1595,7 @@ Run: `pnpm lint && pnpm build && pnpm test && pnpm test:integration && pnpm test
 Expected: all green. Every checkbox in this plan should already be ticked as each step was
 completed; confirm none are left.
 
-- [ ] **Step 5: Peer review loop**
+- [x] **Step 5: Peer review loop**
 
 Run a review subagent on a small model with this instruction: "You are a subAgent. Do not use
 `vscode_askQuestions`. Do NOT edit code. Review the diff from the commit before Task 1 to HEAD
@@ -1603,7 +1603,7 @@ for correctness, edge cases, types/tests, architecture and docs gaps against
 `docs/plans/redesign-foundations.md`; return a structured list or LGTM." Fix every finding,
 commit the fixes, and re-run until it returns LGTM.
 
-- [ ] **Step 6: Move the plan and fix its links, in the final commit**
+- [x] **Step 6: Move the plan and fix its links, in the final commit**
 
 Move the plan, then repoint its relative links, which gain one level
 (`../backlog.md` → `../../backlog.md`, `../specs/product-spec.md` →
@@ -1611,7 +1611,7 @@ Move the plan, then repoint its relative links, which gain one level
 
 ```bash
 git mv docs/plans/redesign-foundations.md docs/plans/done/redesign-foundations.md
-sed -i 's#](\.\./#](../../#g' docs/plans/done/redesign-foundations.md
+sed -i 's#](\.\./#](../../../#g' docs/plans/done/redesign-foundations.md
 git add docs/plans/done/redesign-foundations.md tests/e2e/smoke.spec.ts docs CHANGELOG.md
 git commit -m "docs: design system reference and redesign foundations wrap-up"
 ```
