@@ -3,7 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { checkJamPermission } from "@/lib/permissions";
-import { loadRater } from "@/lib/rating-queries";
+import { getUserRatings, loadRater } from "@/lib/rating-queries";
 import { jamPhase } from "@/domain/jam-phase";
 import { canRate } from "@/domain/rating";
 import {
@@ -11,19 +11,15 @@ import {
   canEditSubmission,
   canRemoveContributor,
 } from "@/domain/submission";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { CoverImage } from "@/components/cover-image";
+import { Markdown } from "@/components/markdown";
 import { buttonVariants } from "@/components/ui/button-variants";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { initials } from "@/lib/initials";
+import { platformLabel } from "@/lib/jam-labels";
+import { cn } from "@/lib/utils";
 import { TeamManager } from "./team-manager";
 import { ModerationActions } from "./moderation-actions";
 import { SubmissionOwnerPanel } from "./submission-owner-panel";
-import { Markdown } from "@/components/markdown";
 
 export async function generateMetadata({
   params,
@@ -39,6 +35,18 @@ export async function generateMetadata({
     return { title: "Submission Not Found" };
   return { title: submission.title };
 }
+
+const STAMP = new Intl.DateTimeFormat("en", {
+  month: "short",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+  timeZone: "UTC",
+});
+
+const TAG = "inline-flex h-6 items-center rounded-full border px-2.5 text-xs";
+const FULL_BUTTON = "h-11 w-full";
 
 export default async function SubmissionDetailPage({
   params,
@@ -66,10 +74,13 @@ export default async function SubmissionDetailPage({
           allowContributorsAfterClose: true,
           ratingEligibility: true,
           deletedAt: true,
+          _count: { select: { criteria: true } },
         },
       },
       members: {
-        include: { user: { select: { id: true, username: true, displayName: true } } },
+        include: {
+          user: { select: { id: true, username: true, displayName: true, avatarUrl: true } },
+        },
         orderBy: { isLeader: "desc" },
       },
       fieldValues: {
@@ -109,11 +120,16 @@ export default async function SubmissionDetailPage({
     !canModerate
   ) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="text-2xl font-bold">Submissions Hidden</h1>
-        <p className="mt-2 text-muted-foreground">
-          Submissions are hidden during the jam period.
-        </p>
+      <div className="mx-auto max-w-2xl px-4 py-24 text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          This game is hidden until the jam ends.
+        </h1>
+        <Link
+          href={`/jams/${submission.jam.slug}`}
+          className="mt-4 inline-flex min-h-11 items-center text-sm text-foreground underline underline-offset-4"
+        >
+          Back to {submission.jam.name}
+        </Link>
       </div>
     );
   }
@@ -139,6 +155,12 @@ export default async function SubmissionDetailPage({
       submission,
     }).allowed;
 
+  // Only the viewer's own ratings are read; ratings stay anonymous (spec §6.3).
+  const hasRated = session?.user?.id
+    ? (await getUserRatings(submission.id, session.user.id)).length > 0
+    : false;
+  const showRatingCard = showRateButton || hasRated;
+
   const teamContext = {
     phase: status,
     ranked: submission.jam.ranked,
@@ -160,205 +182,244 @@ export default async function SubmissionDetailPage({
     (fv) => !fv.field.isPrivate || canModerate
   );
 
-  return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      <div className="mb-2 text-sm text-muted-foreground">
-        <Link href={`/jams/${submission.jam.slug}`} className="hover:underline">
-          ← {submission.jam.name}
-        </Link>
-      </div>
+  const jam = submission.jam;
 
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="mb-1 flex items-center gap-2">
-            <h1 className="text-3xl font-bold">{submission.title}</h1>
-            {submission.status === "DRAFT" && (
-              <Badge variant="secondary">Draft</Badge>
-            )}
-            {!submission.competing && !submission.rateable && (
-              <Badge variant="destructive">Disqualified</Badge>
-            )}
-            {!submission.competing && submission.rateable && (
-              <Badge variant="secondary">Not competing</Badge>
-            )}
-            {!submission.visible && <Badge variant="outline">Hidden</Badge>}
+  return (
+    <div className="mx-auto max-w-7xl px-4 py-8 md:px-12">
+      <nav
+        aria-label="Breadcrumb"
+        className="mb-6 flex flex-wrap items-center gap-x-2 text-sm text-subtle-foreground"
+      >
+        <Link href={`/jams/${jam.slug}`} className="inline-flex min-h-11 items-center hover:text-foreground md:min-h-0">
+          {jam.name}
+        </Link>
+        <span aria-hidden>/</span>
+        <Link
+          href={`/jams/${jam.slug}/submissions`}
+          className="inline-flex min-h-11 items-center hover:text-foreground md:min-h-0"
+        >
+          Submissions
+        </Link>
+        <span aria-hidden>/</span>
+        <span className="text-foreground">{submission.title}</span>
+      </nav>
+
+      <div className="grid gap-x-10 gap-y-7 md:grid-cols-12">
+        {/* Title block leads on mobile and sits at the top of the aside on desktop. */}
+        <div className="flex flex-col gap-4 md:col-span-4 md:col-start-9 md:row-start-1">
+          <div className="flex flex-col gap-3">
+            <h1 className="text-3xl font-semibold tracking-tight">{submission.title}</h1>
+            <div className="flex flex-wrap gap-2">
+              {submission.status === "DRAFT" && (
+                <span className={cn(TAG, "border-dashed text-muted-foreground")}>Draft</span>
+              )}
+              {!submission.competing && !submission.rateable && (
+                <span className={cn(TAG, "border-destructive text-destructive")}>Disqualified</span>
+              )}
+              {!submission.competing && submission.rateable && (
+                <span className={cn(TAG, "text-muted-foreground")}>Not competing</span>
+              )}
+              {!submission.visible && <span className={cn(TAG, "text-muted-foreground")}>Hidden</span>}
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2">
+          {submission.itchUrl && (
+            <a
+              href={submission.itchUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants(), FULL_BUTTON)}
+            >
+              Play on itch.io ↗
+            </a>
+          )}
+          {submission.videoUrl && (
+            <a
+              href={submission.videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cn(buttonVariants({ variant: "outline" }), FULL_BUTTON)}
+            >
+              Watch the video
+            </a>
+          )}
           {canEdit && (
             <Link
               href={`/submissions/${submission.id}/edit`}
-              className={buttonVariants({ variant: "outline" })}
+              className={cn(buttonVariants({ variant: "outline" }), "h-10 min-h-11 w-full md:min-h-10")}
             >
               Edit
             </Link>
           )}
-          {showRateButton && (
-            <Link
-              href={`/submissions/${submission.id}/rate`}
-              className={buttonVariants()}
-            >
-              Rate
-            </Link>
-          )}
         </div>
-      </div>
 
-      {submission.coverUrl && (
-        <div className="mb-6 overflow-hidden rounded-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+        <div className="flex flex-col gap-7 md:col-span-8 md:col-start-1 md:row-span-2 md:row-start-1">
+          <CoverImage
             src={submission.coverUrl}
-            alt={submission.title}
-            className="w-full object-cover"
+            alt={`Cover image of ${submission.title}`}
+            name={submission.title}
+            className="aspect-video w-full rounded-xl border"
           />
-        </div>
-      )}
-
-      <Separator className="mb-6" />
-
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="space-y-6 md:col-span-2">
-          {submission.description && (
-            <Card>
-              <CardHeader>
-                <CardTitle>About</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <Markdown>{submission.description}</Markdown>
-              </CardContent>
-            </Card>
-          )}
-
-          {submission.itchUrl && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Play on itch.io</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <a
-                  href={submission.itchUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={buttonVariants({ variant: "outline" })}
-                >
-                  Open itch.io page →
-                </a>
-                {submission.supportedPlatforms.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {submission.supportedPlatforms.map((p) => (
-                      <Badge key={p} variant="secondary">
-                        {p.charAt(0) + p.slice(1).toLowerCase()}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
 
           {submission.screenshots.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Screenshots</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {submission.screenshots.map((url, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={i}
-                      src={url}
-                      alt={`Screenshot ${i + 1}`}
-                      className="rounded-md object-cover"
-                    />
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {submission.videoUrl && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Video</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div className="no-scrollbar -mx-4 flex gap-3 overflow-x-auto px-4 md:mx-0 md:grid md:grid-cols-4 md:overflow-visible md:px-0">
+              {submission.screenshots.map((url, i) => (
                 <a
-                  href={submission.videoUrl}
+                  key={i}
+                  href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-primary hover:underline"
+                  className="w-40 shrink-0 md:w-auto"
                 >
-                  Watch Video →
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={url}
+                    alt={`Screenshot ${i + 1} of ${submission.title}`}
+                    loading="lazy"
+                    referrerPolicy="no-referrer"
+                    className="h-24 w-full rounded-lg border object-cover"
+                  />
                 </a>
-              </CardContent>
-            </Card>
+              ))}
+            </div>
+          )}
+
+          {submission.description && (
+            <section className="flex flex-col gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">About the game</h2>
+              <Markdown>{submission.description}</Markdown>
+            </section>
           )}
 
           {visibleFields.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Additional Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
+            <section className="flex flex-col gap-3">
+              <h2 className="text-lg font-semibold tracking-tight">Submission info</h2>
+              <dl className="overflow-hidden rounded-xl border">
                 {visibleFields.map((fv) => (
-                  <div key={fv.id}>
-                    <p className="text-sm font-medium">
+                  <div key={fv.id} className="flex flex-col gap-1 border-b p-4 last:border-b-0 md:flex-row md:gap-6">
+                    <dt className="text-sm text-muted-foreground md:w-48 md:shrink-0">
                       {fv.field.name}
                       {fv.field.isPrivate && (
-                        <Badge variant="outline" className="ml-2 text-xs">
-                          Private
-                        </Badge>
+                        <span className="ml-2 rounded border px-1.5 text-[11px]">Private</span>
                       )}
-                    </p>
-                    {fv.field.type === "URL" ? (
-                      <a
-                        href={fv.value}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
-                      >
-                        {fv.value}
-                      </a>
-                    ) : (
-                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                        {fv.value}
-                      </p>
-                    )}
+                    </dt>
+                    <dd className="min-w-0 text-sm wrap-break-word whitespace-pre-wrap">
+                      {fv.field.type === "URL" ? (
+                        <a
+                          href={fv.value}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline"
+                        >
+                          {fv.value}
+                        </a>
+                      ) : (
+                        fv.value
+                      )}
+                    </dd>
                   </div>
                 ))}
-              </CardContent>
-            </Card>
+              </dl>
+            </section>
           )}
         </div>
 
-        {/* Sidebar */}
-        <div className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Team</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
-                {submission.members.map((m) => (
-                  <li key={m.id} className="flex items-center justify-between">
-                    <Link
-                      href={`/users/${m.user.username}`}
-                      className="text-sm text-primary hover:underline"
-                    >
-                      {m.user.displayName ?? m.user.username}
-                    </Link>
+        <aside className="flex flex-col gap-5 md:col-span-4 md:col-start-9 md:row-start-2 md:self-start">
+          <dl>
+            {submission.supportedPlatforms.length > 0 && (
+              <div className="flex justify-between gap-4 border-b py-2.5 text-sm">
+                <dt className="text-muted-foreground">Platforms</dt>
+                <dd className="flex flex-wrap justify-end gap-1">
+                  {submission.supportedPlatforms.map((p) => (
+                    <span key={p} className="rounded border px-1.5 font-mono text-[11px]">
+                      {platformLabel(p)}
+                    </span>
+                  ))}
+                </dd>
+              </div>
+            )}
+            <div className="flex justify-between gap-4 border-b py-2.5 text-sm">
+              <dt className="text-muted-foreground">Jam</dt>
+              <dd>
+                <Link href={`/jams/${jam.slug}`} className="hover:underline">
+                  {jam.name}
+                </Link>
+              </dd>
+            </div>
+          </dl>
+
+          <section aria-label="Team" className="flex flex-col gap-1">
+            <h2 className="text-sm text-subtle-foreground">Team</h2>
+            <ul>
+              {submission.members.map((m) => {
+                const name = m.user.displayName ?? m.user.username;
+                return (
+                  <li key={m.id} className="flex items-center gap-3 py-1">
+                    {m.user.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={m.user.avatarUrl}
+                        alt=""
+                        loading="lazy"
+                        referrerPolicy="no-referrer"
+                        className="size-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden
+                        className="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-medium text-subtle-foreground"
+                      >
+                        {initials(name)}
+                      </span>
+                    )}
+                    <div className="flex min-h-11 flex-col justify-center md:min-h-0">
+                      <Link href={`/users/${m.user.username}`} className="text-sm hover:underline">
+                        {name}
+                      </Link>
+                      <span className="text-xs text-subtle-foreground">@{m.user.username}</span>
+                    </div>
                     {m.isLeader && (
-                      <Badge variant="secondary" className="text-xs">
-                        Leader
-                      </Badge>
+                      <span className="ml-auto text-xs text-muted-foreground">Leader</span>
                     )}
                   </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+                );
+              })}
+            </ul>
+          </section>
+
+          {showRatingCard && (
+            <section aria-label="Your rating" className="flex flex-col gap-3 rounded-xl border bg-card p-5">
+              <h2 className="text-sm text-subtle-foreground">Your rating</h2>
+              {jam.ratingEnd && showRateButton && (
+                <p className="font-mono text-xs text-rating">Open until {STAMP.format(jam.ratingEnd)} UTC</p>
+              )}
+              {hasRated ? (
+                <>
+                  <p className="text-sm text-muted-foreground">You rated this game.</p>
+                  {showRateButton && (
+                    <Link
+                      href={`/submissions/${submission.id}/rate`}
+                      className={cn(buttonVariants({ variant: "outline" }), "h-10 min-h-11 w-full md:min-h-10")}
+                    >
+                      Change your rating
+                    </Link>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Not rated yet. Play the game first, then score it on {jam._count.criteria} criteria.
+                    Ratings are anonymous.
+                  </p>
+                  <Link
+                    href={`/submissions/${submission.id}/rate`}
+                    className={cn(buttonVariants(), "h-10 min-h-11 w-full md:min-h-10")}
+                  >
+                    Rate {submission.title}
+                  </Link>
+                </>
+              )}
+            </section>
+          )}
 
           {isMember && (
             <SubmissionOwnerPanel
@@ -384,7 +445,7 @@ export default async function SubmissionDetailPage({
                 displayName: m.user.displayName,
                 isLeader: m.isLeader,
               }))}
-              maxTeamSize={submission.jam.maxTeamSize}
+              maxTeamSize={jam.maxTeamSize}
             />
           )}
 
@@ -397,7 +458,7 @@ export default async function SubmissionDetailPage({
               verified={submission.verified}
             />
           )}
-        </div>
+        </aside>
       </div>
     </div>
   );
