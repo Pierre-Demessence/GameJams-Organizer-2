@@ -12,6 +12,7 @@ import {
   phaseProgress,
 } from "@/lib/jam-status-display";
 import { loadHomeData, type FinishedJam, type HomeJam } from "@/lib/home-queries";
+import { initials } from "@/lib/initials";
 import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -70,9 +71,6 @@ async function HomeContent() {
     </>
   );
 }
-
-const initials = (name: string) =>
-  name.split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
 const SECTION_LINK = "inline-flex min-h-11 items-center text-sm text-muted-foreground hover:text-foreground";
 

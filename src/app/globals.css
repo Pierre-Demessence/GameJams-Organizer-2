@@ -148,3 +148,10 @@ html {
     @apply bg-background text-foreground font-sans;
   }
 }
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
