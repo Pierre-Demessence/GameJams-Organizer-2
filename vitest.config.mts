@@ -29,6 +29,8 @@ export default defineConfig({
         "src/lib/scoring.ts",
         "src/lib/home-queries.ts",
         "src/lib/rating-queries.ts",
+        "src/lib/jam-list-queries.ts",
+        "src/lib/jam-phase-where.ts",
       ],
     },
   },

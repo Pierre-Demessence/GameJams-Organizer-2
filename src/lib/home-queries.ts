@@ -4,6 +4,7 @@ import { jamPhase, type JamPhase } from "@/domain/jam-phase";
 import { podium, resultsArePublic } from "@/domain/results";
 import { loadJamResults } from "@/lib/scoring";
 import { nextDeadline } from "@/lib/jam-status-display";
+import { LISTED_JAM, jamPhaseWhere } from "@/lib/jam-phase-where";
 
 export interface HomeJam {
   id: string;
@@ -38,11 +39,6 @@ export interface HomeData {
 }
 
 const LIVE_SUBMISSIONS = { status: "SUBMITTED", visible: true, deletedAt: null } as const;
-const LISTED: Prisma.JamWhereInput = {
-  deletedAt: null,
-  visibility: "PUBLIC",
-  publishedAt: { not: null },
-};
 const SELECT = {
   id: true, slug: true, name: true, shortDesc: true, ranked: true, publishedAt: true,
   startDate: true, endDate: true, ratingEnd: true, hideResults: true, resultsRevealedAt: true,
@@ -54,7 +50,7 @@ function findRows(
   orderBy: Prisma.JamOrderByWithRelationInput,
   take: number
 ) {
-  return db.jam.findMany({ where: { AND: [LISTED, where] }, select: SELECT, orderBy, take });
+  return db.jam.findMany({ where: { AND: [LISTED_JAM, where] }, select: SELECT, orderBy, take });
 }
 type Row = Awaited<ReturnType<typeof findRows>>[number];
 
@@ -104,18 +100,10 @@ async function loadPodium(
 
 export async function loadHomeData(now = new Date()): Promise<HomeData> {
   const [ongoing, rating, upcoming, finished] = await Promise.all([
-    findRows({ startDate: { lte: now }, endDate: { gt: now } }, { endDate: "asc" }, 6),
-    findRows(
-      { ranked: true, endDate: { lte: now }, ratingEnd: { gt: now } },
-      { ratingEnd: "asc" },
-      6
-    ),
-    findRows({ startDate: { gt: now } }, { startDate: "asc" }, 6),
-    findRows(
-      { OR: [{ ranked: true, ratingEnd: { lte: now } }, { ranked: false, endDate: { lte: now } }] },
-      { endDate: "desc" },
-      3
-    ),
+    findRows(jamPhaseWhere("ONGOING", now), { endDate: "asc" }, 6),
+    findRows(jamPhaseWhere("RATING", now), { ratingEnd: "asc" }, 6),
+    findRows(jamPhaseWhere("UPCOMING", now), { startDate: "asc" }, 6),
+    findRows(jamPhaseWhere("FINISHED", now), { endDate: "desc" }, 3),
   ]);
 
   // Each group is already sorted by its own deadline; merge them on the next deadline.
