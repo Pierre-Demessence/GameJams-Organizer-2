@@ -2,7 +2,7 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { computeJamStatus } from "@/lib/jam-status";
+import { jamPhase } from "@/domain/jam-phase";
 import { checkJamPermission } from "@/lib/permissions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -22,10 +22,10 @@ async function verifyJamAdmin(jamId: string, userId: string) {
 async function checkFieldsLocked(jamId: string): Promise<boolean> {
   const jam = await db.jam.findUnique({
     where: { id: jamId },
-    select: { startDate: true, endDate: true, ratingEnd: true, ranked: true },
+    select: { publishedAt: true, startDate: true, endDate: true, ratingEnd: true, ranked: true },
   });
   if (!jam) return true;
-  const status = computeJamStatus(jam);
+  const status = jamPhase(jam);
   return status === "RATING" || status === "FINISHED";
 }
 

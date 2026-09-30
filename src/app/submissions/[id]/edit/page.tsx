@@ -1,8 +1,9 @@
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
 import { checkJamPermission } from "@/lib/permissions";
+import { jamPhase } from "@/domain/jam-phase";
+import { canEditSubmission } from "@/domain/submission";
 import { SubmissionForm } from "@/app/jams/[slug]/submissions/new/submission-form";
 
 export async function generateMetadata({
@@ -13,9 +14,9 @@ export async function generateMetadata({
   const { id } = await params;
   const submission = await db.submission.findUnique({
     where: { id },
-    select: { title: true, deletedAt: true, jam: { select: { deletedAt: true } } },
+    select: { title: true, jam: { select: { deletedAt: true } } },
   });
-  if (!submission || submission.deletedAt || submission.jam.deletedAt)
+  if (!submission || submission.jam.deletedAt)
     return { title: "Submission Not Found" };
   return { title: `Edit ${submission.title}` };
 }
@@ -37,6 +38,7 @@ export default async function EditSubmissionPage({
           id: true,
           slug: true,
           name: true,
+          publishedAt: true,
           startDate: true,
           endDate: true,
           ratingEnd: true,
@@ -48,10 +50,8 @@ export default async function EditSubmissionPage({
       fieldValues: { select: { fieldId: true, value: true } },
     },
   });
-  if (!submission) notFound();
-  if (submission.deletedAt || submission.jam.deletedAt) notFound();
+  if (!submission || submission.jam.deletedAt) notFound();
 
-  const status = computeJamStatus(submission.jam);
   const isMember = submission.members.some(
     (m) => m.userId === session.user!.id
   );
@@ -60,19 +60,21 @@ export default async function EditSubmissionPage({
     session.user.id,
     "edit_submission"
   );
+  if (!isMember && !canModerate) notFound();
 
-  if (status !== "ONGOING" && !canModerate) {
+  const decision = canEditSubmission({
+    phase: jamPhase(submission.jam),
+    isMember,
+    canEditAny: canModerate,
+  });
+  if (!decision.allowed) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-8">
         <h1 className="text-2xl font-bold">Editing Locked</h1>
-        <p className="mt-2 text-muted-foreground">
-          Submissions can only be edited during the ongoing period.
-        </p>
+        <p className="mt-2 text-muted-foreground">{decision.reason}</p>
       </div>
     );
   }
-
-  if (!isMember && !canModerate) notFound();
 
   const customFields = await db.customField.findMany({
     where: { jamId: submission.jamId },

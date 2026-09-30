@@ -17,6 +17,7 @@
 ├── src/
 │   ├── app/            Next.js App Router pages and layouts
 │   ├── components/     Shared React components
+│   ├── domain/         Pure spec rules (no DB, auth or Next imports) + colocated *.test.ts
 │   ├── generated/      Prisma generated client (gitignored, not committed)
 │   ├── lib/            Server-side utilities and business logic (+ colocated *.test.ts)
 │   ├── types/          TypeScript type extensions
@@ -50,18 +51,34 @@
 | `users/[username]/` | Public user profile |
 | `settings/` | Account settings (profile, linked accounts) |
 
+## Domain Rules (`src/domain/`)
+
+Pure functions over plain data plus `now`, one module per spec area. Each rule traces to a
+[product-spec](specs/product-spec.md) section and is unit-tested exhaustively.
+
+| File | Purpose |
+|------|---------|
+| `decision.ts` | `Decision` result type (`allowed` + user-facing `reason`) shared by all rules |
+| `jam-phase.ts` | `jamPhase` (DRAFT until `publishedAt`, then from dates), `validateJamDates`, `canPublish` (§4.4, §6.2) |
+| `participation.ts` | `canJoin`, `canLeaveJam`, `canLeaveSubmission` (§4.7) |
+| `submission.ts` | Create / edit / finalize / unsubmit windows, contributor change window, leadership transfer (§5) |
+| `rating.ts` | `isEligibleRater`, `canRate` — judges always eligible, own entry excluded (§4.6, §6.1, §6.3) |
+| `results.ts` | `resultsAccess` (none / preview / public), `canRevealResults` (§6.5) |
+| `scoring.ts` | `rankSubmissions`: Bayesian per-criterion scores, overall by primary or weighted average (§6.4) |
+
 ## Library Modules (`src/lib/`)
 
 | File | Purpose |
 |------|---------|
 | `auth.ts` | Auth.js handlers (`signIn`, `signOut`, `auth`) |
 | `auth.config.ts` | Auth.js providers and callbacks |
-| `db.ts` | Prisma client singleton |
+| `db.ts` | Prisma client singleton with the soft-delete read filter for `Jam` and `Submission` |
 | `permissions.ts` | Permission catalog + `getJamRoles`, `hasPermission`, `checkJamPermission` (stackable roles) |
 | `verification.ts` | itch.io ownership verification (single-host allowlist fetch + code generation) |
-| `jam-status.ts` | Jam lifecycle status helpers |
 | `rate-limit.ts` | In-memory rate limiter for server actions |
-| `scoring.ts` | Bayesian per-criterion scores; overall by primary criterion or weighted average |
+| `scoring.ts` | `loadJamResults`: loads a jam's criteria, submissions and ratings, ranks them via `domain/scoring` |
+| `rating-queries.ts` | `loadRater`, `getUserRatings` (server-only; never exported from a `"use server"` file) |
+| `form-parsers.ts` | FormData → Zod parsing for jam and submission forms; custom-field value reader |
 | `validations.ts` | Zod schemas for forms and server actions |
 | `utils.ts` | General utilities (`cn` class merge, etc.) |
 
@@ -97,7 +114,8 @@ Edge middleware that handles auth-related redirects and route protection.
 | New server action | `src/app/<route>/actions.ts` |
 | Shared component | `src/components/` |
 | UI primitive (shadcn) | `src/components/ui/` via `npx shadcn@latest add` |
-| Business logic | `src/lib/` |
+| Spec rule (who can do what, when) | `src/domain/` |
+| Business logic with I/O | `src/lib/` |
 | Zod schema | `src/lib/validations.ts` |
 | Database model | `prisma/schema.prisma` then `pnpm db:migrate` |
 | Unit test | Colocate `*.test.ts` next to the module |

@@ -36,8 +36,8 @@ requirements. The data model below is the **target** schema the implementation c
 │  └─────────────┘  └──────────┬───────────────┘ │
 │                              │                  │
 │  ┌───────────────────────────▼───────────────┐ │
-│  │           Service Layer                    │ │
-│  │  (Business logic, validation, auth checks) │ │
+│  │  Domain rules (src/domain, pure)          │ │
+│  │  + I/O helpers (src/lib: db, auth, ...)   │ │
 │  └───────────────────────────┬───────────────┘ │
 │                              │                  │
 │  ┌───────────────────────────▼───────────────┐ │
@@ -55,8 +55,14 @@ requirements. The data model below is the **target** schema the implementation c
 - **Server Actions** for form mutations (create jam, submit rating) — colocated with forms,
   type-safe, CSRF-protected by default in Next.js.
 - **API Routes** (`/api/...`) only where external access or webhooks are needed.
-- **Service Layer** between routes and Prisma to keep business logic testable and separate
-  from framework concerns.
+- **Domain layer** (`src/domain/`): every spec rule of the form "who can do what, in which
+  phase" is a pure function over plain data plus `now`, returning a `Decision`
+  (`{ allowed: true }` or `{ allowed: false, reason }`). Actions and pages load data, call the
+  rule, and act on the decision; they never re-implement a rule inline.
+- **Soft delete** is enforced by a Prisma client extension (`src/lib/db.ts`): top-level reads of
+  `Jam` and `Submission` only see rows with `deletedAt = null`, unless the query names
+  `deletedAt` itself. Relation filters, includes and `_count` are not covered and filter
+  explicitly.
 - **No external file storage** — all media referenced by URL.
 
 ---
@@ -140,14 +146,6 @@ model Account {
 
 // ─── Jams ───────────────────────────────────────
 
-enum JamStatus {
-  DRAFT
-  UPCOMING
-  ONGOING
-  RATING
-  FINISHED
-}
-
 enum JamVisibility {
   PUBLIC
   UNLISTED
@@ -170,7 +168,7 @@ model Jam {
   hashtag     String?
   tags        String[]      // PostgreSQL array
 
-  status      JamStatus     @default(DRAFT)
+  publishedAt DateTime?     // Null while a draft; phase is derived from dates once set
   visibility  JamVisibility @default(UNLISTED)
 
   ranked      Boolean       @default(false)
@@ -182,6 +180,7 @@ model Jam {
   revealThemeOnStart Boolean @default(true)
 
   hideResults             Boolean @default(false)
+  resultsRevealedAt       DateTime? // Manual reveal while hideResults is on
   hideSubmissionsBeforeEnd Boolean @default(false)
 
   submissionDetails String?  // Shown on submission dialog
@@ -202,9 +201,8 @@ model Jam {
   criteria     Criterion[]
   customFields CustomField[]
   participants JamParticipant[]
-  results      JamResult[]
 
-  @@index([status, visibility])
+  @@index([visibility, publishedAt])
   @@index([createdAt])
 }
 
@@ -290,7 +288,6 @@ model Submission {
   members     SubmissionMember[]
   ratings     Rating[]
   fieldValues CustomFieldValue[]
-  results     JamResult[]
 }
 
 model SubmissionMember {
@@ -378,25 +375,6 @@ model Rating {
 
   @@unique([submissionId, criterionId, userId])
   @@index([submissionId])
-}
-
-// ─── Results (computed) ────────────────────────────
-
-model JamResult {
-  id           String @id @default(cuid())
-  jamId        String
-  submissionId String
-  rank         Int
-  finalScore   Float
-  totalRatings Int
-  rawAverage   Float
-  criteriaScores Json  // { criterionId: { ws, raw, count } }
-  computedAt   DateTime @default(now())
-
-  jam        Jam        @relation(fields: [jamId], references: [id], onDelete: Cascade)
-  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-
-  @@unique([jamId, submissionId])
 }
 
 // ─── Platform Administration ────────────────────
@@ -500,15 +478,27 @@ Run once when a ranked jam transitions to FINISHED (or on-demand for admin previ
    b. Else → FinalScore = Σ(WS_c × w_c) / Σ(w_c) over RATED criteria with w_c > 0; rank by it.
    c. No primary and no RATED criteria → no overall ranking (per-criterion results only).
 4. Tiebreak: total ratings DESC → raw average DESC → deterministic random (hash of submission ID).
-5. Store computed ranks and scores.
+   Per-criterion rankings use the same tiebreak on that criterion's count and raw mean.
 ```
 
 > For the MVP all criteria are RATED; JURY criteria and manual placement are Future.
 
-### Storage
+### Computation on read
 
-Computed results are stored in the `JamResult` model (defined in the main Prisma schema above)
-to avoid recomputation on every page load.
+Results are not stored. `rankSubmissions` (`src/domain/scoring.ts`) is a pure function of the
+jam's criteria, SUBMITTED submissions and ratings; `loadJamResults` (`src/lib/scoring.ts`) loads
+those rows and calls it. Results are therefore never stale and need no organizer action.
+
+### Visibility
+
+`resultsAccess` (`src/domain/results.ts`) decides who sees results:
+
+| Viewer | RATING | FINISHED, not hidden | FINISHED, hidden | FINISHED, hidden + revealed |
+| --- | --- | --- | --- | --- |
+| Public | none | public | none | public |
+| Holder of `preview_results` (Admin, Moderator) | preview | public | preview | public |
+
+A Jam Admin reveals hidden results once the jam is FINISHED, which sets `resultsRevealedAt`.
 
 ---
 
@@ -536,27 +526,25 @@ to avoid recomputation on every page load.
                               FINISHED
 ```
 
-### Implementation — Lazy Status Computation (MVP)
+### Implementation — Derived Phase
 
-The `status` field in the database is **not manually managed**. It is always **computed on read**
-from the persisted dates and visibility. The `status` column in the DB exists only as a
-denormalized cache for efficient queries (updated on each read or via a periodic job later).
-
-**Algorithm:**
+The phase is never stored. `jamPhase` (`src/domain/jam-phase.ts`) derives it on read:
 
 ```
-function computeStatus(jam):
-  if no dates set → DRAFT
+function jamPhase(jam, now):
+  if jam.publishedAt is null or dates are missing → DRAFT
   if now < jam.startDate → UPCOMING
-  if now >= jam.startDate and now < jam.endDate → ONGOING
-  if jam.ranked and now >= jam.endDate and now < jam.ratingEnd → RATING
-  if (jam.ranked and now >= jam.ratingEnd) or (!jam.ranked and now >= jam.endDate) → FINISHED
-  fallback → DRAFT
+  if now < jam.endDate → ONGOING
+  if jam.ranked and now < jam.ratingEnd → RATING
+  → FINISHED
 ```
 
-Both public and unlisted jams progress through the lifecycle; `visibility` only controls
-whether the jam is listed publicly. The **Publish action** sets `visibility = PUBLIC` with
-valid dates, making the jam discoverable on the listing page.
+**Publish** (`canPublish`) sets `publishedAt`. It requires complete, ordered dates (and a rating
+end for ranked jams) and, for ranked jams, at least one criterion plus a primary criterion or a
+RATED criterion with non-zero weight. Once published, a jam must keep a complete schedule.
+
+`visibility` is independent of the lifecycle: listings show jams that are published **and**
+PUBLIC; an UNLISTED published jam runs its full lifecycle and is reachable by URL only.
 
 ---
 

@@ -1,7 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
+import { jamPhase } from "@/domain/jam-phase";
+import { canCreateSubmission } from "@/domain/submission";
 import { SubmissionForm } from "./submission-form";
 
 export async function generateMetadata({
@@ -38,40 +39,33 @@ export default async function NewSubmissionPage({
   });
   if (!jam) notFound();
 
-  const status = computeJamStatus(jam);
-  if (status !== "ONGOING") {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="text-2xl font-bold">Submissions Closed</h1>
-        <p className="mt-2 text-muted-foreground">
-          Submissions are only accepted during the ongoing period.
-        </p>
-      </div>
-    );
-  }
-
-  const participant = await db.jamParticipant.findUnique({
-    where: { jamId_userId: { jamId: jam.id, userId: session.user.id } },
-  });
-  if (!participant) {
-    return (
-      <div className="mx-auto max-w-2xl px-4 py-8">
-        <h1 className="text-2xl font-bold">Join First</h1>
-        <p className="mt-2 text-muted-foreground">
-          You need to join this jam before submitting.
-        </p>
-      </div>
-    );
-  }
-
-  const existingMembership = await db.submissionMember.findFirst({
-    where: {
-      userId: session.user.id,
-      submission: { jamId: jam.id, deletedAt: null },
-    },
-  });
+  const [participant, existingMembership] = await Promise.all([
+    db.jamParticipant.findUnique({
+      where: { jamId_userId: { jamId: jam.id, userId: session.user.id } },
+    }),
+    db.submissionMember.findFirst({
+      where: {
+        userId: session.user.id,
+        submission: { jamId: jam.id, deletedAt: null },
+      },
+    }),
+  ]);
   if (existingMembership) {
     redirect(`/submissions/${existingMembership.submissionId}`);
+  }
+
+  const decision = canCreateSubmission({
+    phase: jamPhase(jam),
+    hasJoined: participant !== null,
+    hasSubmission: false,
+  });
+  if (!decision.allowed) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <h1 className="text-2xl font-bold">Cannot Submit</h1>
+        <p className="mt-2 text-muted-foreground">{decision.reason}</p>
+      </div>
+    );
   }
 
   // Include all custom fields (including private) for submission form

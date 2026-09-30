@@ -158,9 +158,9 @@ THE SYSTEM SHALL support two visibility modes:
 
 ### REQ-JAM-06: Jam Lifecycle Transitions
 
-The jam status is **computed from dates only** (lazy evaluation):
+The jam status is **derived on read** from its publication and dates:
 
-- No `startDate` or `endDate` → **DRAFT**
+- Not published, or no `startDate` / `endDate` → **DRAFT**
 - `now < startDate` → **UPCOMING**
 - `now ≥ startDate` and `now < endDate` → **ONGOING**
 - Ranked: `now ≥ endDate` and `now < ratingEnd` → **RATING**
@@ -168,10 +168,22 @@ The jam status is **computed from dates only** (lazy evaluation):
 - Non-ranked: `now ≥ endDate` → **FINISHED**
 
 Visibility (PUBLIC vs UNLISTED) is independent of status and controls listing
-visibility only. Both public and unlisted jams progress through the lifecycle
-identically once dates are set. The "Publish" action sets visibility to PUBLIC
-with valid dates, making the jam discoverable on listings; unlisted jams with
-dates progress the same way but are only accessible via direct URL.
+only. Both public and unlisted jams progress through the lifecycle identically
+once published; unlisted jams are only accessible via direct URL.
+
+### REQ-JAM-06a: Publish
+
+WHEN a jam admin publishes a draft jam,
+THE SYSTEM SHALL require complete, ordered dates (including a rating end for ranked jams) and,
+for ranked jams, at least one criterion with either a primary criterion or a rated criterion of
+non-zero weight; THE SYSTEM SHALL then record the publication without changing visibility.
+
+WHILE a jam is published,
+THE SYSTEM SHALL reject edits that remove its start, end, or (ranked) rating-end date.
+
+WHILE a jam is a draft,
+THE SYSTEM SHALL hide it from listings and from everyone except its organizers, and SHALL NOT
+allow joining or submitting.
 
 ### REQ-JAM-07: Join Jam
 
@@ -361,6 +373,9 @@ THE SYSTEM SHALL restrict who can rate based on the jam's "who can rate" setting
 - **Judges**: Only users with the Judge role can rate.
 - **Everyone**: Any authenticated user can rate.
 
+Users with the Judge role can rate under every setting. Only membership in a SUBMITTED,
+non-deleted submission counts as being a submitter or contributor.
+
 ### REQ-RATING-02: Self-Rating Prevention
 
 THE SYSTEM SHALL prevent users from rating their own submission (any submission they are part of).
@@ -434,12 +449,19 @@ THE SYSTEM SHALL rank by:
 
 WHEN a ranked jam reaches FINISHED status and "hide results" is not enabled,
 THE SYSTEM SHALL display the rankings publicly, showing each submission's final score, rank,
-and per-criterion scores.
+and per-criterion scores (including criteria of weight 0).
+
+WHILE a ranked jam is in RATING status,
+THE SYSTEM SHALL hide rankings from the public and show them only to jam admins and moderators
+as a preview.
 
 ### REQ-RATING-10: Hidden Results
 
-WHILE "hide results" is enabled on a ranked jam,
-THE SYSTEM SHALL hide rankings from the public, showing only to jam admins.
+WHILE "hide results" is enabled on a ranked jam and its results have not been revealed,
+THE SYSTEM SHALL hide rankings from the public, showing them only to jam admins and moderators.
+
+WHEN a jam admin reveals the results of a FINISHED jam with "hide results" enabled,
+THE SYSTEM SHALL make the rankings public.
 
 ---
 

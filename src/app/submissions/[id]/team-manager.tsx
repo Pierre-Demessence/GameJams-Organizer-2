@@ -26,12 +26,18 @@ interface Member {
 
 interface TeamManagerProps {
   submissionId: string;
+  canAdd: boolean;
+  canRemove: boolean;
+  canTransfer: boolean;
   members: Member[];
   maxTeamSize: number | null;
 }
 
 export function TeamManager({
   submissionId,
+  canAdd,
+  canRemove,
+  canTransfer,
   members: initialMembers,
   maxTeamSize,
 }: TeamManagerProps) {
@@ -88,31 +94,35 @@ export function TeamManager({
                   </Badge>
                 )}
               </span>
-              {!m.isLeader && (
+              {!m.isLeader && (canTransfer || canRemove) && (
                 <div className="flex gap-1">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={isPending}
-                    onClick={() => handleTransfer(m.userId)}
-                  >
-                    Promote
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    disabled={isPending}
-                    onClick={() => handleRemove(m.userId)}
-                  >
-                    Remove
-                  </Button>
+                  {canTransfer && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() => handleTransfer(m.userId)}
+                    >
+                      Promote
+                    </Button>
+                  )}
+                  {canRemove && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={isPending}
+                      onClick={() => handleRemove(m.userId)}
+                    >
+                      Remove
+                    </Button>
+                  )}
                 </div>
               )}
             </li>
           ))}
         </ul>
 
-        {!atCapacity && (
+        {canAdd && !atCapacity && (
           <div className="flex gap-2">
             <Input
               placeholder="Username"

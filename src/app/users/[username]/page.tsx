@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { computeJamStatus } from "@/lib/jam-status";
+import { jamPhase } from "@/domain/jam-phase";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -29,12 +29,30 @@ export default async function UserProfilePage({ params }: Props) {
       jamParticipants: {
         where: { jam: { deletedAt: null } },
         include: {
-          jam: { select: { name: true, slug: true, startDate: true, endDate: true, ratingEnd: true, ranked: true } },
+          jam: {
+            select: {
+              name: true,
+              slug: true,
+              publishedAt: true,
+              startDate: true,
+              endDate: true,
+              ratingEnd: true,
+              ranked: true,
+            },
+          },
         },
         take: 20,
       },
       submissions: {
-        where: { submission: { deletedAt: null, jam: { deletedAt: null } } },
+        // Drafts and hidden entries are visible only to their team and organizers.
+        where: {
+          submission: {
+            status: "SUBMITTED",
+            visible: true,
+            deletedAt: null,
+            jam: { deletedAt: null },
+          },
+        },
         include: {
           submission: {
             select: { id: true, title: true, jam: { select: { name: true, slug: true } } },
@@ -90,7 +108,7 @@ export default async function UserProfilePage({ params }: Props) {
                     >
                       {p.jam.name}
                     </Link>
-                    <Badge variant="secondary">{computeJamStatus(p.jam)}</Badge>
+                    <Badge variant="secondary">{jamPhase(p.jam)}</Badge>
                   </li>
                 ))}
               </ul>

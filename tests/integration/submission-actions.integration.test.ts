@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
+  addContributorAction,
   createSubmissionAction,
+  deleteSubmissionAction,
   updateSubmissionAction,
 } from "@/app/submissions/actions";
 import { db } from "@/lib/db";
@@ -168,5 +170,93 @@ describe("updateSubmissionAction authorization", () => {
       where: { id: submission.id },
     });
     expect(updated?.title).toBe("Moderated");
+  });
+});
+
+describe("updateSubmissionAction custom fields", () => {
+  async function setup() {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const leader = await createUser();
+    await joinJam(jam.id, leader.id);
+    const submission = await createSubmission(jam.id, leader.id, { title: "Original" });
+    const engine = await db.customField.create({
+      data: { jamId: jam.id, name: "Engine", required: true },
+    });
+    const notes = await db.customField.create({
+      data: { jamId: jam.id, name: "Notes", required: false },
+    });
+    actingAs(leader.id);
+    return { submission, engine, notes };
+  }
+
+  it("writes nothing when a custom field is invalid", async () => {
+    const { submission, engine } = await setup();
+
+    const res = await updateSubmissionAction(
+      submission.id,
+      submissionFormData({ title: "Changed", [`custom_${engine.id}`]: "" })
+    );
+
+    expect(res.error).toBe("Engine is required");
+    const unchanged = await db.submission.findUnique({ where: { id: submission.id } });
+    expect(unchanged?.title).toBe("Original");
+  });
+
+  it("clears an optional custom field left empty", async () => {
+    const { submission, engine, notes } = await setup();
+    await db.customFieldValue.create({
+      data: { fieldId: notes.id, submissionId: submission.id, value: "old notes" },
+    });
+
+    const res = await updateSubmissionAction(
+      submission.id,
+      submissionFormData({ [`custom_${engine.id}`]: "Godot", [`custom_${notes.id}`]: "" })
+    );
+
+    expect(res.success).toBe(true);
+    const values = await db.customFieldValue.findMany({
+      where: { submissionId: submission.id },
+      select: { fieldId: true, value: true },
+    });
+    expect(values).toEqual([{ fieldId: engine.id, value: "Godot" }]);
+  });
+});
+
+describe("team management", () => {
+  it("lets a contributor add another participant", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const leader = await createUser();
+    const contributor = await createUser();
+    const newcomer = await createUser("newcomer");
+    for (const u of [leader, contributor, newcomer]) await joinJam(jam.id, u.id);
+    const submission = await createSubmission(jam.id, leader.id);
+    await db.submissionMember.create({
+      data: { submissionId: submission.id, userId: contributor.id },
+    });
+    actingAs(contributor.id);
+
+    const res = await addContributorAction(submission.id, "newcomer");
+
+    expect(res.success).toBe(true);
+  });
+
+  it("frees members of a deleted submission to join another team", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    await grantJamRole(jam.id, owner.id, "ADMIN");
+    const leader = await createUser();
+    const former = await createUser("former");
+    for (const u of [leader, former]) await joinJam(jam.id, u.id);
+    const deleted = await createSubmission(jam.id, former.id);
+    const submission = await createSubmission(jam.id, leader.id);
+
+    actingAs(owner.id);
+    expect((await deleteSubmissionAction(deleted.id)).success).toBe(true);
+    actingAs(leader.id);
+    const res = await addContributorAction(submission.id, "former");
+
+    expect(res.success).toBe(true);
   });
 });

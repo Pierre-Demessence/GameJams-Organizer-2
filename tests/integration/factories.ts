@@ -29,6 +29,12 @@ export function createJam(
     ratingEnd?: Date | null;
     ranked?: boolean;
     visibility?: "PUBLIC" | "UNLISTED";
+    publishedAt?: Date | null;
+    ratingEligibility?:
+      | "SUBMITTERS_ONLY"
+      | "SUBMITTERS_AND_CONTRIBUTORS"
+      | "JUDGES_ONLY"
+      | "EVERYONE";
   }
 ) {
   seq += 1;
@@ -44,29 +50,33 @@ export function createJam(
       ratingEnd: overrides?.ratingEnd,
       ranked: overrides?.ranked,
       visibility: overrides?.visibility,
+      publishedAt: overrides?.publishedAt,
+      ratingEligibility: overrides?.ratingEligibility,
     },
   });
 }
 
-// A jam whose window is open now, so computeJamStatus() returns "ONGOING".
+// A published jam whose window is open now, so jamPhase() returns "ONGOING".
 export function createOngoingJam(
   createdById: string,
   overrides?: { slug?: string }
 ) {
   return createJam(createdById, {
     slug: overrides?.slug,
+    publishedAt: daysFromNow(-2),
     startDate: daysFromNow(-1),
     endDate: daysFromNow(1),
   });
 }
 
-// A jam whose window has closed, so computeJamStatus() returns "FINISHED".
+// A published jam whose window has closed, so jamPhase() returns "FINISHED".
 export function createFinishedJam(
   createdById: string,
   overrides?: { slug?: string }
 ) {
   return createJam(createdById, {
     slug: overrides?.slug,
+    publishedAt: daysFromNow(-4),
     startDate: daysFromNow(-3),
     endDate: daysFromNow(-1),
   });

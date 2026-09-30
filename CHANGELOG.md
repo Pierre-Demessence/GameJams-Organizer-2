@@ -8,6 +8,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Domain layer (`src/domain/`): pure, unit-tested rules for jam phase, publishing, participation,
+  submissions, rating eligibility, results visibility, and scoring
+- Results reveal action for jams with "hide results"; organizer preview during rating
+- Soft-delete read filter for jams and submissions as a Prisma client extension
+- Integration test walking a ranked jam from draft to revealed results
 - Ownership verification: itch.io code-on-page flow (single-host allowlist fetch with
   per-hop redirect re-validation, timeout, and size cap) plus a manual admin fallback
 - Submission lifecycle: DRAFT / SUBMITTED states with a submit/withdraw owner panel
@@ -15,6 +20,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Vitest unit tests, Playwright E2E smoke tests, and a GitHub Actions CI workflow
 
 ### Changed
+
+- **BREAKING**: `Jam.status` replaced by `publishedAt`; publishing no longer changes visibility,
+  and draft jams no longer go live when their dates arrive
+- **BREAKING**: Results are computed on read; the `JamResult` table and the "Recompute Results"
+  button are removed
+- Results are no longer public during rating, and "hide results" keeps them hidden after the
+  jam finishes until an organizer reveals them; weight-0 criteria are shown in results
+- Judges can rate under every eligibility setting; members of draft or deleted submissions are
+  no longer eligible raters
+- Any team member can add or remove contributors (leadership transfer stays with the leader);
+  contributors can be added during rating when the jam allows it
+- Publishing a ranked jam requires at least one criterion and a usable overall ranking
+- New jams default to public visibility and reveal-theme-on-start
+- Seed re-anchors jam dates to the current time on every run
 
 - **BREAKING**: Jam roles are now stackable (`@@unique([jamId, userId, role])`); access
   is permission-based via `getJamRoles` / `checkJamPermission`
@@ -26,6 +45,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   set, else weighted average of RATED criteria
 - `revealThemeOnStart` now defaults to `true`
 - Database now managed with SQL migrations (`prisma migrate`) instead of `db push`
+
+### Fixed
+
+- Submission edits no longer save partially when custom-field validation fails; optional
+  custom fields can be cleared
+- Members of a deleted submission can join another team
+- Draft submissions no longer appear on user profiles
+- A user's own ratings are no longer readable through an exposed server action
+- The jam edit page honours stacked roles
 
 ## [0.1.0] - 2026-03-09
 

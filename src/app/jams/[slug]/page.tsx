@@ -3,8 +3,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { computeJamStatus } from "@/lib/jam-status";
 import { hasPermission } from "@/lib/permissions";
+import { jamPhase } from "@/domain/jam-phase";
+import { canJoin } from "@/domain/participation";
+import { resultsAccess } from "@/domain/results";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { buttonVariants } from "@/components/ui/button-variants";
@@ -26,10 +28,18 @@ export async function generateMetadata({
   const { slug } = await params;
   const jam = await db.jam.findUnique({
     where: { slug },
-    select: { name: true, shortDesc: true, startDate: true, endDate: true, ratingEnd: true, ranked: true },
+    select: {
+      name: true,
+      shortDesc: true,
+      publishedAt: true,
+      startDate: true,
+      endDate: true,
+      ratingEnd: true,
+      ranked: true,
+    },
   });
   if (!jam) return { title: "Jam Not Found" };
-  if (computeJamStatus(jam) === "DRAFT") return { title: "Game Jam" };
+  if (jamPhase(jam) === "DRAFT") return { title: "Game Jam" };
   return { title: jam.name, description: jam.shortDesc };
 }
 
@@ -119,14 +129,21 @@ export default async function JamDetailPage({
     include: {
       createdBy: { select: { username: true, displayName: true } },
       roles: { include: { user: { select: { username: true, displayName: true } } } },
-      _count: { select: { participants: true, submissions: true } },
+      _count: {
+        select: {
+          participants: true,
+          submissions: {
+            where: { status: "SUBMITTED", visible: true, deletedAt: null },
+          },
+        },
+      },
       criteria: { select: { id: true, name: true, description: true, weight: true } },
     },
   });
 
   if (!jam) notFound();
 
-  const status = computeJamStatus(jam);
+  const status = jamPhase(jam);
 
   const userRoles = session?.user?.id
     ? jam.roles
@@ -154,16 +171,21 @@ export default async function JamDetailPage({
     ? await db.submissionMember.findFirst({
         where: {
           userId: session.user.id,
-          submission: { jamId: jam.id },
+          submission: { jamId: jam.id, deletedAt: null },
         },
         select: { submissionId: true },
       })
     : null;
 
   const showJoinButton =
-    session?.user &&
-    !hasJoined &&
-    (status === "UPCOMING" || status === "ONGOING");
+    session?.user && canJoin({ phase: status, hasJoined: !!hasJoined }).allowed;
+
+  const showResultsLink =
+    resultsAccess({
+      ...jam,
+      phase: status,
+      canPreview: hasPermission(userRoles, "preview_results"),
+    }) !== "none";
 
   const showTheme =
     jam.theme &&
@@ -203,7 +225,7 @@ export default async function JamDetailPage({
               Manage
             </Link>
           )}
-          {jam.ranked && (status === "RATING" || status === "FINISHED") && (
+          {showResultsLink && (
             <Link
               href={`/jams/${jam.slug}/results`}
               className={buttonVariants({ variant: "outline" })}

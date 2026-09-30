@@ -1,5 +1,5 @@
 # Codecov configuration. CI uploads coverage as two flags:
-#   - unit:        pure-logic unit tests (src/lib, markdown)
+#   - unit:        pure-logic unit tests (src/domain, src/lib, markdown)
 #   - integration: server-action tests against a real test DB (src/app)
 # Codecov merges the flags into the overall project coverage.
 
@@ -23,6 +23,7 @@ flag_management:
   individual_flags:
     - name: unit
       paths:
+        - src/domain
         - src/lib
         - src/components
     - name: integration

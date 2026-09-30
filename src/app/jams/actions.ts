@@ -2,34 +2,33 @@
 
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { jamSchema, slugPattern } from "@/lib/validations";
+import { slugPattern } from "@/lib/validations";
+import { parseJamForm } from "@/lib/form-parsers";
 import { checkJamPermission } from "@/lib/permissions";
 import { checkStaffPermission } from "@/lib/staff-permissions";
 import { recordAudit } from "@/lib/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
+import { canPublish, jamPhase, validateJamDates } from "@/domain/jam-phase";
+import { canJoin } from "@/domain/participation";
 
-function validateDateOrder(data: {
-  startDate?: string;
-  endDate?: string;
-  ratingEnd?: string;
-  ranked?: boolean;
-}): string | null {
-  const { startDate, endDate, ratingEnd, ranked } = data;
-  if (startDate && endDate) {
-    if (new Date(startDate) >= new Date(endDate)) {
-      return "Start date must be before end date";
-    }
-  }
-  if (ranked && endDate && ratingEnd) {
-    if (new Date(endDate) >= new Date(ratingEnd)) {
-      return "End date must be before rating end date";
-    }
-  }
-  if (ranked && ratingEnd && !endDate) {
-    return "End date is required when rating end date is set";
-  }
-  return null;
+function toDate(value: string | undefined): Date | null {
+  return value ? new Date(value) : null;
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: string }).code === "P2002"
+  );
+}
+
+function isSlugConflict(err: unknown): boolean {
+  if (!isUniqueViolation(err)) return false;
+  const meta = (err as { meta?: { target?: string[] } }).meta;
+  return meta?.target?.includes("slug") ?? false;
 }
 
 export async function createJamAction(formData: FormData) {
@@ -43,32 +42,20 @@ export async function createJamAction(formData: FormData) {
     return { error: "Too many requests. Please try again later." };
   }
 
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = jamSchema.safeParse({
-    ...raw,
-    ranked: raw.ranked === "true",
-    revealThemeOnStart: raw.revealThemeOnStart === "true",
-    hideResults: raw.hideResults === "true",
-    hideSubmissionsBeforeEnd: raw.hideSubmissionsBeforeEnd === "true",
-    allowContributorsAfterClose: raw.allowContributorsAfterClose === "true",
-    tags: raw.tags ? String(raw.tags).split(",").map((t) => t.trim()).filter(Boolean) : [],
-    maxTeamSize: raw.maxTeamSize ? Number(raw.maxTeamSize) : undefined,
-    startDate: raw.startDate || undefined,
-    endDate: raw.endDate || undefined,
-    ratingEnd: raw.ratingEnd || undefined,
-    coverUrl: raw.coverUrl || undefined,
-    hashtag: raw.hashtag || undefined,
-    theme: raw.theme || undefined,
-    submissionDetails: raw.submissionDetails || undefined,
-  });
-
+  const parsed = parseJamForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const dateError = validateDateOrder(parsed.data);
-  if (dateError) {
-    return { error: dateError };
+  const dates = {
+    startDate: toDate(parsed.data.startDate),
+    endDate: toDate(parsed.data.endDate),
+    ratingEnd: toDate(parsed.data.ratingEnd),
+    ranked: parsed.data.ranked,
+  };
+  const datesCheck = validateJamDates(dates, { requireComplete: false });
+  if (!datesCheck.allowed) {
+    return { error: datesCheck.reason };
   }
 
   try {
@@ -82,9 +69,9 @@ export async function createJamAction(formData: FormData) {
         hashtag: parsed.data.hashtag || null,
         tags: parsed.data.tags ?? [],
         ranked: parsed.data.ranked,
-        startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
-        endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
-        ratingEnd: parsed.data.ratingEnd ? new Date(parsed.data.ratingEnd) : null,
+        startDate: dates.startDate,
+        endDate: dates.endDate,
+        ratingEnd: dates.ratingEnd,
         theme: parsed.data.theme || null,
         revealThemeOnStart: parsed.data.revealThemeOnStart,
         hideResults: parsed.data.hideResults,
@@ -107,16 +94,8 @@ export async function createJamAction(formData: FormData) {
     revalidatePath("/jams");
     return { success: true, slug: jam.slug };
   } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code: string }).code === "P2002"
-    ) {
-      const meta = (err as { meta?: { target?: string[] } }).meta;
-      if (meta?.target?.includes("slug")) {
-        return { error: "This slug is already taken" };
-      }
+    if (isSlugConflict(err)) {
+      return { error: "This slug is already taken" };
     }
     return { error: "Failed to create jam" };
   }
@@ -132,32 +111,29 @@ export async function updateJamAction(jamId: string, formData: FormData) {
     return { error: "You do not have permission to edit this jam" };
   }
 
-  const raw = Object.fromEntries(formData.entries());
-  const parsed = jamSchema.safeParse({
-    ...raw,
-    ranked: raw.ranked === "true",
-    revealThemeOnStart: raw.revealThemeOnStart === "true",
-    hideResults: raw.hideResults === "true",
-    hideSubmissionsBeforeEnd: raw.hideSubmissionsBeforeEnd === "true",
-    allowContributorsAfterClose: raw.allowContributorsAfterClose === "true",
-    tags: raw.tags ? String(raw.tags).split(",").map((t) => t.trim()).filter(Boolean) : [],
-    maxTeamSize: raw.maxTeamSize ? Number(raw.maxTeamSize) : undefined,
-    startDate: raw.startDate || undefined,
-    endDate: raw.endDate || undefined,
-    ratingEnd: raw.ratingEnd || undefined,
-    coverUrl: raw.coverUrl || undefined,
-    hashtag: raw.hashtag || undefined,
-    theme: raw.theme || undefined,
-    submissionDetails: raw.submissionDetails || undefined,
+  const existing = await db.jam.findUnique({
+    where: { id: jamId },
+    select: { publishedAt: true },
   });
+  if (!existing) return { error: "Jam not found" };
 
+  const parsed = parseJamForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const dateError = validateDateOrder(parsed.data);
-  if (dateError) {
-    return { error: dateError };
+  const dates = {
+    startDate: toDate(parsed.data.startDate),
+    endDate: toDate(parsed.data.endDate),
+    ratingEnd: toDate(parsed.data.ratingEnd),
+    ranked: parsed.data.ranked,
+  };
+  // A published jam must keep a complete schedule, or it would drop back to DRAFT.
+  const datesCheck = validateJamDates(dates, {
+    requireComplete: existing.publishedAt !== null,
+  });
+  if (!datesCheck.allowed) {
+    return { error: datesCheck.reason };
   }
 
   try {
@@ -172,9 +148,9 @@ export async function updateJamAction(jamId: string, formData: FormData) {
         hashtag: parsed.data.hashtag || null,
         tags: parsed.data.tags ?? [],
         ranked: parsed.data.ranked,
-        startDate: parsed.data.startDate ? new Date(parsed.data.startDate) : null,
-        endDate: parsed.data.endDate ? new Date(parsed.data.endDate) : null,
-        ratingEnd: parsed.data.ratingEnd ? new Date(parsed.data.ratingEnd) : null,
+        startDate: dates.startDate,
+        endDate: dates.endDate,
+        ratingEnd: dates.ratingEnd,
         theme: parsed.data.theme || null,
         revealThemeOnStart: parsed.data.revealThemeOnStart,
         hideResults: parsed.data.hideResults,
@@ -191,16 +167,8 @@ export async function updateJamAction(jamId: string, formData: FormData) {
     revalidatePath(`/jams/${parsed.data.slug}`);
     return { success: true, slug: parsed.data.slug };
   } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code: string }).code === "P2002"
-    ) {
-      const meta = (err as { meta?: { target?: string[] } }).meta;
-      if (meta?.target?.includes("slug")) {
-        return { error: "This slug is already taken" };
-      }
+    if (isSlugConflict(err)) {
+      return { error: "This slug is already taken" };
     }
     return { error: "Failed to update jam" };
   }
@@ -212,25 +180,23 @@ export async function publishJamAction(jamId: string) {
     return { error: "You must be signed in" };
   }
 
-  const jam = await db.jam.findUnique({
-    where: { id: jamId },
-  });
-
-  if (!jam) return { error: "Jam not found" };
   if (!(await checkJamPermission(jamId, session.user.id, "edit_jam"))) {
     return { error: "You do not have permission to publish this jam" };
   }
 
-  if (!jam.startDate || !jam.endDate) {
-    return { error: "Start date and end date are required to publish" };
-  }
-  if (jam.ranked && !jam.ratingEnd) {
-    return { error: "Rating end date is required for ranked jams" };
-  }
+  const jam = await db.jam.findUnique({
+    where: { id: jamId },
+    include: { criteria: { select: { source: true, weight: true, isPrimary: true } } },
+  });
+  if (!jam) return { error: "Jam not found" };
 
+  const decision = canPublish(jam);
+  if (!decision.allowed) return { error: decision.reason };
+
+  // Visibility is a separate setting: publishing an unlisted jam keeps it unlisted.
   await db.jam.update({
     where: { id: jamId },
-    data: { visibility: "PUBLIC" },
+    data: { publishedAt: new Date() },
   });
 
   revalidatePath("/jams");
@@ -246,7 +212,6 @@ export async function softDeleteJamAction(jamId: string) {
 
   const jam = await db.jam.findUnique({ where: { id: jamId } });
   if (!jam) return { error: "Jam not found" };
-  if (jam.deletedAt) return { success: true };
 
   const isOrganizer = await checkJamPermission(
     jamId,
@@ -293,23 +258,18 @@ export async function joinJamAction(jamId: string) {
   const jam = await db.jam.findUnique({ where: { id: jamId } });
   if (!jam) return { error: "Jam not found" };
 
-  const { computeJamStatus } = await import("@/lib/jam-status");
-  const status = computeJamStatus(jam);
-  if (status !== "UPCOMING" && status !== "ONGOING") {
-    return { error: "You can only join jams that are upcoming or ongoing" };
-  }
+  const joined = await db.jamParticipant.findUnique({
+    where: { jamId_userId: { jamId, userId: session.user.id } },
+  });
+  const decision = canJoin({ phase: jamPhase(jam), hasJoined: joined !== null });
+  if (!decision.allowed) return { error: decision.reason };
 
   try {
     await db.jamParticipant.create({
       data: { jamId, userId: session.user.id },
     });
   } catch (err: unknown) {
-    if (
-      typeof err === "object" &&
-      err !== null &&
-      "code" in err &&
-      (err as { code: string }).code === "P2002"
-    ) {
+    if (isUniqueViolation(err)) {
       return { error: "You have already joined this jam" };
     }
     return { error: "Failed to join jam" };
