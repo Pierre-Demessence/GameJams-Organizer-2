@@ -51,6 +51,8 @@ export function nextDeadline(
 function windowProgress(from: Date | null, to: Date | null, now: Date): number {
   if (!from || !to) return 0;
   const span = to.getTime() - from.getTime();
+  // Invalid Dates make every getTime() NaN; show an empty bar rather than NaN%.
+  if (!Number.isFinite(span) || !Number.isFinite(now.getTime())) return 0;
   if (span <= 0) return 100;
   const pct = ((now.getTime() - from.getTime()) / span) * 100;
   return Math.min(100, Math.max(0, Math.round(pct)));
@@ -87,7 +89,9 @@ export function formatTimeLeftShort(ms: number): string {
 }
 
 export function formatDuration(start: Date, end: Date): string {
-  const hours = Math.max(0, Math.round((end.getTime() - start.getTime()) / 3_600_000));
+  const ms = end.getTime() - start.getTime();
+  if (!Number.isFinite(ms)) return "—";
+  const hours = Math.max(0, Math.round(ms / 3_600_000));
   if (hours <= 72) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
   return `${Math.round(hours / 24)} days`;
 }

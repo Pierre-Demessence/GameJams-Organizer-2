@@ -59,6 +59,19 @@ describe("nextDeadline", () => {
   });
 });
 
+describe("Invalid Date guards", () => {
+  const bad = new Date("not a date");
+
+  it("draws an empty bar instead of NaN", () => {
+    expect(phaseProgress({ ...jam, endDate: bad }, "ONGOING", base)).toBe(0);
+    expect(phaseProgress(jam, "ONGOING", bad)).toBe(0);
+  });
+
+  it("shows a dash for an unknown duration", () => {
+    expect(formatDuration(bad, base)).toBe("—");
+  });
+});
+
 describe("phaseProgress", () => {
   it("is halfway through a live jam at its midpoint", () => {
     expect(phaseProgress(jam, "ONGOING", base)).toBe(50);
