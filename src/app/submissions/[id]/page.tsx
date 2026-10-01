@@ -435,21 +435,25 @@ export default async function SubmissionDetailPage({
             />
           )}
 
-          {isMember && (canAddMembers || canRemoveMembers) && (
-            <TeamManager
-              submissionId={submission.id}
-              canAdd={canAddMembers}
-              canRemove={canRemoveMembers}
-              canTransfer={isLeader}
-              members={submission.members.map((m) => ({
-                id: m.id,
-                userId: m.user.id,
-                username: m.user.username,
-                displayName: m.user.displayName,
-                isLeader: m.isLeader,
-              }))}
-              maxTeamSize={jam.maxTeamSize}
-            />
+          {isMember && session?.user?.id && (canAddMembers || canRemoveMembers) && (
+            <section aria-label="Manage team" className="flex flex-col gap-3 rounded-xl border bg-card p-5">
+              <h2 className="text-sm text-subtle-foreground">Manage team</h2>
+              <TeamManager
+                submissionId={submission.id}
+                currentUserId={session.user.id}
+                canAdd={canAddMembers}
+                canRemove={canRemoveMembers}
+                canTransfer={isLeader}
+                members={submission.members.map((m) => ({
+                  id: m.id,
+                  userId: m.user.id,
+                  username: m.user.username,
+                  displayName: m.user.displayName,
+                  isLeader: m.isLeader,
+                }))}
+                maxTeamSize={jam.maxTeamSize}
+              />
+            </section>
           )}
 
           {canModerate && (

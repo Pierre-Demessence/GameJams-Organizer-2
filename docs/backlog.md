@@ -15,9 +15,8 @@ are not.
 
 1. Leave a jam (Joined → Not joined) and leave a submission (Participant → Joined), spec §4.7.
 2. Contributor invites with acceptance, instead of adding contributors directly, spec §5.
-3. Mandatory TOTP 2FA for staff, independent of the sign-in provider, spec §10.
-4. Restore for soft-deleted jams and submissions, spec §10. The `/admin` page lists deleted
-   items, but no restore action exists yet.
+3. Mandatory TOTP 2FA for staff, independent of the sign-in provider, spec §10. The admin
+   board's "2FA verified" badge and per-staff "2FA on" status wait on it.
 
 ## Redesign
 
@@ -28,16 +27,14 @@ the app shell and the homepage are done — see
 one plan per group:
 
 1. **Discover & play:** done — see [plans/done/redesign-discover-play.md](plans/done/redesign-discover-play.md).
-   Follow-up: push the "Manage" tab to the right on desktop (`LinkTabs` has no alignment option).
 2. **Rate & results:** done. The rating page and the results tab follow the "Rate a game" and
    "Results" boards and their mobile versions.
 3. **People & account:** done. Profile, settings and the tabbed sign in / sign up follow
    their boards. Still open: the settings board's **Delete account** section. The spec has
    no self-service deletion (only staff can delete accounts), so it needs product rules first (what
    happens to led submissions, organized jams and ratings) before it is built.
-4. **Organize:** host/edit jam form with the "Ready to publish?" checklist panel, submission
-   editor with the itch.io verification card and "Ready to submit?" panel, manage jam
-   (results banner, moderation switches table, organizers), platform admin.
+4. **Organize:** done. The jam form, submission editor, manage jam and platform admin follow
+   their boards.
 5. **Mobile organizer screens:** not designed yet (host/manage jam, submission editor,
    sign in).
 6. **Search palette:** the header's "Search jams… ⌘K" opens a command palette. The

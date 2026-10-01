@@ -6,6 +6,8 @@ export interface LinkTab {
   label: string;
   count?: number;
   active: boolean;
+  // Pushed to the far right on desktop, e.g. organizer-only tabs.
+  end?: boolean;
 }
 
 // Tabs are real links: each tab is its own URL, so the server renders the selected view.
@@ -23,6 +25,7 @@ export function LinkTabs({ label, tabs }: { label: string; tabs: LinkTab[] }) {
             aria-current={t.active ? "page" : undefined}
             className={cn(
               "-mb-px flex min-h-11 shrink-0 items-center gap-1.5 border-b-2 px-3.5 text-sm transition-colors",
+              t.end && "md:ml-auto",
               t.active
                 ? "border-foreground font-medium text-foreground"
                 : "border-transparent text-muted-foreground hover:text-foreground"

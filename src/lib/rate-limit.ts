@@ -19,16 +19,17 @@ setInterval(() => {
   }
 }, 60_000);
 
-export function checkRateLimit(key: string): { allowed: boolean; remaining: number } {
+// `max` raises the budget for cheap, frequent reads such as as-you-type availability checks.
+export function checkRateLimit(key: string, max = maxAttempts): { allowed: boolean; remaining: number } {
   const now = Date.now();
   const timestamps = (attempts.get(key) ?? []).filter((t) => now - t < windowMs);
 
-  if (timestamps.length >= maxAttempts) {
+  if (timestamps.length >= max) {
     attempts.set(key, timestamps);
     return { allowed: false, remaining: 0 };
   }
 
   timestamps.push(now);
   attempts.set(key, timestamps);
-  return { allowed: true, remaining: maxAttempts - timestamps.length };
+  return { allowed: true, remaining: max - timestamps.length };
 }

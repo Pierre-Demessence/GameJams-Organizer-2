@@ -4,8 +4,6 @@ import { db } from "@/lib/db";
 import { hasPermission } from "@/lib/permissions";
 import { jamPhase } from "@/domain/jam-phase";
 import { JamForm } from "@/app/jams/jam-form";
-import { CustomFieldsManager } from "./custom-fields-manager";
-import { CriteriaManager } from "./criteria-manager";
 
 export async function generateMetadata({
   params,
@@ -40,29 +38,18 @@ export default async function EditJamPage({
     notFound();
   }
 
-  const status = jamPhase(jam);
-  const fieldsLocked = status === "RATING" || status === "FINISHED";
+  const phase = jamPhase(jam);
+  const locked = phase === "RATING" || phase === "FINISHED";
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">Edit {jam.name}</h1>
-      <JamForm mode="edit" jam={jam} />
-      <div className="mt-6">
-        <CustomFieldsManager
-          jamId={jam.id}
-          fields={jam.customFields}
-          locked={fieldsLocked}
-        />
-      </div>
-      {jam.ranked && (
-        <div className="mt-6">
-          <CriteriaManager
-            jamId={jam.id}
-            criteria={jam.criteria}
-            locked={fieldsLocked}
-          />
-        </div>
-      )}
-    </div>
+    <JamForm
+      mode="edit"
+      jam={jam}
+      phase={phase}
+      criteria={jam.criteria.filter((c) => c.source === "RATED")}
+      publishCriteria={jam.criteria}
+      fields={jam.customFields}
+      locked={locked}
+    />
   );
 }

@@ -40,16 +40,16 @@
 | `(auth)/sign-in/` | Sign-in page |
 | `(auth)/sign-up/` | Sign-up page |
 | `jams/page.tsx` | Browse jams: status tabs with counts, search, tag chips, format and sort filters, paging (`jam-filters.tsx` is the client select controls) |
-| `jams/new/` | Create a new jam |
+| `jams/new/` | Host a jam (`jams/jam-form.tsx`, shared with edit) |
 | `jams/[slug]/page.tsx` | Jam overview tab (theme, about, criteria, "Your entry" panel, details) |
 | `jams/[slug]/jam-header.tsx` | Header shared by the jam tabs: cover, title, actions, timeline, tab bar |
 | `jams/[slug]/submissions/page.tsx` | Jam submissions tab: rating progress, platform filter, sort, "Rate next game" |
-| `jams/[slug]/edit/` | Edit jam (organizer only) |
-| `jams/[slug]/manage/` | Manage jam roles (stackable) — organizer only |
-| `jams/[slug]/submissions/new/` | Submit a game to this jam |
+| `jams/[slug]/edit/` | Edit jam, with the inline criteria table and custom questions (organizer only) |
+| `jams/[slug]/manage/` | Manage tab: results banner, submissions moderation table, organizers, delete jam |
+| `jams/[slug]/submissions/new/` | Start a submission (`submission-form.tsx`, shared with edit) |
 | `jams/[slug]/results/` | Jam results tab: criterion tabs (`?by=`), podium, ranking table (`?all=1` shows every row), "Not competing" |
 | `submissions/[id]/` | Submission detail (verify, submit, moderate) |
-| `submissions/[id]/edit/` | Edit a submission |
+| `submissions/[id]/edit/` | Submission editor: verification, details, questions, team, submit |
 | `submissions/[id]/rate/` | Rate a submission: every criterion scored 1–5, "Save & rate next" (rating period) |
 | `users/[username]/` | Public user profile |
 | `settings/` | Account settings: profile, sign-in methods, email & password, appearance |
@@ -64,7 +64,7 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `decision.ts` | `Decision` result type (`allowed` + user-facing `reason`) shared by all rules |
 | `jam-phase.ts` | `jamPhase` (DRAFT until `publishedAt`, then from dates), `validateJamDates`, `canPublish` (§4.4, §6.2) |
 | `participation.ts` | `canJoin`, `canLeaveJam`, `canLeaveSubmission` (§4.7) |
-| `submission.ts` | Create / edit / finalize / unsubmit windows, contributor change window, leadership transfer (§5) |
+| `submission.ts` | Create / edit / finalize / unsubmit windows, contributor change window, leadership transfer (§5); `canDeleteOwnSubmission` (leader, while ONGOING, §4) |
 | `rating.ts` | `isEligibleRater`, `canRate` — judges always eligible, own entry excluded (§4.6, §6.1, §6.3); `checkRatingScores` — one score per RATED criterion |
 | `results.ts` | `resultsAccess` (none / preview / public), `canRevealResults` (§6.5) |
 | `scoring.ts` | `rankSubmissions`: Bayesian per-criterion scores, overall by primary or weighted average (§6.4) |
@@ -94,6 +94,11 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `jam-entries-queries.ts` | `loadJamEntries`: visible entries with rater counts and rating progress (server-only) |
 | `jam-labels.ts` | Rating-eligibility, role and platform labels (pure) |
 | `results-view.ts` | Results tab params, overall/per-criterion ranking view and podium, score formatting (pure) |
+| `jam-form.ts` | Slugify, schedule bar summary, `publishChecklist` (pure) |
+| `submission-form.ts` | `submitChecklist` (pure) |
+| `manage.ts` | Moderation flag, manage-table filter, results banner states (pure) |
+| `manage-queries.ts` | `loadManageSubmissions`: every non-deleted entry with rater counts (server-only) |
+| `admin.ts` | Deleted-jam slugs, audit filters and links (pure) |
 | `profile.ts` | Profile placement labels, role summaries, jam ordering (pure) |
 | `profile-queries.ts` | `loadProfile`: public jams, roles, games with placements and stats (server-only) |
 | `results-queries.ts` | `loadResultsPage`: results joined with titles, covers, teams and moderation reasons (server-only) |
@@ -114,7 +119,8 @@ Edge middleware that handles auth-related redirects and route protection.
 | `user-menu.tsx` | Authenticated account dropdown menu |
 | `theme-menu-items.tsx` | System / Dark / Light radio items for the account menu |
 | `cover-image.tsx` | External image or dotted placeholder with initials |
-| `link-tabs.tsx` | Link-based tab bar (`aria-current`), scrolls on mobile |
+| `link-tabs.tsx` | Link-based tab bar (`aria-current`), scrolls on mobile; `end` pushes a tab right |
+| `editor.tsx` | Long-form editor pieces: `Section`, `Field`, `CheckField`, readiness `Checklist` |
 | `jam/` | Jam UI: `jam-status-badge`, `jam-progress`, `countdown`, `jam-card`, `jam-timeline` |
 | `ui/` | shadcn/ui primitive components |
 

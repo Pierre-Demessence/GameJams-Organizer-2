@@ -66,7 +66,7 @@ export const loadJamPage = cache(async (slug: string, userId: string | null): Pr
       roles,
       canEditJam: hasPermission(roles, "edit_jam"),
       canManageRoles: hasPermission(roles, "manage_roles"),
-      canModerate: hasPermission(roles, "edit_submission"),
+      canModerate: hasPermission(roles, "moderate_submission"),
       canPreviewResults,
       hasJoined: Boolean(participant),
       submission: member?.submission ?? null,

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   canAddContributor,
   canCreateSubmission,
+  canDeleteOwnSubmission,
   canEditSubmission,
   canFinalizeSubmission,
   canRemoveContributor,
@@ -147,5 +148,16 @@ describe("canTransferLeadership", () => {
     expect(canTransferLeadership({ isLeader: true, targetIsMember: false }).allowed).toBe(
       false
     );
+  });
+});
+
+describe("canDeleteOwnSubmission", () => {
+  it("lets the leader delete while the jam is ongoing", () => {
+    expect(canDeleteOwnSubmission({ phase: "ONGOING", isLeader: true }).allowed).toBe(true);
+  });
+
+  it("refuses contributors and closed jams", () => {
+    expect(canDeleteOwnSubmission({ phase: "ONGOING", isLeader: false }).allowed).toBe(false);
+    expect(canDeleteOwnSubmission({ phase: "RATING", isLeader: true }).allowed).toBe(false);
   });
 });

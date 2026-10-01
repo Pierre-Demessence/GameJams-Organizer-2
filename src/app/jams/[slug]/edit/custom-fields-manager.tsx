@@ -1,270 +1,264 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import {
   createCustomFieldAction,
-  updateCustomFieldAction,
   deleteCustomFieldAction,
+  updateCustomFieldAction,
 } from "./custom-field-actions";
-import { useRouter } from "next/navigation";
 
-interface CustomField {
+export interface CustomField {
   id: string;
   name: string;
   description: string | null;
   type: string;
   required: boolean;
   isPrivate: boolean;
-  sortOrder: number;
 }
 
-interface CustomFieldsManagerProps {
-  jamId: string;
-  fields: CustomField[];
-  locked: boolean;
+type FieldType = "SINGLE_LINE" | "MULTI_LINE" | "URL";
+const TYPE_LABEL: Record<FieldType, string> = { SINGLE_LINE: "Single line", MULTI_LINE: "Multi-line", URL: "Link" };
+
+interface Draft {
+  name: string;
+  description: string;
+  type: FieldType;
+  required: boolean;
+  isPrivate: boolean;
 }
 
+function fieldData(d: Draft): FormData {
+  const fd = new FormData();
+  fd.set("name", d.name.trim());
+  fd.set("description", d.description.trim());
+  fd.set("type", d.type);
+  fd.set("required", String(d.required));
+  fd.set("isPrivate", String(d.isPrivate));
+  return fd;
+}
+
+export function describeField(f: { type: string; required: boolean; isPrivate: boolean }): string {
+  return [
+    TYPE_LABEL[f.type as FieldType] ?? f.type,
+    f.required ? "Required" : "Optional",
+    f.isPrivate ? "Private" : "Public",
+  ].join(" · ");
+}
+
+// Rendered inside the jam form, so it uses no <form> of its own and no `name` attributes.
 export function CustomFieldsManager({
   jamId,
   fields,
   locked,
-}: CustomFieldsManagerProps) {
-  const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+}: {
+  jamId: string;
+  fields: CustomField[];
+  locked: boolean;
+}) {
   const router = useRouter();
+  const [editing, setEditing] = useState<string | "new" | null>(null);
+  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
 
-  async function handleCreate(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
+  function run(action: () => Promise<{ error?: string }>) {
     setError("");
-    setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const result = await createCustomFieldAction(jamId, formData);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setShowForm(false);
+    startTransition(async () => {
+      const result = await action();
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setEditing(null);
       router.refresh();
-    }
-  }
-
-  async function handleUpdate(fieldId: string, e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const result = await updateCustomFieldAction(fieldId, jamId, formData);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setEditingId(null);
-      router.refresh();
-    }
-  }
-
-  async function handleDelete(fieldId: string) {
-    setError("");
-    setLoading(true);
-    const result = await deleteCustomFieldAction(fieldId, jamId);
-    setLoading(false);
-    if (result.error) {
-      setError(result.error);
-    } else {
-      router.refresh();
-    }
+    });
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle>Custom Submission Fields</CardTitle>
-          {!locked && !showForm && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => setShowForm(true)}
-            >
-              Add Field
-            </Button>
-          )}
-        </div>
-        {locked && (
-          <p className="text-sm text-muted-foreground">
-            Fields are locked after the submission period ends.
-          </p>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error && (
-          <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-            {error}
-          </div>
-        )}
-
-        {fields.length === 0 && !showForm && (
-          <p className="text-sm text-muted-foreground">
-            No custom fields defined yet.
-          </p>
-        )}
-
-        {fields.map((field) =>
-          editingId === field.id ? (
-            <FieldForm
-              key={field.id}
-              field={field}
-              loading={loading}
-              onSubmit={(e) => handleUpdate(field.id, e)}
-              onCancel={() => setEditingId(null)}
-            />
+    <div className="flex flex-col gap-2">
+      <span className="text-[13px] font-medium">Custom questions</span>
+      <ul className="rounded-[10px] border">
+        {fields.map((f) =>
+          editing === f.id ? (
+            <li key={f.id} className="border-b">
+              <FieldEditor
+                initial={{
+                  name: f.name,
+                  description: f.description ?? "",
+                  type: f.type as FieldType,
+                  required: f.required,
+                  isPrivate: f.isPrivate,
+                }}
+                pending={isPending}
+                onSave={(d) => run(() => updateCustomFieldAction(f.id, jamId, fieldData(d)))}
+                onDelete={() => run(() => deleteCustomFieldAction(f.id, jamId))}
+                onCancel={() => setEditing(null)}
+              />
+            </li>
           ) : (
-            <div
-              key={field.id}
-              className="flex items-center justify-between rounded-md border p-3"
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{field.name}</span>
-                  <Badge variant="outline" className="text-xs">
-                    {field.type.replace("_", " ")}
-                  </Badge>
-                  {field.required && (
-                    <Badge variant="secondary" className="text-xs">
-                      Required
-                    </Badge>
-                  )}
-                  {field.isPrivate && (
-                    <Badge variant="secondary" className="text-xs">
-                      Private
-                    </Badge>
-                  )}
-                </div>
-                {field.description && (
-                  <p className="text-sm text-muted-foreground">
-                    {field.description}
-                  </p>
-                )}
-              </div>
+            <li key={f.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b px-3.5 py-3 text-sm">
+              <span className="flex-1">{f.name}</span>
+              <span className="text-xs text-subtle-foreground">{describeField(f)}</span>
               {!locked && (
-                <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingId(field.id)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="text-destructive"
-                    onClick={() => handleDelete(field.id)}
-                    disabled={loading}
-                  >
-                    Delete
-                  </Button>
-                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditing(f.id)}
+                  className="h-11 px-2.5 text-xs md:h-7"
+                >
+                  Edit
+                </Button>
               )}
-            </div>
+            </li>
           )
         )}
-
-        {showForm && (
-          <FieldForm
-            loading={loading}
-            onSubmit={handleCreate}
-            onCancel={() => setShowForm(false)}
-          />
+        {editing === "new" ? (
+          <li>
+            <FieldEditor
+              initial={{ name: "", description: "", type: "SINGLE_LINE", required: false, isPrivate: false }}
+              pending={isPending}
+              onSave={(d) => run(() => createCustomFieldAction(jamId, fieldData(d)))}
+              onCancel={() => setEditing(null)}
+            />
+          </li>
+        ) : locked ? (
+          <li className="px-3.5 py-3 text-sm text-muted-foreground">
+            {fields.length === 0 ? "No custom questions." : "Questions are locked once rating starts."}
+          </li>
+        ) : (
+          <li>
+            <button
+              type="button"
+              onClick={() => setEditing("new")}
+              className="flex h-11 w-full items-center px-3.5 text-left text-sm text-brand hover:bg-muted md:h-10"
+            >
+              + Add question
+            </button>
+          </li>
         )}
-      </CardContent>
-    </Card>
+      </ul>
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+    </div>
   );
 }
 
-function FieldForm({
-  field,
-  loading,
-  onSubmit,
+function FieldEditor({
+  initial,
+  pending,
+  onSave,
+  onDelete,
   onCancel,
 }: {
-  field?: CustomField;
-  loading: boolean;
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+  initial: Draft;
+  pending: boolean;
+  onSave: (d: Draft) => void;
+  onDelete?: () => void;
   onCancel: () => void;
 }) {
-  const [required, setRequired] = useState(field?.required ?? false);
-  const [isPrivate, setIsPrivate] = useState(field?.isPrivate ?? false);
-  const [type, setType] = useState(field?.type ?? "SINGLE_LINE");
+  const [d, setD] = useState(initial);
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setD((prev) => ({ ...prev, [key]: value }));
+  const id = useId();
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 rounded-md border p-3">
-      <div className="space-y-2">
-        <Label>Name *</Label>
-        <Input
-          name="name"
-          required
-          maxLength={50}
-          defaultValue={field?.name ?? ""}
-          placeholder="Field name"
-        />
+    <div
+      className="flex flex-col gap-3 bg-card p-3.5"
+      onKeyDown={(e) => {
+        // Enter would otherwise submit the surrounding jam form.
+        if (e.key === "Enter" && e.target instanceof HTMLInputElement) {
+          e.preventDefault();
+          if (d.name.trim()) onSave(d);
+        }
+      }}
+    >
+      <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-name`}>Question</Label>
+          <Input
+            id={`${id}-name`}
+            autoFocus
+            value={d.name}
+            maxLength={50}
+            onChange={(e) => set("name", e.target.value)}
+            className="h-11 bg-background px-3 md:h-9"
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={`${id}-type`}>Answer</Label>
+          <select
+            id={`${id}-type`}
+            value={d.type}
+            onChange={(e) => set("type", e.target.value as FieldType)}
+            className="h-11 rounded-lg border border-input bg-background px-2.5 text-sm md:h-9"
+          >
+            {(Object.keys(TYPE_LABEL) as FieldType[]).map((t) => (
+              <option key={t} value={t}>
+                {TYPE_LABEL[t]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
-      <div className="space-y-2">
-        <Label>Description</Label>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor={`${id}-desc`}>Help text</Label>
         <Input
-          name="description"
+          id={`${id}-desc`}
+          value={d.description}
           maxLength={200}
-          defaultValue={field?.description ?? ""}
-          placeholder="Brief description"
+          onChange={(e) => set("description", e.target.value)}
+          className="h-11 bg-background px-3 md:h-9"
         />
       </div>
-      <div className="space-y-2">
-        <Label>Type</Label>
-        <div className="flex gap-1">
-          {(["SINGLE_LINE", "MULTI_LINE", "URL"] as const).map((t) => (
-            <Button
-              key={t}
-              type="button"
-              variant={type === t ? "default" : "outline"}
-              size="sm"
-              onClick={() => setType(t)}
-            >
-              {t.replace("_", " ")}
-            </Button>
-          ))}
-        </div>
-        <input type="hidden" name="type" value={type} />
+      <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm">
+        <label className="flex min-h-11 items-center gap-2 md:min-h-0">
+          <input
+            type="checkbox"
+            checked={d.required}
+            onChange={(e) => set("required", e.target.checked)}
+            className="size-4 accent-brand"
+          />
+          Required
+        </label>
+        <label className="flex min-h-11 items-center gap-2 md:min-h-0">
+          <input
+            type="checkbox"
+            checked={d.isPrivate}
+            onChange={(e) => set("isPrivate", e.target.checked)}
+            className="size-4 accent-brand"
+          />
+          Private (organizers and judges only)
+        </label>
       </div>
-      <div className="flex items-center gap-6">
-        <div className="flex items-center gap-2">
-          <Switch checked={required} onCheckedChange={setRequired} />
-          <Label>Required</Label>
-          <input type="hidden" name="required" value={String(required)} />
-        </div>
-        <div className="flex items-center gap-2">
-          <Switch checked={isPrivate} onCheckedChange={setIsPrivate} />
-          <Label>Private</Label>
-          <input type="hidden" name="isPrivate" value={String(isPrivate)} />
-        </div>
-      </div>
-      <div className="flex gap-2">
-        <Button type="submit" size="sm" disabled={loading}>
-          {loading ? "Saving..." : field ? "Update" : "Add Field"}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          disabled={pending || d.name.trim() === ""}
+          onClick={() => onSave(d)}
+          className="h-11 px-3.5 md:h-8"
+        >
+          {pending ? "Saving…" : "Save question"}
         </Button>
-        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} className="h-11 px-3.5 md:h-8">
           Cancel
         </Button>
+        {onDelete && (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={pending}
+            onClick={onDelete}
+            className="ml-auto h-11 px-3.5 text-destructive md:h-8"
+          >
+            Delete
+          </Button>
+        )}
       </div>
-    </form>
+    </div>
   );
 }

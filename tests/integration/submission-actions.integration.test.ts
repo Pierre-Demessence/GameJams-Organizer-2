@@ -260,3 +260,32 @@ describe("team management", () => {
     expect(res.success).toBe(true);
   });
 });
+
+describe("deleteSubmissionAction by the team", () => {
+  it("lets the leader delete while ongoing, but not a contributor", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const leader = await createUser();
+    const contributor = await createUser();
+    const submission = await createSubmission(jam.id, leader.id);
+    await db.submissionMember.create({ data: { submissionId: submission.id, userId: contributor.id } });
+
+    actingAs(contributor.id);
+    expect((await deleteSubmissionAction(submission.id)).error).toMatch(/permission/i);
+
+    actingAs(leader.id);
+    expect((await deleteSubmissionAction(submission.id)).success).toBe(true);
+    const row = await db.submission.findFirst({ where: { id: submission.id, deletedAt: { not: null } } });
+    expect(row).not.toBeNull();
+  });
+
+  it("refuses the leader once submissions close", async () => {
+    const owner = await createUser();
+    const jam = await createFinishedJam(owner.id);
+    const leader = await createUser();
+    const submission = await createSubmission(jam.id, leader.id);
+
+    actingAs(leader.id);
+    expect((await deleteSubmissionAction(submission.id)).error).toMatch(/ongoing period/);
+  });
+});
