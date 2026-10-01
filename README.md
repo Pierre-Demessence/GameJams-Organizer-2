@@ -2,79 +2,51 @@
 
 Create, join, and rate game jams. Free and open source.
 
-## Quick Start (Development)
+## Features
 
-**Prerequisites:** Node.js 24+, pnpm, Docker Desktop
+- Sign in with Discord or email and password, and link both to one account
+- Host jams with a Markdown description, tags, custom submission questions and rating
+  criteria; publish when the "Ready to publish?" checklist passes
+- Jam lifecycle driven by dates: upcoming → live → rating → finished
+- Browse and search jams (⌘K / Ctrl+K from anywhere)
+- Team submissions with itch.io ownership verification
+- Rate entries on every criterion; live-computed results with podium and per-criterion rankings
+- Stackable organizer roles (Admin, Moderator, Judge, Host) and moderation switches
+- Platform admin: deleted content with restore, audit log, staff
+- Dark-first design with a light theme, mobile-friendly
+
+## Getting started
+
+**Prerequisites:** Node.js 24+, pnpm 9 (`corepack enable`), Docker Desktop (for PostgreSQL).
 
 ```bash
-# Clone and install
 pnpm install
-
-# Start the database
-docker compose up db -d
-
-# Apply migrations and generate the client
-cp .env.example .env  # Edit credentials if needed
-pnpm db:migrate
-
-# Start dev server
+cp .env.example .env      # defaults work with the docker-compose database
+docker compose up db -d   # PostgreSQL 16 on port 5432
+pnpm db:migrate           # apply migrations and generate the Prisma client
+pnpm db:seed              # optional: sample users, jams, submissions and ratings
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Production Deployment (Docker)
+**Discord sign-in (optional):** create an app in the
+[Discord Developer Portal](https://discord.com/developers/applications), add the redirect URI
+`http://localhost:3000/api/auth/callback/discord`, and set `AUTH_DISCORD_ID` /
+`AUTH_DISCORD_SECRET` in `.env`.
+
+## Tests
 
 ```bash
-# 1. Create .env from the example and fill in production values
-cp .env.example .env
-
-# 2. Generate a secure auth secret
-openssl rand -base64 32
-# Paste the output as NEXTAUTH_SECRET in .env
-
-# 3. Set NEXTAUTH_URL to your domain (e.g. https://jams.example.com)
-# 4. Set a strong POSTGRES_PASSWORD
-# 5. Optionally configure Discord OAuth credentials
-
-# 6. Build and start
-docker compose up -d --build
-
-# 7. Apply database migrations (first run or after schema changes)
-docker compose run --rm migrate
-```
-
-The app runs on port 3000. Place a reverse proxy (nginx, Caddy) in front for TLS.
-
-## Environment Variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `DATABASE_URL` | Yes | PostgreSQL connection string (auto-set by docker-compose) |
-| `POSTGRES_USER` | Yes | Database username |
-| `POSTGRES_PASSWORD` | Yes | Database password — use a strong random value in production |
-| `POSTGRES_DB` | Yes | Database name |
-| `NEXTAUTH_SECRET` | Yes | Auth.js signing secret — `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Yes | Public URL of the app (e.g. `https://jams.example.com`) |
-| `AUTH_DISCORD_ID` | No | Discord OAuth app client ID |
-| `AUTH_DISCORD_SECRET` | No | Discord OAuth app client secret |
-
-## Tech Stack
-
-- **Next.js 16** (App Router, TypeScript, standalone output)
-- **Prisma 7** (PostgreSQL, driver adapter, SQL migrations)
-- **Auth.js v5** (JWT, Discord + Credentials)
-- **shadcn/ui** + Tailwind CSS v4
-- **Vitest** (unit) + **Playwright** (E2E), run in GitHub Actions CI
-- **Docker** (multi-stage build, PostgreSQL 16)
-
-## Testing
-
-```bash
-pnpm test       # Vitest unit tests
-pnpm test:e2e   # Playwright E2E (needs the app + a seeded database)
+pnpm test               # unit tests
+pnpm test:integration   # server actions against Postgres (needs the database running)
+pnpm test:e2e           # Playwright (needs the app and a seeded database)
 ```
 
 ## Documentation
 
-See [docs/INDEX.md](docs/INDEX.md) for full documentation.
+- [Configuration](docs/configuration.md): environment variables
+- [Deployment](docs/deployment.md): Kubernetes (ArgoCD) and Docker Compose
+- [Architecture](docs/architecture.md) and [product spec](docs/specs/product-spec.md)
+- [Backlog](docs/backlog.md)
+- Contributors and coding agents: [AGENTS.md](AGENTS.md)

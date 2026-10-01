@@ -12,5 +12,4 @@ coverage
 .pnpm-debug.log*
 npm-debug.log*
 docs
-.agent_work
 src/generated

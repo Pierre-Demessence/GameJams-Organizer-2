@@ -1,121 +1,66 @@
 # Backlog
 
-Unscheduled work: MVP gaps, known issues, spec proposals, and post-MVP features —
-**not yet committed or broken into tasks**.
-
-When you pick up a backlog item, **promote** it: for anything non-trivial, create a
-`docs/plans/<feature>.md` (with its own checklist) and build from there; extremely small
-changes can skip straight to a commit. Remove the item from this list once it is promoted.
+Everything not done yet, one line each. Tags: `[MVP]` is spec behaviour marked MVP,
+`[post-MVP]` comes after it. Pick up a non-trivial item through a `docs/plans/<feature>.md`;
+delete the line once it ships.
 
 ## MVP gaps
 
-Spec behaviour marked MVP that is not implemented yet. The matching rule functions are
-part of [plans/done/domain-layer.md](plans/done/domain-layer.md); the actions and UI below
-are not.
+- [MVP] Leave a jam (Joined → Not joined) and leave a submission (Participant → Joined), spec §4.7; rules exist in `src/domain/participation.ts`, actions and UI do not.
+- [MVP] Contributor invites with acceptance instead of adding contributors directly, spec §5.
+- [MVP] Mandatory TOTP 2FA for staff, independent of the sign-in provider, spec §10; the admin board's "2FA verified" badge and per-staff "2FA on" status wait on it.
+- [MVP] Settings → Delete account: needs product rules first (led submissions, organized jams, ratings), since the spec only lets staff delete accounts.
+- [MVP] Mobile designs for the organizer screens (host / manage jam, submission editor, sign in) on the design canvas (see `docs/design-system.md`).
 
-1. Leave a jam (Joined → Not joined) and leave a submission (Participant → Joined), spec §4.7.
-2. Contributor invites with acceptance, instead of adding contributors directly, spec §5.
-3. Mandatory TOTP 2FA for staff, independent of the sign-in provider, spec §10. The admin
-   board's "2FA verified" badge and per-staff "2FA on" status wait on it.
+## Operations
 
-## Redesign
-
-The approved design lives on the "GameJam Organizer — Website Design" canvas
-(<https://claude.ai/artifact/SPJeNxb9rsAiNeGNoeBXqB>, private to the owner). Foundations,
-the app shell and the homepage are done — see
-[plans/done/redesign-foundations.md](plans/done/redesign-foundations.md). Still to plan,
-one plan per group:
-
-1. **Discover & play:** done — see [plans/done/redesign-discover-play.md](plans/done/redesign-discover-play.md).
-2. **Rate & results:** done. The rating page and the results tab follow the "Rate a game" and
-   "Results" boards and their mobile versions.
-3. **People & account:** done. Profile, settings and the tabbed sign in / sign up follow
-   their boards. Still open: the settings board's **Delete account** section. The spec has
-   no self-service deletion (only staff can delete accounts), so it needs product rules first (what
-   happens to led submissions, organized jams and ratings) before it is built.
-4. **Organize:** done. The jam form, submission editor, manage jam and platform admin follow
-   their boards.
-5. **Mobile organizer screens:** not designed yet (host/manage jam, submission editor,
-   sign in).
-6. **Search palette:** done. ⌘K / Ctrl+K (or the header field) opens a quick-jump palette
-   over listed jams. Follow-ups: a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the
-   table grows (search is `ILIKE '%q%'`, a sequential scan); results are list options, so
-   middle-click / "open in new tab" does not work on them.
-7. **Foundations follow-ups:** done. The mobile header fits on one line at 390px,
-   `tests/e2e/account.spec.ts` covers the signed-in account menu, and `--accent` is one step
-   past `--muted`.
+- Before the first prod release, confirm the prod one-time setup in `docs/deployment.md` (1Password `gamejams-prod`, Discord prod redirect URI, `gamejams.corniland.ovh` DNS).
+- Confirm Velero backs up the Postgres PVCs and test a restore.
+- Full manual regression pass of the core flows (create jam → submit → verify → rate → results, moderation switches, stacked roles) on the current build.
 
 ## Known issues
 
-Defects outside the domain-layer plan.
-
-- The rate limiter (`src/lib/rate-limit.ts`) is in-memory per pod, but prod runs 2 replicas,
-  so the limits are effectively doubled and inconsistent. Move it to a shared store (Postgres
-  or Redis), or accept this and document it.
-- `isStaff` is saved in the JWT at sign-in, so revoking a staff role only affects the UI
-  after the user signs in again. (Server actions re-check against the database, so this is
-  not an access-control hole.) Refresh the value periodically in the `jwt` callback.
-- The username generation in the `signIn` callback of `src/lib/auth.ts` never runs
-  (`customPrismaAdapter` always sets a username). Remove it.
-- `src/components/markdown.tsx` renders sanitized raw HTML through `rehype-raw`, but spec §4.1
-  says raw HTML is escaped. Drop `rehype-raw`, or amend the spec.
+- Rate limiter is in-memory per pod (`src/lib/rate-limit.ts:7`) while prod runs 2 replicas, so limits are doubled and inconsistent; move to Postgres / Redis or document it.
+- `isStaff` is cached in the JWT at sign-in (`src/lib/auth.ts:51`), so a revoked staff role shows in the UI until the next sign-in; actions re-check the DB. Refresh it in the `jwt` callback.
+- Dead username generation in the `signIn` callback (`src/lib/auth.ts:76`): `customPrismaAdapter` always sets a username. Remove it.
+- `src/components/markdown.tsx:3` renders sanitized raw HTML through `rehype-raw`, but spec §4.1 says raw HTML is escaped. Drop `rehype-raw` or amend the spec.
+- Search palette results are listbox options, so middle-click / "open in new tab" does not work (`src/components/search-palette.tsx`).
+- Search is `ILIKE '%q%'` (sequential scan); add a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the table grows (`src/lib/search-queries.ts`).
 
 ## Spec proposals
 
-Suggested changes to [product-spec.md](specs/product-spec.md), awaiting a decision.
+Suggested changes to `docs/specs/product-spec.md`, awaiting a decision.
 
-- **itch.io profile verification in the MVP.** Link the itch.io profile once and match the
-  project's `username.itch.io` namespace (any team member linked counts), instead of
-  per-project codes. Codes on the page add friction for every entry, and server-side
-  scraping of itch.io may get blocked.
-- **Date edits after publish.** Define which dates can change once a jam is live; at minimum,
-  dates in the past are locked, so a mid-jam edit can't reopen or cut short submissions or
-  rating.
-- **Prize allocation.** Requiring every team member's approval stalls if one member goes
-  silent, and the platform never handles money. Drop the feature, or make it "leader
-  proposes, auto-accepted after N days unless contested".
-- **Rating eligibility "Everyone".** Invites fake accounts. Pair it with a minimum account age
-  or restrict it to OAuth-backed accounts.
-- **Organizer edits after the lock.** Spec §5 locks submission content at RATING, while §4.6
-  gives Jam Moderators "edit" rights. The code lets holders of `edit_submission` edit in any
-  phase (for moderation fixes such as a broken link). Confirm, or restrict it to moderation
-  switches only.
-- **Who transfers leadership.** Spec §5 gives contributors the same rights over the submission
-  as the leader and says leadership "can be transferred". The code lets only the current leader
-  hand it over, since leadership decides who rates under "team leader only". Confirm, or allow
-  any member to take leadership.
-- **Externally hosted images.** Linking images from other hosts leaks viewer IP addresses and
-  breaks when the host removes the image. Consider an image proxy, or at least a strict CSP.
+- itch.io profile verification in the MVP: link the profile once and match the project's `username.itch.io` namespace instead of per-project codes (less friction; scraping may get blocked).
+- Date edits after publish: define which dates can change once a jam is live; at least lock dates in the past.
+- Prize allocation: all-members approval stalls on one silent member; drop it, or "leader proposes, auto-accepted after N days unless contested".
+- Rating eligibility "Everyone" invites fake accounts; pair it with a minimum account age or OAuth-only accounts.
+- Organizer edits after the lock: spec §5 locks content at RATING, but `edit_submission` holders can edit in any phase (moderation fixes); confirm or restrict to moderation switches.
+- Who transfers leadership: the code lets only the current leader hand it over (leadership decides who rates under "team leader only"); confirm or allow any member.
+- Externally hosted images leak viewer IPs and break when removed; consider an image proxy or at least a strict CSP.
 
-## Deprioritized
+## Deferred
 
-- [plans/ppr-cache-components-migration.md](plans/ppr-cache-components-migration.md) is on
-  hold until the MVP gaps are done. The navigation speed-ups
-  already shipped are enough for a prototype.
+- Cache Components (PPR) migration to remove first-visit skeletons; on hold until the MVP gaps are done (see `docs/decisions.md`).
 
 ## Post-MVP features
 
 Roughly prioritized:
 
-1. Theme voting (score voting among options)
-2. Email notifications (jam start, end, results)
-3. Rating queue / incentives
-4. Comments on submissions
-5. Community message board per jam
-6. Prize listing and team member claiming
-7. Late submissions (flagged, non-ranked)
-8. Visual calendar UI
-9. Verified itch.io profile (auto-verify all projects)
-10. JURY criteria and manual placement
-11. Site Moderator role, sudo-mode, custom-role builder
-12. itch.io OAuth sign-in (implicit-flow bridge; doubles as itch.io profile linking for auto-verify)
-13. Google / GitHub OAuth providers
-14. In-app notifications
-15. Analytics dashboard
-16. Organizations (group jams under an organization banner with a shared, reusable organizer roster)
-
-## Ideas
-
-Loose ideas, one line each. Move up into "Post-MVP features" (or a plan) when they firm up.
-
-_None yet._
+1. [post-MVP] Theme voting (score voting among options)
+2. [post-MVP] Email notifications (jam start, end, results)
+3. [post-MVP] Rating queue / incentives
+4. [post-MVP] Comments on submissions
+5. [post-MVP] Community message board per jam
+6. [post-MVP] Prize listing and team member claiming
+7. [post-MVP] Late submissions (flagged, non-ranked)
+8. [post-MVP] Visual calendar UI
+9. [post-MVP] Verified itch.io profile (auto-verify all projects)
+10. [post-MVP] JURY criteria and manual placement
+11. [post-MVP] Site Moderator role, sudo-mode, custom-role builder
+12. [post-MVP] itch.io OAuth sign-in (implicit-flow bridge; doubles as profile linking for auto-verify)
+13. [post-MVP] Google / GitHub OAuth providers
+14. [post-MVP] In-app notifications
+15. [post-MVP] Analytics dashboard
+16. [post-MVP] Organizations (group jams under a shared, reusable organizer roster)
+17. [post-MVP] Password reset by email (REQ-AUTH-08)

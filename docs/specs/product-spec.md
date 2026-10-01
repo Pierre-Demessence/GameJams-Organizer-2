@@ -2,11 +2,9 @@
 
 This is the full-scope product specification for the GameJam Organizer platform. It is the
 superset from which the MVP artifacts are drawn: [requirements.md](./requirements.md) (EARS
-requirements) and [design.md](./design.md) (technical design) cover only the MVP subset, while
-this document describes the complete product vision, including features planned beyond the MVP.
-
-It supersedes the free-form brainstorm in [DRAFT.md](../archived/DRAFT.md), which is retained for
-historical reference.
+requirements) and [architecture.md](../architecture.md) (technical design) cover only the MVP
+subset, while this document describes the complete product vision, including features planned
+beyond the MVP.
 
 ## Reading this document
 

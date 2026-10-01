@@ -1,4 +1,4 @@
-# Kubernetes deployment (Corniland cluster)
+# Deployment
 
 The app deploys to the Corniland K8s cluster via **ArgoCD GitOps**. Two
 environments are supported:
@@ -77,11 +77,24 @@ Prod starts with an empty database and is not seeded, so no Site Admin exists an
    (and/or `gamejams-dev`) 1Password item with your account email.
 2. ArgoCD syncs the `gamejams-admin` ExternalSecret; restart the app so it picks
    up the new env: `kubectl -n gamejams-prod rollout restart deploy/gamejams`.
-3. Sign in once with that email \u2014 you're granted `SITE_ADMIN` automatically
+3. Sign in once with that email: you're granted `SITE_ADMIN` automatically
    (idempotent). From then on, manage admins from `/admin`.
 
 The value is consumed via an *optional* `envFrom`, so if the field is absent the
 app still starts normally (admin bootstrap just stays inactive).
 
-For local runs (app + Postgres + migrations) use [`docker-compose.yml`](../docker-compose.yml)
-— see the [README](../README.md#production-deployment-docker).
+## Docker Compose (self-hosted)
+
+[`docker-compose.yml`](../docker-compose.yml) runs the app, Postgres and a migration job on
+any Docker host:
+
+```bash
+cp .env.example .env
+# Set NEXTAUTH_SECRET (openssl rand -base64 32), NEXTAUTH_URL (your public URL),
+# a strong POSTGRES_PASSWORD, and optionally the Discord credentials.
+docker compose up -d --build
+docker compose run --rm migrate   # first run and after each schema change
+```
+
+The app listens on port 3000; put a reverse proxy (nginx, Caddy) in front for TLS. See
+[configuration.md](configuration.md) for every variable.
