@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { MenuIcon, SearchIcon, XIcon } from "lucide-react";
+import { MenuIcon, XIcon } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Logo } from "@/components/logo";
+import { SearchPalette } from "@/components/search-palette";
 import { UserMenu } from "@/components/user-menu";
 import { ThemeButtons } from "@/components/theme-buttons";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -50,20 +51,7 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="ml-auto flex items-center gap-1 md:gap-2">
-          <Link
-            href="/jams"
-            className="hidden h-9 w-60 items-center gap-2 rounded-lg border bg-card px-3 text-sm text-subtle-foreground md:flex"
-          >
-            <SearchIcon className="size-4" />
-            Search jams…
-          </Link>
-          <Link
-            href="/jams"
-            aria-label="Search jams"
-            className={cn(buttonVariants({ variant: "ghost", size: "icon-lg" }), "size-11 md:hidden")}
-          >
-            <SearchIcon />
-          </Link>
+          <SearchPalette />
           {status === "loading" ? (
             <div className="h-9 w-24 animate-pulse rounded-full bg-muted" aria-hidden />
           ) : session?.user ? (

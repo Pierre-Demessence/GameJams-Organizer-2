@@ -1,13 +1,14 @@
 "use server";
 
 import { headers } from "next/headers";
+import { clientIp } from "@/lib/client-ip";
 import { signIn } from "@/lib/auth";
 import { signInSchema } from "@/lib/validations";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function signInAction(formData: FormData) {
   const headersList = await headers();
-  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(headersList);
   const { allowed } = checkRateLimit(`signin:${ip}`);
 
   if (!allowed) {

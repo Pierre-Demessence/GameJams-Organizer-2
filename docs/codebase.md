@@ -35,6 +35,7 @@
 | Path | Description |
 |------|-------------|
 | `page.tsx` | Homepage — live jam panel, upcoming schedule and recent results |
+| `search-actions.ts` | `searchJamsAction`: public, per-IP throttled jam search for the palette |
 | `layout.tsx` | Root layout (fonts, theme, site header, footer, Toaster) |
 | `(auth)/auth-shell.tsx` | Shared sign in / sign up panel: tabs, Discord button, footer |
 | `(auth)/sign-in/` | Sign-in page |
@@ -98,6 +99,9 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `submission-form.ts` | `submitChecklist` (pure) |
 | `manage.ts` | Moderation flag, manage-table filter, results banner states (pure) |
 | `manage-queries.ts` | `loadManageSubmissions`: every non-deleted entry with rater counts (server-only) |
+| `search.ts` | Query normalization and search hit ranking (pure) |
+| `client-ip.ts` | `clientIp`: the proxy-appended client address for per-IP rate limits |
+| `search-queries.ts` | `searchJams`: listed jams matching name, description or tag (server-only) |
 | `admin.ts` | Deleted-jam slugs, audit filters and links (pure) |
 | `profile.ts` | Profile placement labels, role summaries, jam ordering (pure) |
 | `profile-queries.ts` | `loadProfile`: public jams, roles, games with placements and stats (server-only) |
@@ -113,7 +117,8 @@ Edge middleware that handles auth-related redirects and route protection.
 
 | File | Purpose |
 |------|---------|
-| `site-header.tsx` | Site-wide header: logo, navigation, search link, account area |
+| `site-header.tsx` | Site-wide header: logo, navigation, search palette, account area |
+| `search-palette.tsx` | ⌘K / Ctrl+K quick-jump dialog (Base UI Dialog, combobox + listbox) |
 | `logo.tsx` | Site logo |
 | `footer.tsx` | Site-wide footer |
 | `user-menu.tsx` | Authenticated account dropdown menu |

@@ -37,8 +37,10 @@ one plan per group:
    their boards.
 5. **Mobile organizer screens:** not designed yet (host/manage jam, submission editor,
    sign in).
-6. **Search palette:** the header's "Search jams… ⌘K" opens a command palette. The
-   foundations plan ships it as a plain link to `/jams`.
+6. **Search palette:** done. ⌘K / Ctrl+K (or the header field) opens a quick-jump palette
+   over listed jams. Follow-ups: a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the
+   table grows (search is `ILIKE '%q%'`, a sequential scan); results are list options, so
+   middle-click / "open in new tab" does not work on them.
 7. **Foundations follow-ups:** check the mobile header at 390px (logo, search, account chip
    and menu may be tight); add a signed-in e2e session covering the account menu (profile
    link, theme picker); add `Number.isFinite` guards for Invalid Date in `phaseProgress` /

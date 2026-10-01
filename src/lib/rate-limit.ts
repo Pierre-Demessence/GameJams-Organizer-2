@@ -5,6 +5,8 @@ const windowMs = 15 * 60 * 1000; // 15 minutes
 const maxAttempts = 10;
 
 const attempts = new Map<string, number[]>();
+// Bounds memory if keys are forged (e.g. spoofed IPs): the oldest-inserted key goes first.
+const MAX_KEYS = 50_000;
 
 // Periodic cleanup to prevent memory leaks
 setInterval(() => {
@@ -30,6 +32,10 @@ export function checkRateLimit(key: string, max = maxAttempts): { allowed: boole
   }
 
   timestamps.push(now);
+  if (!attempts.has(key) && attempts.size >= MAX_KEYS) {
+    const oldest = attempts.keys().next().value;
+    if (oldest !== undefined) attempts.delete(oldest);
+  }
   attempts.set(key, timestamps);
   return { allowed: true, remaining: max - timestamps.length };
 }
