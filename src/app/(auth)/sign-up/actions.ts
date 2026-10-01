@@ -1,6 +1,7 @@
 "use server";
 
 import { headers } from "next/headers";
+import { clientIp } from "@/lib/client-ip";
 import { hashSync } from "bcryptjs";
 import { db } from "@/lib/db";
 import { signUpSchema } from "@/lib/validations";
@@ -8,7 +9,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function signUpAction(formData: FormData) {
   const headersList = await headers();
-  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  const ip = clientIp(headersList);
   const { allowed } = checkRateLimit(`signup:${ip}`);
 
   if (!allowed) {

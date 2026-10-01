@@ -39,8 +39,9 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `src/lib/jam-status-display.ts` | Jam status labels, tones and countdown formatting (pure, unit-tested) |
 | `src/lib/home-queries.ts` | Homepage database reads (integration-tested, excluded from unit coverage) |
 | `src/lib/jam-phase-where.ts` | `LISTED_JAM` and `jamPhaseWhere()`: SQL phase filters |
-| `src/lib/jam-list-params.ts`, `jam-page.ts`, `jam-entries.ts`, `jam-labels.ts`, `initials.ts`, `results-view.ts`, `profile.ts`, `jam-form.ts`, `submission-form.ts`, `manage.ts`, `admin.ts` | Pure page helpers (unit-tested) |
-| `src/lib/jam-list-queries.ts`, `jam-page-queries.ts`, `jam-entries-queries.ts`, `results-queries.ts`, `profile-queries.ts`, `manage-queries.ts` | Page loaders (integration-tested, excluded from unit coverage) |
+| `src/lib/jam-list-params.ts`, `jam-page.ts`, `jam-entries.ts`, `jam-labels.ts`, `initials.ts`, `results-view.ts`, `profile.ts`, `jam-form.ts`, `submission-form.ts`, `manage.ts`, `admin.ts`, `search.ts` | Pure page helpers (unit-tested) |
+| `src/lib/jam-list-queries.ts`, `jam-page-queries.ts`, `jam-entries-queries.ts`, `results-queries.ts`, `profile-queries.ts`, `manage-queries.ts`, `search-queries.ts` | Page loaders (integration-tested, excluded from unit coverage) |
+| `src/app/search-actions.ts`, `src/components/search-palette.tsx` | ⌘K search palette and its public action |
 | `src/lib/verification.ts` | itch.io ownership verification (allowlisted fetch) |
 | `src/app/` | All pages and server actions |
 | `src/components/ui/` | shadcn/ui components |
@@ -75,6 +76,8 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 - **Zod v4**: Use `.issues` not `.errors` on `ZodError`.
 - **Server Actions**: Colocated in `actions.ts` next to pages.
 - **All user input** validated with Zod schemas before database operations.
+- **Client IP** comes from `clientIp()` (last `X-Forwarded-For` hop, appended by the single Traefik proxy); never read the first entry, which the client controls.
+- **Search** (`searchJamsAction`) is public, limited to `LISTED_JAM`, and throttled per IP.
 - **Rate limiting** via `checkRateLimit()` in `src/lib/rate-limit.ts` on all mutating actions.
 - **Tests**: unit tests colocated as `*.test.ts` (Vitest); E2E in `tests/e2e/*.spec.ts` (Playwright).
 - **`export const dynamic = "force-dynamic"`** is required on any page that queries the DB without `auth()`/`cookies()` (currently: homepage).

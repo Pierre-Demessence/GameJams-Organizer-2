@@ -36,6 +36,7 @@ export default defineConfig({
         "src/lib/results-queries.ts",
         "src/lib/profile-queries.ts",
         "src/lib/manage-queries.ts",
+        "src/lib/search-queries.ts",
       ],
     },
   },
