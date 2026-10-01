@@ -7,10 +7,8 @@ export const metadata = {
 
 export default function SignInPage() {
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center p-4">
-      <Suspense>
-        <SignInForm />
-      </Suspense>
-    </div>
+    <Suspense>
+      <SignInForm />
+    </Suspense>
   );
 }

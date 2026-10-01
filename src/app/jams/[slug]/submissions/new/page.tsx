@@ -26,16 +26,10 @@ export default async function NewSubmissionPage({
 }) {
   const { slug } = await params;
   const session = await auth();
-  if (!session?.user?.id) redirect("/sign-in");
+  if (!session?.user?.id) redirect(`/sign-in?callbackUrl=${encodeURIComponent(`/jams/${slug}/submissions/new`)}`);
 
   const jam = await db.jam.findUnique({
     where: { slug },
-    include: {
-      customFields: {
-        where: { isPrivate: false },
-        orderBy: { sortOrder: "asc" },
-      },
-    },
   });
   if (!jam) notFound();
 
@@ -68,21 +62,18 @@ export default async function NewSubmissionPage({
     );
   }
 
-  // Include all custom fields (including private) for submission form
-  const allCustomFields = await db.customField.findMany({
+  // Private questions are asked too; only their answers are hidden from the public.
+  const customFields = await db.customField.findMany({
     where: { jamId: jam.id },
     orderBy: { sortOrder: "asc" },
-    select: { id: true, name: true, description: true, type: true, required: true },
+    select: { id: true, name: true, description: true, type: true, required: true, isPrivate: true },
   });
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <h1 className="mb-6 text-2xl font-bold">Submit to {jam.name}</h1>
-      <SubmissionForm
-        jamSlug={slug}
-        customFields={allCustomFields}
-        mode="create"
-      />
-    </div>
+    <SubmissionForm
+      mode="create"
+      jam={{ name: jam.name, slug: jam.slug, endDate: jam.endDate, submissionDetails: jam.submissionDetails }}
+      customFields={customFields}
+    />
   );
 }

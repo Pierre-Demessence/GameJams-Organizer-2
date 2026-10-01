@@ -16,6 +16,7 @@ import { jamPhase } from "@/domain/jam-phase";
 import {
   canAddContributor,
   canCreateSubmission,
+  canDeleteOwnSubmission,
   canEditSubmission,
   canFinalizeSubmission,
   canRemoveContributor,
@@ -390,16 +391,23 @@ export async function deleteSubmissionAction(submissionId: string) {
   const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
 
+  const leader = submission.members.find((m) => m.isLeader);
+  const ownDelete = canDeleteOwnSubmission({
+    phase: jamPhase(submission.jam),
+    isLeader: leader?.userId === session.user.id,
+  });
   const isOrganizer = await checkJamPermission(
     submission.jamId,
     session.user.id,
     "delete_submission"
   );
-  const isStaff = await checkStaffPermission(
-    session.user.id,
-    "moderate_any_submission"
-  );
-  if (!isOrganizer && !isStaff) return { error: "You do not have permission" };
+  const isStaff =
+    !ownDelete.allowed &&
+    !isOrganizer &&
+    (await checkStaffPermission(session.user.id, "moderate_any_submission"));
+  if (!ownDelete.allowed && !isOrganizer && !isStaff) {
+    return { error: leader?.userId === session.user.id ? ownDelete.reason : "You do not have permission" };
+  }
 
   await db.submission.update({
     where: { id: submissionId },

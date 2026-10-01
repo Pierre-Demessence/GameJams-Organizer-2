@@ -27,20 +27,21 @@ export function DeleteJamButton({ jamId }: { jamId: string }) {
     <div className="space-y-2">
       {confirming ? (
         <div className="flex items-center gap-2">
-          <Button variant="destructive" onClick={handleDelete} disabled={loading}>
-            {loading ? "Deleting..." : "Confirm delete"}
+          <Button variant="destructive" onClick={handleDelete} disabled={loading} className="h-11 px-3.5 md:h-9">
+            {loading ? "Deleting…" : "Confirm delete"}
           </Button>
           <Button
             variant="outline"
             onClick={() => setConfirming(false)}
             disabled={loading}
+            className="h-11 px-3.5 md:h-9"
           >
             Cancel
           </Button>
         </div>
       ) : (
-        <Button variant="destructive" onClick={() => setConfirming(true)}>
-          Delete jam
+        <Button variant="destructive" onClick={() => setConfirming(true)} className="h-11 px-3.5 md:h-9">
+          Delete jam…
         </Button>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}

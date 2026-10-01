@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { canRate, isEligibleRater, type Rater, type RatingEligibility } from "@/domain/rating";
+import {
+  canRate,
+  checkRatingScores,
+  isEligibleRater,
+  type Rater,
+  type RatingEligibility,
+} from "@/domain/rating";
 
 const leader: Rater = { isJudge: false, membership: { isLeader: true } };
 const contributor: Rater = { isJudge: false, membership: { isLeader: false } };
@@ -76,6 +82,34 @@ describe("canRate", () => {
     expect(canRate({ ...base, rater: outsider })).toEqual({
       allowed: false,
       reason: "You are not eligible to rate in this jam",
+    });
+  });
+});
+
+describe("checkRatingScores", () => {
+  const ids = ["fun", "art"];
+  const of = (...c: string[]) => c.map((criterionId) => ({ criterionId }));
+
+  it("accepts one score per criterion", () => {
+    expect(checkRatingScores(ids, of("art", "fun"))).toEqual({ allowed: true });
+  });
+
+  it("rejects a partial rating", () => {
+    expect(checkRatingScores(ids, of("fun"))).toEqual({
+      allowed: false,
+      reason: "Score every criterion before saving",
+    });
+  });
+
+  it("rejects a jam without rated criteria", () => {
+    expect(checkRatingScores([], [])).toEqual({ allowed: false, reason: "This jam has no rated criteria" });
+  });
+
+  it("rejects duplicates and unknown criteria", () => {
+    expect(checkRatingScores(ids, of("fun", "fun", "art")).allowed).toBe(false);
+    expect(checkRatingScores(ids, of("fun", "art", "audio"))).toEqual({
+      allowed: false,
+      reason: "Invalid criterion",
     });
   });
 });

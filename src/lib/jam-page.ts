@@ -22,7 +22,7 @@ export type EntryPanel =
 
 const DAY = new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", timeZone: "UTC" });
 
-function range(from: Date | null, to: Date | null): string {
+export function dayRange(from: Date | null, to: Date | null): string {
   if (!from || !to) return "";
   return `${DAY.format(from)} → ${DAY.format(to)}`;
 }
@@ -42,13 +42,13 @@ function upcomingProgress(jam: JamPhaseInput, now: Date): number {
 export function jamTimeline(jam: JamPhaseInput, phase: JamPhase, now = new Date()): TimelineSegment[] {
   const defs = jam.ranked
     ? [
-        { key: "upcoming", label: "Upcoming", index: 0, width: 18, dates: range(jam.publishedAt, jam.startDate) },
-        { key: "jam", label: "Jam", index: 1, width: 37, dates: range(jam.startDate, jam.endDate) },
-        { key: "rating", label: "Rating", index: 2, width: 45, dates: range(jam.endDate, jam.ratingEnd) },
+        { key: "upcoming", label: "Upcoming", index: 0, width: 18, dates: dayRange(jam.publishedAt, jam.startDate) },
+        { key: "jam", label: "Jam", index: 1, width: 37, dates: dayRange(jam.startDate, jam.endDate) },
+        { key: "rating", label: "Rating", index: 2, width: 45, dates: dayRange(jam.endDate, jam.ratingEnd) },
       ] as const
     : [
-        { key: "upcoming", label: "Upcoming", index: 0, width: 25, dates: range(jam.publishedAt, jam.startDate) },
-        { key: "jam", label: "Jam", index: 1, width: 75, dates: range(jam.startDate, jam.endDate) },
+        { key: "upcoming", label: "Upcoming", index: 0, width: 25, dates: dayRange(jam.publishedAt, jam.startDate) },
+        { key: "jam", label: "Jam", index: 1, width: 75, dates: dayRange(jam.startDate, jam.endDate) },
       ] as const;
   const current = ORDER[phase];
   return defs.map((d) => {

@@ -39,8 +39,8 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 | `src/lib/jam-status-display.ts` | Jam status labels, tones and countdown formatting (pure, unit-tested) |
 | `src/lib/home-queries.ts` | Homepage database reads (integration-tested, excluded from unit coverage) |
 | `src/lib/jam-phase-where.ts` | `LISTED_JAM` and `jamPhaseWhere()`: SQL phase filters |
-| `src/lib/jam-list-params.ts`, `jam-page.ts`, `jam-entries.ts`, `jam-labels.ts`, `initials.ts` | Pure page helpers (unit-tested) |
-| `src/lib/jam-list-queries.ts`, `jam-page-queries.ts`, `jam-entries-queries.ts` | Page loaders (integration-tested, excluded from unit coverage) |
+| `src/lib/jam-list-params.ts`, `jam-page.ts`, `jam-entries.ts`, `jam-labels.ts`, `initials.ts`, `results-view.ts`, `profile.ts`, `jam-form.ts`, `submission-form.ts`, `manage.ts`, `admin.ts` | Pure page helpers (unit-tested) |
+| `src/lib/jam-list-queries.ts`, `jam-page-queries.ts`, `jam-entries-queries.ts`, `results-queries.ts`, `profile-queries.ts`, `manage-queries.ts` | Page loaders (integration-tested, excluded from unit coverage) |
 | `src/lib/verification.ts` | itch.io ownership verification (allowlisted fetch) |
 | `src/app/` | All pages and server actions |
 | `src/components/ui/` | shadcn/ui components |
@@ -58,9 +58,16 @@ AI agent reference for the GameJam Organizer 2 codebase. Read this on-demand bef
 - **Rules live in `src/domain/`**: pure functions returning a `Decision`. Actions and pages load data, call the rule, and surface `reason`; they never re-implement a phase or permission rule inline.
 - **Jam phase** comes from `jamPhase()`; there is no stored status. A jam is DRAFT until `publishedAt` is set (via `canPublish`). Listings require `publishedAt != null` and `visibility = PUBLIC`.
 - **Soft delete**: top-level `Jam`/`Submission` reads are filtered by the `db` extension. Relation filters, `include`s and `_count` are not — add `deletedAt: null` there. Name `deletedAt` in the `where` to read deleted rows (staff trash view).
-- **Results** are computed on read (`loadJamResults`); visibility goes through `resultsAccess`. There is no results table.
+- **Results** are computed on read (`loadJamResults`); visibility goes through `resultsAccess`. There is no results table. Hidden submissions (`visible: false`) are ranked but dropped from every displayed result.
+- **Redirects after sign-in** go through `safeCallbackPath`; never push a raw `callbackUrl`.
+- **Profiles** list only `LISTED_JAM` jams, so unlisted and draft jams never leak through a member's page.
+- **A rating** covers every RATED criterion exactly once (`checkRatingScores`); partial ratings are rejected.
 - **`"use server"` files export only actions**: every export is a public endpoint, so read helpers go in `src/lib/` modules.
+- **Editors inside the jam form** (criteria, custom questions) use no `<form>` and no `name` attributes: they save through their own actions, and Enter must not submit the jam form.
+- **HTML `pattern` attributes** compile with the `v` flag: escape `-` inside character classes.
+- **Restoring a jam** strips the `__del__<id>` slug suffix (`restoredSlug`) and fails if the slug was reused.
 - **Moderation** is three independent switches on `Submission` (`visible` / `rateable` / `competing`) + `moderationReason`, applied via presets (disqualify / exclude / hide / reinstate).
+- **Deleting a submission**: organizers (`delete_submission`), staff, or the team leader while ONGOING (`canDeleteOwnSubmission`). Staff deletes and restores are audited.
 - **Submission lifecycle**: DRAFT → SUBMITTED; a submission may only become SUBMITTED once its itch.io link is ownership-verified. Changing the verified link resets it to DRAFT.
 - **itch.io fetch** uses a single-host allowlist (`itch.io` / `*.itch.io`), HTTPS only, with per-hop redirect re-validation, a timeout, and a size cap.
 - **Auth.js v5 beta.30** uses JWT strategy. No session table.

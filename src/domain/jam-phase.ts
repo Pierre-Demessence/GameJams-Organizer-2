@@ -48,7 +48,7 @@ export function validateJamDates(
   return allow;
 }
 
-interface PublishCriterion {
+export interface PublishCriterion {
   source: "RATED" | "JURY";
   weight: number;
   isPrimary: boolean;
@@ -63,18 +63,18 @@ export function canPublish(
   if (jam.publishedAt) return deny("This jam is already published");
   const dates = validateJamDates(jam, { requireComplete: true });
   if (!dates.allowed) return dates;
-  if (jam.ranked) {
-    if (jam.criteria.length === 0) {
-      return deny("A ranked jam needs at least one rating criterion");
-    }
-    const rated = jam.criteria.filter((c) => c.source === "RATED");
-    const hasPrimary = jam.criteria.some((c) => c.isPrimary) || jam.criteria.length === 1;
-    const hasWeightedRated = rated.some((c) => c.weight > 0);
-    if (!hasPrimary && rated.length > 0 && !hasWeightedRated) {
-      return deny(
-        "Set a primary criterion or give at least one rated criterion a non-zero weight"
-      );
-    }
+  return jam.ranked ? checkCriteria(jam.criteria) : allow;
+}
+
+export function checkCriteria(criteria: PublishCriterion[]): Decision {
+  if (criteria.length === 0) {
+    return deny("A ranked jam needs at least one rating criterion");
+  }
+  const rated = criteria.filter((c) => c.source === "RATED");
+  const hasPrimary = criteria.some((c) => c.isPrimary) || criteria.length === 1;
+  const hasWeightedRated = rated.some((c) => c.weight > 0);
+  if (!hasPrimary && rated.length > 0 && !hasWeightedRated) {
+    return deny("Set a primary criterion or give at least one rated criterion a non-zero weight");
   }
   return allow;
 }

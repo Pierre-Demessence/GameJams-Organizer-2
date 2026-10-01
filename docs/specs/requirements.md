@@ -316,6 +316,10 @@ THE SYSTEM SHALL offer these presets over the switches:
 WHEN a jam admin or moderator deletes a submission,
 THE SYSTEM SHALL remove it from the jam entirely.
 
+WHEN the team leader deletes their own submission while the jam is ONGOING,
+THE SYSTEM SHALL remove it from the jam entirely (spec §4: a leader may delete the submission
+to leave).
+
 ### REQ-SUB-13: Submission Edit Window
 
 WHILE a jam is in ONGOING status,

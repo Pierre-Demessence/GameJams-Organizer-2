@@ -13,7 +13,7 @@ async function findJam(slug: string) {
       createdBy: { select: { username: true, displayName: true } },
       roles: { include: { user: { select: { username: true, displayName: true, avatarUrl: true } } } },
       criteria: {
-        select: { id: true, name: true, description: true, weight: true, isPrimary: true },
+        select: { id: true, name: true, description: true, weight: true, isPrimary: true, source: true },
         orderBy: { sortOrder: "asc" },
       },
       _count: { select: { participants: true, submissions: { where: LIVE_SUBMISSIONS } } },
@@ -66,7 +66,7 @@ export const loadJamPage = cache(async (slug: string, userId: string | null): Pr
       roles,
       canEditJam: hasPermission(roles, "edit_jam"),
       canManageRoles: hasPermission(roles, "manage_roles"),
-      canModerate: hasPermission(roles, "edit_submission"),
+      canModerate: hasPermission(roles, "moderate_submission"),
       canPreviewResults,
       hasJoined: Boolean(participant),
       submission: member?.submission ?? null,

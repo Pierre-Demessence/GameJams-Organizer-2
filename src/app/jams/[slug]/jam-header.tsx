@@ -18,7 +18,7 @@ export function JamHeader({
   active,
 }: {
   data: JamPageData;
-  active: "overview" | "submissions" | "results";
+  active: "overview" | "submissions" | "results" | "manage";
 }) {
   const { jam, phase, viewer } = data;
   const base = `/jams/${jam.slug}`;
@@ -41,7 +41,9 @@ export function JamHeader({
   if (data.resultsVisible) {
     tabs.push({ href: `${base}/results`, label: "Results", active: active === "results" });
   }
-  if (viewer.canManageRoles) tabs.push({ href: `${base}/manage`, label: "Manage", active: false });
+  if (viewer.canManageRoles || viewer.canModerate) {
+    tabs.push({ href: `${base}/manage`, label: "Manage", active: active === "manage", end: true });
+  }
 
   return (
     <header>

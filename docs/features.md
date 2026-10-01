@@ -6,18 +6,19 @@
 |---------|-------------|-------------|
 | **Discord OAuth** | Sign in / register via Discord OAuth 2.0 | High |
 | **Email/Password Auth** | Register and sign in with email and password | High |
-| **User Profiles** | Public profiles with username, bio, avatar, and jam/submission history | Medium |
-| **Account Settings** | Edit profile, link/unlink OAuth providers | Medium |
-| **Jam Creation** | Create game jams with name, description, dates, themes, rating criteria | High |
+| **User Profiles** | Public profiles: avatar, bio, stats, games with their placement, and public jams with the user's roles | Medium |
+| **Account Settings** | Edit profile, link/unlink Discord, set or change the password, pick the theme | Medium |
+| **Jam Creation** | Host a jam: sectioned form with Markdown preview, tags, ranked/showcase format, inline criteria and custom questions, and a "Ready to publish?" checklist | High |
 | **Jam Lifecycle** | Explicit publish out of DRAFT, then phases derived from dates: UPCOMING → ONGOING → RATING → FINISHED | High |
 | **Jam Browsing** | Status tabs with counts, search, tags, format and sort, paging | High |
 | **Jam submissions tab** | Filter by platform, hide rated games, least-rated-first "Rate next game" | Medium |
 | **Jam Roles** | Stackable, permission-based roles (Admin, Moderator, Judge, Host) | High |
 | **Join Jams** | Participants can join during UPCOMING and ONGOING phases | High |
-| **Submissions** | Submit games (itch.io link + platforms), DRAFT/SUBMITTED lifecycle, contributors | High |
-| **Rating System** | Rate submissions on custom criteria; Bayesian average scoring | High |
-| **Results** | Live-computed rankings with per-criterion scores; organizer preview during rating, optional hide-and-reveal | Medium |
-| **Jam Management** | Edit jam details, manage roles, moderate submissions (visible/rateable/competing switches) | Medium |
+| **Submissions** | Submission editor with the itch.io verification card, jam questions, team roster and a "Ready to submit?" checklist; DRAFT/SUBMITTED lifecycle; the leader can delete while the jam runs | High |
+| **Markdown** | Sanitized GFM for jam and submission descriptions, with a live preview in the jam form | Medium |
+| **Rating System** | Score every criterion 1–5 with segmented buttons; "Save & rate next" follows the least-rated queue; Bayesian average scoring | High |
+| **Results** | Live-computed rankings: overall and per-criterion tabs, top-3 podium, ranking table, "Not competing" section; organizer preview during rating, optional hide-and-reveal | Medium |
+| **Jam Management** | Manage tab: results banner (preview / reveal), submissions table with moderation presets, organizers and their roles, delete jam | Medium |
 | **Ownership Verification** | itch.io code-on-page verification required to publish a submission | High |
 | **Rate Limiting** | In-memory rate limiter on server actions to prevent abuse | Medium |
 | **Visual design & themes** | Dark-first design with a light theme; homepage with live jam panel, upcoming schedule and recent results; account menu with profile, settings, theme and sign out | Medium |
@@ -31,8 +32,7 @@ Defined as MVP in the spec but not yet implemented (tracked in
 
 | Feature | Description |
 |---------|-------------|
-| Platform Admin | Seeded Site Admin, mandatory 2FA, soft-delete + restore, audit log, `/admin` page |
-| Markdown Rendering | Sanitized GFM rendering for jam/submission descriptions (currently plain text) |
+| Platform Admin | `/admin`: deleted content with restore, filtered audit log, staff. Still missing: mandatory 2FA |
 | Leave Jam / Submission | Rules exist in `src/domain/participation.ts`; actions and UI are in the [backlog](backlog.md) |
 | Contributor Invites | Invite-and-accept flow for contributors (currently added directly) |
 

@@ -7,6 +7,7 @@ import { parseJamForm } from "@/lib/form-parsers";
 import { checkJamPermission } from "@/lib/permissions";
 import { checkStaffPermission } from "@/lib/staff-permissions";
 import { recordAudit } from "@/lib/audit";
+import { deletedJamSlug } from "@/lib/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import { canPublish, jamPhase, validateJamDates } from "@/domain/jam-phase";
@@ -226,7 +227,7 @@ export async function softDeleteJamAction(jamId: string) {
   // Free the slug so a new jam can reuse it while this one is soft-deleted.
   await db.jam.update({
     where: { id: jamId },
-    data: { deletedAt: new Date(), slug: `${jam.slug}__del__${jam.id}` },
+    data: { deletedAt: new Date(), slug: deletedJamSlug(jam.slug, jam.id) },
   });
 
   if (isStaff) {
@@ -279,30 +280,12 @@ export async function joinJamAction(jamId: string) {
   return { success: true };
 }
 
-export async function generateSlug(name: string): Promise<string> {
-  const base = name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 58);
-
-  if (!base || base.length < 3) return "";
-
-  if (!slugPattern.test(base)) return "";
-
-  const existing = await db.jam.findUnique({ where: { slug: base } });
-  if (!existing) return base;
-
-  for (let i = 2; i <= 99; i++) {
-    const candidate = `${base.slice(0, 55)}-${i}`;
-    const taken = await db.jam.findUnique({ where: { slug: candidate } });
-    if (!taken) return candidate;
-  }
-  return base;
-}
-
-export async function checkSlugAvailable(slug: string) {
-  if (!slugPattern.test(slug)) return { available: false, reason: "Invalid slug format" };
+export async function checkSlugAvailable(slug: string): Promise<{ available: boolean | null }> {
+  const session = await auth();
+  if (!session?.user?.id) return { available: null };
+  // Unknown rather than "taken" when throttled: the save still enforces uniqueness.
+  if (!checkRateLimit(`slug-check:${session.user.id}`, 120).allowed) return { available: null };
+  if (!slugPattern.test(slug)) return { available: false };
   const existing = await db.jam.findUnique({ where: { slug }, select: { id: true } });
   return { available: !existing };
 }

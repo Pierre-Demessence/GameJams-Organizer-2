@@ -106,3 +106,13 @@ export function canTransferLeadership(input: {
   if (!input.targetIsMember) return deny("User is not on this team");
   return allow;
 }
+
+// Spec §4: a team leader may delete the submission (to leave the jam) while it is ONGOING;
+// organizers and staff delete through their own permissions.
+export function canDeleteOwnSubmission(input: { phase: JamPhase; isLeader: boolean }): Decision {
+  if (!input.isLeader) return deny("Only the team leader can delete this submission");
+  if (input.phase !== "ONGOING") {
+    return deny("Submissions can only be deleted during the ongoing period");
+  }
+  return allow;
+}
