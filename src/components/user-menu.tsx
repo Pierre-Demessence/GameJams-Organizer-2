@@ -30,14 +30,14 @@ export function UserMenu({ user }: UserMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label="Account menu"
-        className="flex min-h-11 items-center gap-2 rounded-full border border-border py-0 pr-2 pl-1 text-sm hover:bg-muted aria-expanded:bg-muted md:min-h-9"
+        className="flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-full py-0 text-sm hover:bg-muted aria-expanded:bg-muted sm:border sm:border-border sm:pr-2 sm:pl-1 md:min-h-9"
       >
         <Avatar className="size-7">
           <AvatarImage src={user.image ?? undefined} alt="" />
           <AvatarFallback className="text-xs text-brand">{initials}</AvatarFallback>
         </Avatar>
         <span className="hidden max-w-32 truncate sm:inline">{display}</span>
-        <ChevronDownIcon className="size-3.5 text-muted-foreground" />
+        <ChevronDownIcon aria-hidden className="hidden size-3.5 text-muted-foreground sm:block" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <div className="flex flex-col gap-0.5 px-2 py-2">

@@ -73,7 +73,8 @@
   --muted: #f4f4f5;
   --muted-foreground: #52555c;
   --subtle-foreground: #686b73;
-  --accent: #f4f4f5;
+  /* One step past --muted so hover and focus show on muted surfaces too. */
+  --accent: #ebebed;
   --accent-foreground: #0b0c0e;
   --destructive: #c23a33;
   --border: #e4e4e7;
@@ -114,7 +115,7 @@
   --muted: #1a1b1f;
   --muted-foreground: #9a9ca3;
   --subtle-foreground: #80838b;
-  --accent: #1a1b1f;
+  --accent: #222328;
   --accent-foreground: #edeef0;
   --destructive: #f2706a;
   --border: #24262b;

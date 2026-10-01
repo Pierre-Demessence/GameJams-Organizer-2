@@ -41,11 +41,9 @@ one plan per group:
    over listed jams. Follow-ups: a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the
    table grows (search is `ILIKE '%q%'`, a sequential scan); results are list options, so
    middle-click / "open in new tab" does not work on them.
-7. **Foundations follow-ups:** check the mobile header at 390px (logo, search, account chip
-   and menu may be tight); add a signed-in e2e session covering the account menu (profile
-   link, theme picker); add `Number.isFinite` guards for Invalid Date in `phaseProgress` /
-   `formatDuration`; the podium row link underlines place and score on hover; the dark
-   `--accent` equals `--secondary`, so hover on muted surfaces is flat.
+7. **Foundations follow-ups:** done. The mobile header fits on one line at 390px,
+   `tests/e2e/account.spec.ts` covers the signed-in account menu, and `--accent` is one step
+   past `--muted`.
 
 ## Known issues
 

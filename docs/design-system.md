@@ -19,7 +19,9 @@ Tokens are CSS variables in `src/app/globals.css`, exposed to Tailwind through `
 |-------|------|-------|------------------|
 | background | `#0B0C0E` | `#FAFAFA` | `bg-background` |
 | surface / card | `#121316` | `#FFFFFF` | `bg-card` |
-| raised | `#1A1B1F` | `#F4F4F5` | `bg-secondary`, `bg-muted`, `bg-accent` |
+| raised | `#1A1B1F` | `#F4F4F5` | `bg-secondary`, `bg-muted` |
+| hover / focus | `#222328` | `#EBEBED` | `bg-accent` (menu items; one step past raised so it shows on muted surfaces) |
+| brand on dark fills | — | — | `--color-discord` `#5865F2` (Discord button), `--color-preview-dark` / `-light` (theme previews) |
 | border | `#24262B` | `#E4E4E7` | `border-border` |
 | border strong / input | `#34373E` | `#D4D4D8` | `border-input` |
 | text | `#EDEEF0` | `#0B0C0E` | `text-foreground` |

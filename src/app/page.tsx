@@ -249,12 +249,12 @@ function PodiumBody({ jam }: { jam: FinishedJam }) {
           <li key={p.submissionId}>
             <Link
               href={`/submissions/${p.submissionId}`}
-              className="flex min-h-11 items-center gap-3 hover:underline"
+              className="group flex min-h-11 items-center gap-3"
             >
               <span className={cn("w-4 font-mono", p.place === 1 ? "text-rating" : "text-muted-foreground")}>
                 {p.place}
               </span>
-              <span className="min-w-0 flex-1 truncate">{p.title}</span>
+              <span className="min-w-0 flex-1 truncate group-hover:underline">{p.title}</span>
               <span className="font-mono text-muted-foreground">{p.score?.toFixed(2)}</span>
             </Link>
           </li>

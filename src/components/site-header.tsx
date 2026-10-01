@@ -33,7 +33,7 @@ export function SiteHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur">
-      <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 pr-2 pl-4 md:h-15 md:px-12">
+      <div className="mx-auto flex h-14 max-w-7xl items-center gap-3 pr-2 pl-4 md:h-15 md:gap-6 md:px-12">
         <Logo />
         <nav aria-label="Main" className="hidden items-center gap-1 text-sm md:flex">
           {links.map((l) => (
@@ -50,7 +50,7 @@ export function SiteHeader() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-1 md:gap-2">
+        <div className="ml-auto flex items-center md:gap-2">
           <SearchPalette />
           {status === "loading" ? (
             <div className="h-9 w-24 animate-pulse rounded-full bg-muted" aria-hidden />
