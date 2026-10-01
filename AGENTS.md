@@ -14,6 +14,7 @@ GameJam Organizer: a Next.js app to host, join and rate game jams. Pre-v1 protot
 | `docs/deployment.md` | Kubernetes / ArgoCD deploy, Docker Compose, admin bootstrap |
 | `docs/decisions.md` | Non-obvious decisions and rejected alternatives |
 | `docs/backlog.md` | Everything not done: MVP gaps, known issues, spec proposals, post-MVP |
+| `docs/roadmap.md` | Milestone order and what defines each as done |
 | `docs/plans/` | Plans for work in progress only |
 
 ## Commands
