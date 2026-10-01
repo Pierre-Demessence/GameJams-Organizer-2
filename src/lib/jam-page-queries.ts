@@ -13,7 +13,7 @@ async function findJam(slug: string) {
       createdBy: { select: { username: true, displayName: true } },
       roles: { include: { user: { select: { username: true, displayName: true, avatarUrl: true } } } },
       criteria: {
-        select: { id: true, name: true, description: true, weight: true, isPrimary: true },
+        select: { id: true, name: true, description: true, weight: true, isPrimary: true, source: true },
         orderBy: { sortOrder: "asc" },
       },
       _count: { select: { participants: true, submissions: { where: LIVE_SUBMISSIONS } } },

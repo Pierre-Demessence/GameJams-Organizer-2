@@ -5,7 +5,7 @@ import { db } from "@/lib/db";
 import { ratingSchema } from "@/lib/validations";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { jamPhase } from "@/domain/jam-phase";
-import { canRate } from "@/domain/rating";
+import { canRate, checkRatingScores } from "@/domain/rating";
 import { loadRater } from "@/lib/rating-queries";
 import { revalidatePath } from "next/cache";
 
@@ -43,12 +43,11 @@ export async function submitRatingAction(data: {
     where: { jamId: submission.jamId, source: "RATED" },
     select: { id: true },
   });
-  const criteriaIds = new Set(criteria.map((c) => c.id));
-  for (const r of parsed.data.ratings) {
-    if (!criteriaIds.has(r.criterionId)) {
-      return { error: "Invalid criterion" };
-    }
-  }
+  const complete = checkRatingScores(
+    criteria.map((c) => c.id),
+    parsed.data.ratings
+  );
+  if (!complete.allowed) return { error: complete.reason };
 
   await db.$transaction(
     parsed.data.ratings.map((r) =>
@@ -72,5 +71,6 @@ export async function submitRatingAction(data: {
   );
 
   revalidatePath(`/submissions/${parsed.data.submissionId}`);
+  revalidatePath(`/jams/${submission.jam.slug}/submissions`);
   return { success: true };
 }

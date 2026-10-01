@@ -46,10 +46,10 @@
 | `jams/[slug]/edit/` | Edit jam (organizer only) |
 | `jams/[slug]/manage/` | Manage jam roles (stackable) — organizer only |
 | `jams/[slug]/submissions/new/` | Submit a game to this jam |
-| `jams/[slug]/results/` | Jam results/rankings |
+| `jams/[slug]/results/` | Jam results tab: criterion tabs (`?by=`), podium, ranking table (`?all=1` shows every row), "Not competing" |
 | `submissions/[id]/` | Submission detail (verify, submit, moderate) |
 | `submissions/[id]/edit/` | Edit a submission |
-| `submissions/[id]/rate/` | Rate a submission (rating period) |
+| `submissions/[id]/rate/` | Rate a submission: every criterion scored 1–5, "Save & rate next" (rating period) |
 | `users/[username]/` | Public user profile |
 | `settings/` | Account settings (profile, linked accounts) |
 
@@ -64,7 +64,7 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `jam-phase.ts` | `jamPhase` (DRAFT until `publishedAt`, then from dates), `validateJamDates`, `canPublish` (§4.4, §6.2) |
 | `participation.ts` | `canJoin`, `canLeaveJam`, `canLeaveSubmission` (§4.7) |
 | `submission.ts` | Create / edit / finalize / unsubmit windows, contributor change window, leadership transfer (§5) |
-| `rating.ts` | `isEligibleRater`, `canRate` — judges always eligible, own entry excluded (§4.6, §6.1, §6.3) |
+| `rating.ts` | `isEligibleRater`, `canRate` — judges always eligible, own entry excluded (§4.6, §6.1, §6.3); `checkRatingScores` — one score per RATED criterion |
 | `results.ts` | `resultsAccess` (none / preview / public), `canRevealResults` (§6.5) |
 | `scoring.ts` | `rankSubmissions`: Bayesian per-criterion scores, overall by primary or weighted average (§6.4) |
 
@@ -92,6 +92,8 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `jam-entries.ts` | Submissions tab params and `nextToRate` (pure) |
 | `jam-entries-queries.ts` | `loadJamEntries`: visible entries with rater counts and rating progress (server-only) |
 | `jam-labels.ts` | Rating-eligibility, role and platform labels (pure) |
+| `results-view.ts` | Results tab params, overall/per-criterion ranking view and podium, score formatting (pure) |
+| `results-queries.ts` | `loadResultsPage`: results joined with titles, covers, teams and moderation reasons (server-only) |
 | `initials.ts` | `initials(name)` for avatar and cover placeholders (pure) |
 | `utils.ts` | General utilities (`cn` class merge, etc.) |
 

@@ -15,8 +15,8 @@
 | **Jam Roles** | Stackable, permission-based roles (Admin, Moderator, Judge, Host) | High |
 | **Join Jams** | Participants can join during UPCOMING and ONGOING phases | High |
 | **Submissions** | Submit games (itch.io link + platforms), DRAFT/SUBMITTED lifecycle, contributors | High |
-| **Rating System** | Rate submissions on custom criteria; Bayesian average scoring | High |
-| **Results** | Live-computed rankings with per-criterion scores; organizer preview during rating, optional hide-and-reveal | Medium |
+| **Rating System** | Score every criterion 1–5 with segmented buttons; "Save & rate next" follows the least-rated queue; Bayesian average scoring | High |
+| **Results** | Live-computed rankings: overall and per-criterion tabs, top-3 podium, ranking table, "Not competing" section; organizer preview during rating, optional hide-and-reveal | Medium |
 | **Jam Management** | Edit jam details, manage roles, moderate submissions (visible/rateable/competing switches) | Medium |
 | **Ownership Verification** | itch.io code-on-page verification required to publish a submission | High |
 | **Rate Limiting** | In-memory rate limiter on server actions to prevent abuse | Medium |

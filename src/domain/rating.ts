@@ -51,3 +51,20 @@ export function canRate(input: {
   }
   return allow;
 }
+
+// Spec §6.3: a rating scores every RATED criterion of the jam, once each.
+export function checkRatingScores(
+  criterionIds: string[],
+  ratings: { criterionId: string }[]
+): Decision {
+  const expected = new Set(criterionIds);
+  if (expected.size === 0) return deny("This jam has no rated criteria");
+  const seen = new Set<string>();
+  for (const r of ratings) {
+    if (!expected.has(r.criterionId)) return deny("Invalid criterion");
+    if (seen.has(r.criterionId)) return deny("Each criterion can only be scored once");
+    seen.add(r.criterionId);
+  }
+  if (seen.size !== expected.size) return deny("Score every criterion before saving");
+  return allow;
+}

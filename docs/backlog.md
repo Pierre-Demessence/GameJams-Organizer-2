@@ -29,8 +29,8 @@ one plan per group:
 
 1. **Discover & play:** done — see [plans/done/redesign-discover-play.md](plans/done/redesign-discover-play.md).
    Follow-up: push the "Manage" tab to the right on desktop (`LinkTabs` has no alignment option).
-2. **Rate & results:** rating form (1–5 segmented buttons per criterion, "Save & rate
-   next"), results (criterion tabs, top-3 cards, ranking table, "Not competing" section).
+2. **Rate & results:** done. The rating page and the results tab follow the "Rate a game" and
+   "Results" boards and their mobile versions.
 3. **People & account:** profile, settings (profile, sign-in methods, appearance, delete
    account), sign in / sign up (tabbed).
 4. **Organize:** host/edit jam form with the "Ready to publish?" checklist panel, submission
