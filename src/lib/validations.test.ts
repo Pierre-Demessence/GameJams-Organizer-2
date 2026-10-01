@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   isItchProjectUrl,
+  profileSchema,
   submissionSchema,
   criterionSchema,
   findMissingRequiredFields,
@@ -106,5 +107,20 @@ describe("validateCustomFieldValues", () => {
     expect(validateCustomFieldValues(fields, { f1: "Godot", f2: "javascript:alert(1)" })).toBe(
       "Repo must be an http or https URL"
     );
+  });
+});
+
+describe("profileSchema", () => {
+  const base = { username: "mira" };
+
+  it("accepts http(s) avatars and an empty value", () => {
+    expect(profileSchema.safeParse({ ...base, avatarUrl: "https://example.com/a.png" }).success).toBe(true);
+    expect(profileSchema.safeParse({ ...base, avatarUrl: "" }).success).toBe(true);
+  });
+
+  it("rejects script and data URLs", () => {
+    for (const avatarUrl of ["javascript:alert(1)", "data:image/png;base64,AAAA"]) {
+      expect(profileSchema.safeParse({ ...base, avatarUrl }).success).toBe(false);
+    }
   });
 });

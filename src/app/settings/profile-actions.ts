@@ -3,22 +3,15 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
-
-const profileSchema = z.object({
-  displayName: z.string().max(50).optional(),
-  bio: z.string().max(500).optional(),
-  avatarUrl: z.union([z.string().url(), z.literal("")]).optional(),
-  username: z
-    .string()
-    .min(3)
-    .max(30)
-    .regex(/^[a-z0-9_-]+$/),
-});
+import { profileSchema } from "@/lib/validations";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function updateProfileAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
+  if (!checkRateLimit(`settings:profile:${session.user.id}`).allowed) {
+    return { error: "Too many requests. Please try again later." };
+  }
 
   const raw = {
     displayName: (formData.get("displayName") as string) || undefined,

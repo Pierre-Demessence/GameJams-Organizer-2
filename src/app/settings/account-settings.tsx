@@ -2,214 +2,220 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { linkPasswordAction, unlinkProviderAction, changePasswordAction } from "./actions";
+import { cn } from "@/lib/utils";
+import { changePasswordAction, linkPasswordAction, unlinkProviderAction } from "./actions";
+import { FIELD } from "./profile-form";
 
-interface LinkedAccount {
-  provider: string;
-  providerAccountId: string;
-}
+const ROW_ACTION = "h-11 shrink-0 px-3 text-[13px] md:h-8";
 
-interface AccountSettingsProps {
+export function SignInMethods({
+  hasPassword,
+  email,
+  providers,
+}: {
   hasPassword: boolean;
   email: string | null;
-  linkedAccounts: LinkedAccount[];
-}
-
-export function AccountSettings({ hasPassword, email, linkedAccounts }: AccountSettingsProps) {
-  const hasDiscord = linkedAccounts.some((a) => a.provider === "discord");
+  providers: string[];
+}) {
+  const hasDiscord = providers.includes("discord");
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Linked Providers</CardTitle>
-          <CardDescription>
-            Manage your sign-in methods. You must keep at least one.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Discord</p>
-              <p className="text-sm text-muted-foreground">
-                {hasDiscord ? "Connected" : "Not connected"}
-              </p>
-            </div>
-            {hasDiscord ? (
-              <UnlinkButton provider="discord" />
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => signIn("discord", { callbackUrl: "/settings" })}
-              >
-                Link Discord
-              </Button>
-            )}
-          </div>
+    <ul className="rounded-xl border">
+      <MethodRow
+        short="DC"
+        name="Discord"
+        status={hasDiscord ? "Connected" : "Not connected"}
+        connected={hasDiscord}
+        action={
+          hasDiscord ? (
+            <UnlinkButton provider="discord" />
+          ) : (
+            <Button
+              variant="outline"
+              className={ROW_ACTION}
+              onClick={() => signIn("discord", { callbackUrl: "/settings#sign-in" })}
+            >
+              Link
+            </Button>
+          )
+        }
+      />
+      <MethodRow
+        short="@"
+        name="Email & password"
+        status={hasPassword ? (email ?? "Set") : "Not set"}
+        connected={hasPassword}
+        action={
+          <a href="#password" className={cn("inline-flex items-center rounded-lg border", ROW_ACTION)}>
+            {hasPassword ? "Change" : "Set up"}
+          </a>
+        }
+      />
+      <MethodRow
+        short="io"
+        name="itch.io"
+        status="Coming soon: verifies your games automatically"
+        connected={false}
+        action={
+          <Button variant="outline" disabled className={ROW_ACTION}>
+            Link
+          </Button>
+        }
+        last
+      />
+    </ul>
+  );
+}
 
-          <Separator />
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Email & Password</p>
-              <p className="text-sm text-muted-foreground">
-                {hasPassword ? `Configured (${email})` : "Not configured"}
-              </p>
-            </div>
-          </div>
-
-          {!hasPassword && <LinkPasswordForm />}
-          {hasPassword && <ChangePasswordForm />}
-        </CardContent>
-      </Card>
-    </div>
+function MethodRow({
+  short,
+  name,
+  status,
+  connected,
+  action,
+  last,
+}: {
+  short: string;
+  name: string;
+  status: string;
+  connected: boolean;
+  action: React.ReactNode;
+  last?: boolean;
+}) {
+  return (
+    <li className={cn("flex items-center gap-3.5 px-4 py-3.5", !last && "border-b")}>
+      <span
+        aria-hidden
+        className="flex size-8.5 shrink-0 items-center justify-center rounded-lg border bg-muted text-xs font-semibold text-muted-foreground"
+      >
+        {short}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="text-sm font-medium">{name}</span>
+        <span className={cn("truncate text-[13px]", connected ? "text-live" : "text-subtle-foreground")}>
+          {status}
+        </span>
+      </div>
+      {action}
+    </li>
   );
 }
 
 function UnlinkButton({ provider }: { provider: string }) {
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function handleUnlink() {
     setLoading(true);
-    setError(null);
     const result = await unlinkProviderAction(provider);
     setLoading(false);
-    if (result.error) setError(result.error);
+    if (result.error) toast.error(result.error);
+    else toast.success("Unlinked");
   }
 
   return (
-    <div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={handleUnlink}
-        disabled={loading}
-      >
-        {loading ? "Unlinking…" : "Unlink"}
-      </Button>
-      {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
-    </div>
+    <Button variant="outline" onClick={handleUnlink} disabled={loading} className={ROW_ACTION}>
+      {loading ? "Unlinking…" : "Unlink"}
+    </Button>
   );
 }
 
-function LinkPasswordForm() {
+export function PasswordSection({ hasPassword, email }: { hasPassword: boolean; email: string | null }) {
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-    setSuccess(false);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const password = formData.get(hasPassword ? "newPassword" : "password");
+    if (password !== formData.get("confirmPassword")) {
+      setError("The passwords do not match.");
+      return;
+    }
+
     setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    const result = await linkPasswordAction(formData);
+    const result = hasPassword ? await changePasswordAction(formData) : await linkPasswordAction(formData);
     setLoading(false);
-
     if (result.error) {
       setError(result.error);
-    } else {
-      setSuccess(true);
+      return;
     }
+    toast.success(hasPassword ? "Password changed" : "Password sign-in added");
+    form.reset();
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="space-y-2">
-        <Label htmlFor="link-email">Email</Label>
-        <Input
-          id="link-email"
-          name="email"
-          type="email"
-          required
-          autoComplete="email"
-        />
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
+      <div className="flex max-w-105 flex-col gap-1.5">
+        <Label htmlFor="email">Email</Label>
+        {hasPassword ? (
+          <Input id="email" type="email" value={email ?? ""} readOnly className={FIELD} />
+        ) : (
+          <Input id="email" name="email" type="email" required autoComplete="email" className={FIELD} />
+        )}
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="link-password">Password</Label>
-        <Input
-          id="link-password"
-          name="password"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
+      {hasPassword && (
+        <div className="flex max-w-105 flex-col gap-1.5">
+          <Label htmlFor="currentPassword">Current password</Label>
+          <Input
+            id="currentPassword"
+            name="currentPassword"
+            type="password"
+            required
+            autoComplete="current-password"
+            className={FIELD}
+          />
+        </div>
+      )}
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="newPassword">New password</Label>
+          <Input
+            id="newPassword"
+            name={hasPassword ? "newPassword" : "password"}
+            type="password"
+            required
+            minLength={8}
+            autoComplete="new-password"
+            aria-describedby="newPassword-hint"
+            className={FIELD}
+          />
+          <p id="newPassword-hint" className="text-xs text-subtle-foreground">
+            At least 8 characters with a letter and a number.
+          </p>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="confirmPassword">Confirm password</Label>
+          <Input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            autoComplete="new-password"
+            className={FIELD}
+          />
+        </div>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {success && <p className="text-sm text-green-600">Password login added.</p>}
-      <Button type="submit" size="sm" disabled={loading}>
-        {loading ? "Linking…" : "Set Email & Password"}
-      </Button>
-    </form>
-  );
-}
-
-function ChangePasswordForm() {
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-    setLoading(true);
-
-    const formData = new FormData(e.currentTarget);
-    const result = await changePasswordAction(formData);
-    setLoading(false);
-
-    if (result.error) {
-      setError(result.error);
-    } else {
-      setSuccess(true);
-      (e.target as HTMLFormElement).reset();
-    }
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="space-y-2">
-        <Label htmlFor="current-password">Current Password</Label>
-        <Input
-          id="current-password"
-          name="currentPassword"
-          type="password"
-          required
-          autoComplete="current-password"
-        />
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
+      <div className="flex justify-end">
+        <Button
+          type="submit"
+          variant="outline"
+          disabled={loading}
+          className="h-11 w-full px-4 md:h-9.5 md:w-auto"
+        >
+          {loading ? "Saving…" : hasPassword ? "Change password" : "Set password"}
+        </Button>
       </div>
-      <div className="space-y-2">
-        <Label htmlFor="new-password">New Password</Label>
-        <Input
-          id="new-password"
-          name="newPassword"
-          type="password"
-          required
-          minLength={8}
-          autoComplete="new-password"
-        />
-      </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-      {success && <p className="text-sm text-green-600">Password updated.</p>}
-      <Button type="submit" size="sm" disabled={loading}>
-        {loading ? "Updating…" : "Change Password"}
-      </Button>
     </form>
   );
 }

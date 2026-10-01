@@ -3,21 +3,16 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { hashSync, compare } from "bcryptjs";
-import { z } from "zod";
+import { linkPasswordSchema, passwordSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
-
-const linkPasswordSchema = z.object({
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[a-zA-Z]/, "Password must contain at least one letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
-  email: z.string().email(),
-});
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export async function linkPasswordAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
+  if (!checkRateLimit(`settings:password:${session.user.id}`).allowed) {
+    return { error: "Too many requests. Please try again later." };
+  }
 
   const raw = {
     email: formData.get("email") as string,
@@ -54,6 +49,9 @@ export async function linkPasswordAction(formData: FormData) {
 export async function changePasswordAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
+  if (!checkRateLimit(`settings:password:${session.user.id}`).allowed) {
+    return { error: "Too many requests. Please try again later." };
+  }
 
   const currentPassword = formData.get("currentPassword") as string;
   const newPassword = formData.get("newPassword") as string;
@@ -62,9 +60,8 @@ export async function changePasswordAction(formData: FormData) {
     return { error: "Both fields are required." };
   }
 
-  if (newPassword.length < 8) {
-    return { error: "Password must be at least 8 characters." };
-  }
+  const rule = passwordSchema.safeParse(newPassword);
+  if (!rule.success) return { error: rule.error.issues[0].message };
 
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user?.passwordHash) return { error: "No password set." };
@@ -85,6 +82,9 @@ export async function changePasswordAction(formData: FormData) {
 export async function unlinkProviderAction(provider: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
+  if (!checkRateLimit(`settings:unlink:${session.user.id}`).allowed) {
+    return { error: "Too many requests. Please try again later." };
+  }
 
   const user = await db.user.findUnique({
     where: { id: session.user.id },

@@ -31,8 +31,10 @@ one plan per group:
    Follow-up: push the "Manage" tab to the right on desktop (`LinkTabs` has no alignment option).
 2. **Rate & results:** done. The rating page and the results tab follow the "Rate a game" and
    "Results" boards and their mobile versions.
-3. **People & account:** profile, settings (profile, sign-in methods, appearance, delete
-   account), sign in / sign up (tabbed).
+3. **People & account:** done. Profile, settings and the tabbed sign in / sign up follow
+   their boards. Still open: the settings board's **Delete account** section. The spec has
+   no self-service deletion (only staff can delete accounts), so it needs product rules first (what
+   happens to led submissions, organized jams and ratings) before it is built.
 4. **Organize:** host/edit jam form with the "Ready to publish?" checklist panel, submission
    editor with the itch.io verification card and "Ready to submit?" panel, manage jam
    (results banner, moderation switches table, organizers), platform admin.
@@ -42,8 +44,7 @@ one plan per group:
    foundations plan ships it as a plain link to `/jams`.
 7. **Foundations follow-ups:** check the mobile header at 390px (logo, search, account chip
    and menu may be tight); add a signed-in e2e session covering the account menu (profile
-   link, theme picker); guard `await update()` in the settings profile form against a
-   network error; add `Number.isFinite` guards for Invalid Date in `phaseProgress` /
+   link, theme picker); add `Number.isFinite` guards for Invalid Date in `phaseProgress` /
    `formatDuration`; the podium row link underlines place and score on hover; the dark
    `--accent` equals `--secondary`, so hover on muted surfaces is flat.
 

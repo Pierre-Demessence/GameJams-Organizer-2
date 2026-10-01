@@ -36,6 +36,7 @@
 |------|-------------|
 | `page.tsx` | Homepage — live jam panel, upcoming schedule and recent results |
 | `layout.tsx` | Root layout (fonts, theme, site header, footer, Toaster) |
+| `(auth)/auth-shell.tsx` | Shared sign in / sign up panel: tabs, Discord button, footer |
 | `(auth)/sign-in/` | Sign-in page |
 | `(auth)/sign-up/` | Sign-up page |
 | `jams/page.tsx` | Browse jams: status tabs with counts, search, tag chips, format and sort filters, paging (`jam-filters.tsx` is the client select controls) |
@@ -51,7 +52,7 @@
 | `submissions/[id]/edit/` | Edit a submission |
 | `submissions/[id]/rate/` | Rate a submission: every criterion scored 1–5, "Save & rate next" (rating period) |
 | `users/[username]/` | Public user profile |
-| `settings/` | Account settings (profile, linked accounts) |
+| `settings/` | Account settings: profile, sign-in methods, email & password, appearance |
 
 ## Domain Rules (`src/domain/`)
 
@@ -93,6 +94,8 @@ Pure functions over plain data plus `now`, one module per spec area. Each rule t
 | `jam-entries-queries.ts` | `loadJamEntries`: visible entries with rater counts and rating progress (server-only) |
 | `jam-labels.ts` | Rating-eligibility, role and platform labels (pure) |
 | `results-view.ts` | Results tab params, overall/per-criterion ranking view and podium, score formatting (pure) |
+| `profile.ts` | Profile placement labels, role summaries, jam ordering (pure) |
+| `profile-queries.ts` | `loadProfile`: public jams, roles, games with placements and stats (server-only) |
 | `results-queries.ts` | `loadResultsPage`: results joined with titles, covers, teams and moderation reasons (server-only) |
 | `initials.ts` | `initials(name)` for avatar and cover placeholders (pure) |
 | `utils.ts` | General utilities (`cn` class merge, etc.) |

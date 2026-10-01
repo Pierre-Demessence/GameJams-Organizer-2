@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { SignUpForm } from "./sign-up-form";
 
 export const metadata = {
@@ -6,8 +7,8 @@ export const metadata = {
 
 export default function SignUpPage() {
   return (
-    <div className="flex min-h-[calc(100vh-8rem)] items-center justify-center p-4">
+    <Suspense>
       <SignUpForm />
-    </div>
+    </Suspense>
   );
 }

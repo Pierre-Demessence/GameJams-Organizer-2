@@ -6,8 +6,8 @@
 |---------|-------------|-------------|
 | **Discord OAuth** | Sign in / register via Discord OAuth 2.0 | High |
 | **Email/Password Auth** | Register and sign in with email and password | High |
-| **User Profiles** | Public profiles with username, bio, avatar, and jam/submission history | Medium |
-| **Account Settings** | Edit profile, link/unlink OAuth providers | Medium |
+| **User Profiles** | Public profiles: avatar, bio, stats, games with their placement, and public jams with the user's roles | Medium |
+| **Account Settings** | Edit profile, link/unlink Discord, set or change the password, pick the theme | Medium |
 | **Jam Creation** | Create game jams with name, description, dates, themes, rating criteria | High |
 | **Jam Lifecycle** | Explicit publish out of DRAFT, then phases derived from dates: UPCOMING → ONGOING → RATING → FINISHED | High |
 | **Jam Browsing** | Status tabs with counts, search, tags, format and sort, paging | High |

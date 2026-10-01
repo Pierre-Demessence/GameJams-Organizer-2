@@ -34,6 +34,7 @@ export default defineConfig({
         "src/lib/jam-page-queries.ts",
         "src/lib/jam-entries-queries.ts",
         "src/lib/results-queries.ts",
+        "src/lib/profile-queries.ts",
       ],
     },
   },

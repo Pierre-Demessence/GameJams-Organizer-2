@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { safeHttpUrl } from "@/lib/safe-url";
 
 export const slugPattern = /^[a-z0-9][a-z0-9-]{1,58}[a-z0-9]$/;
 
@@ -46,18 +47,27 @@ export function isItchProjectUrl(value: string): boolean {
   }
 }
 
+export const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[a-zA-Z]/, "Password must contain at least one letter")
+  .regex(/[0-9]/, "Password must contain at least one number");
+
+const usernameSchema = z
+  .string()
+  .min(3, "Username must be at least 3 characters")
+  .max(30)
+  .regex(/^[a-z0-9_-]+$/, "Username must be lowercase alphanumeric, hyphens, or underscores");
+
 export const signUpSchema = z.object({
   email: z.string().email(),
-  password: z
-    .string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[a-zA-Z]/, "Password must contain at least one letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
-  username: z
-    .string()
-    .min(3, "Username must be at least 3 characters")
-    .max(30)
-    .regex(/^[a-z0-9_-]+$/, "Username must be lowercase alphanumeric, hyphens, or underscores"),
+  password: passwordSchema,
+  username: usernameSchema,
+});
+
+export const linkPasswordSchema = z.object({
+  email: z.string().email(),
+  password: passwordSchema,
 });
 
 export const signInSchema = z.object({
@@ -66,14 +76,14 @@ export const signInSchema = z.object({
 });
 
 export const profileSchema = z.object({
-  username: z
-    .string()
-    .min(3)
-    .max(30)
-    .regex(/^[a-z0-9_-]+$/),
+  username: usernameSchema,
   displayName: z.string().max(50).optional(),
   bio: z.string().max(500).optional(),
-  avatarUrl: z.string().url().optional().or(z.literal("")),
+  // z.url() also accepts javascript: and data: URLs; avatars render as <img src>.
+  avatarUrl: z
+    .string()
+    .refine((v) => v === "" || safeHttpUrl(v) !== null, "Avatar URL must start with http:// or https://")
+    .optional(),
 });
 
 export const jamSchema = z.object({

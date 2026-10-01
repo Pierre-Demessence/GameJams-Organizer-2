@@ -15,6 +15,11 @@
   --color-rating: var(--rating);
   --color-finished: var(--finished);
   --color-track: var(--track);
+  /* Discord's brand color, the same in both themes. */
+  --color-discord: #5865f2;
+  /* Theme previews in settings: the light and dark backgrounds whatever the active theme. */
+  --color-preview-light: #fafafa;
+  --color-preview-dark: #0b0c0e;
   --color-subtle-foreground: var(--subtle-foreground);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
