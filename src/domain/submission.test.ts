@@ -1,13 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
-  canAddContributor,
+  canAcceptInvite,
   canCreateSubmission,
   canDeleteOwnSubmission,
   canEditSubmission,
   canFinalizeSubmission,
+  canInviteContributor,
   canRemoveContributor,
   canTransferLeadership,
   canUnsubmit,
+  isContributorWindowOpen,
 } from "@/domain/submission";
 import type { JamPhase } from "@/domain/jam-phase";
 
@@ -87,52 +89,113 @@ describe("canUnsubmit", () => {
 });
 
 describe("contributor change window", () => {
-  const team = {
-    ranked: true,
-    allowContributorsAfterClose: false,
+  const window = { ranked: true, allowContributorsAfterClose: false };
+  const invite = {
+    ...window,
     isMember: true,
+    teamSize: 1,
+    pendingInvites: 0,
+    maxTeamSize: null,
+    invitee: { hasJoined: true, hasLiveSubmission: false, alreadyInvited: false },
+  };
+  const accept = {
+    ...window,
+    hasJoined: true,
+    hasLiveSubmission: false,
     teamSize: 1,
     maxTeamSize: null,
   };
+  const afterClose = { ranked: true, allowContributorsAfterClose: true };
 
-  it("lets any member add contributors while ONGOING", () => {
-    expect(openIn((phase) => canAddContributor({ ...team, phase }))).toEqual(["ONGOING"]);
+  it("is open while ONGOING", () => {
+    expect(openIn((phase) => ({ allowed: isContributorWindowOpen({ ...window, phase }) }))).toEqual([
+      "ONGOING",
+    ]);
   });
 
-  it("extends additions through RATING when the ranked jam allows it", () => {
-    const after = { ...team, allowContributorsAfterClose: true };
-    expect(openIn((phase) => canAddContributor({ ...after, phase }))).toEqual([
+  it("extends through RATING when the ranked jam allows it", () => {
+    expect(openIn((phase) => ({ allowed: isContributorWindowOpen({ ...afterClose, phase }) }))).toEqual([
       "ONGOING",
       "RATING",
     ]);
   });
 
   it("has no effect on non-ranked jams", () => {
-    const unranked = { ...team, ranked: false, allowContributorsAfterClose: true };
-    expect(openIn((phase) => canAddContributor({ ...unranked, phase }))).toEqual(["ONGOING"]);
+    const unranked = { ranked: false, allowContributorsAfterClose: true };
+    expect(openIn((phase) => ({ allowed: isContributorWindowOpen({ ...unranked, phase }) }))).toEqual([
+      "ONGOING",
+    ]);
   });
 
-  it("respects the maximum team size", () => {
-    const full = { ...team, phase: "ONGOING" as const, teamSize: 3, maxTeamSize: 3 };
-    expect(canAddContributor(full).allowed).toBe(false);
-    expect(canAddContributor({ ...full, teamSize: 2 }).allowed).toBe(true);
+  describe("canInviteContributor", () => {
+    it("lets any member invite while the window is open", () => {
+      expect(openIn((phase) => canInviteContributor({ ...invite, phase }))).toEqual(["ONGOING"]);
+      expect(
+        openIn((phase) => canInviteContributor({ ...invite, ...afterClose, phase }))
+      ).toEqual(["ONGOING", "RATING"]);
+    });
+
+    it("counts pending invites against the maximum team size", () => {
+      const full = { ...invite, phase: "ONGOING" as const, maxTeamSize: 3, teamSize: 2 };
+      expect(canInviteContributor({ ...full, pendingInvites: 0 }).allowed).toBe(true);
+      expect(canInviteContributor({ ...full, pendingInvites: 1 }).allowed).toBe(false);
+      expect(canInviteContributor({ ...full, teamSize: 3 }).allowed).toBe(false);
+    });
+
+    it("rejects non-members", () => {
+      expect(canInviteContributor({ ...invite, phase: "ONGOING", isMember: false }).allowed).toBe(
+        false
+      );
+    });
+
+    it("needs an invitee who joined, has no live submission and is not yet invited", () => {
+      const base = { ...invite, phase: "ONGOING" as const };
+      const invitee = base.invitee;
+      expect(canInviteContributor({ ...base, invitee: { ...invitee, hasJoined: false } }).allowed).toBe(false);
+      expect(
+        canInviteContributor({ ...base, invitee: { ...invitee, hasLiveSubmission: true } }).allowed
+      ).toBe(false);
+      expect(canInviteContributor({ ...base, invitee: { ...invitee, alreadyInvited: true } }).allowed).toBe(
+        false
+      );
+    });
   });
 
-  it("rejects non-members", () => {
-    expect(canAddContributor({ ...team, phase: "ONGOING", isMember: false }).allowed).toBe(
-      false
-    );
+  describe("canAcceptInvite", () => {
+    it("is open while the window is open", () => {
+      expect(openIn((phase) => canAcceptInvite({ ...accept, phase }))).toEqual(["ONGOING"]);
+      expect(openIn((phase) => canAcceptInvite({ ...accept, ...afterClose, phase }))).toEqual([
+        "ONGOING",
+        "RATING",
+      ]);
+    });
+
+    it("re-checks joined state and the single-submission rule", () => {
+      const base = { ...accept, phase: "ONGOING" as const };
+      expect(canAcceptInvite({ ...base, hasJoined: false }).allowed).toBe(false);
+      expect(canAcceptInvite({ ...base, hasLiveSubmission: true }).allowed).toBe(false);
+    });
+
+    it("counts members only against the maximum team size", () => {
+      const base = { ...accept, phase: "ONGOING" as const, maxTeamSize: 3 };
+      expect(canAcceptInvite({ ...base, teamSize: 2 }).allowed).toBe(true);
+      expect(canAcceptInvite({ ...base, teamSize: 3 }).allowed).toBe(false);
+    });
   });
 
-  it("never removes after close, even when additions stay open", () => {
-    const after = { ...team, allowContributorsAfterClose: true, targetIsLeader: false };
-    expect(openIn((phase) => canRemoveContributor({ ...after, phase }))).toEqual(["ONGOING"]);
-  });
+  describe("canRemoveContributor", () => {
+    const team = { ...window, isMember: true };
 
-  it("never removes the leader", () => {
-    expect(
-      canRemoveContributor({ ...team, phase: "ONGOING", targetIsLeader: true }).allowed
-    ).toBe(false);
+    it("never removes after close, even when additions stay open", () => {
+      const after = { ...team, ...afterClose, targetIsLeader: false };
+      expect(openIn((phase) => canRemoveContributor({ ...after, phase }))).toEqual(["ONGOING"]);
+    });
+
+    it("never removes the leader", () => {
+      expect(
+        canRemoveContributor({ ...team, phase: "ONGOING", targetIsLeader: true }).allowed
+      ).toBe(false);
+    });
   });
 });
 

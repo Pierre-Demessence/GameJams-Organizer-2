@@ -9,7 +9,7 @@ import { entryPanelState } from "@/lib/jam-page";
 import { loadJamPage, type JamPageData } from "@/lib/jam-page-queries";
 import { cn } from "@/lib/utils";
 import { JamHeader } from "./jam-header";
-import { JoinJamButton } from "./jam-actions-client";
+import { InviteResponseButtons, JoinJamButton, LeaveJamButton } from "./jam-actions-client";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
@@ -132,6 +132,7 @@ function EntryCard({ data }: { data: JamPageData }) {
     phase,
     hasJoined: viewer.hasJoined,
     submission: viewer.submission,
+    invites: viewer.invites,
   });
   const fullWidth = cn(buttonVariants(), "h-10 min-h-11 w-full md:min-h-10");
 
@@ -158,18 +159,32 @@ function EntryCard({ data }: { data: JamPageData }) {
       );
       break;
     case "joined":
-      body = entry.canCreate ? (
+      body = (
         <>
-          <p className="text-sm text-muted-foreground">
-            You&apos;ve joined but haven&apos;t submitted yet. Start a draft now — teammates can be added until{" "}
-            <span className="font-mono">{jam.endDate ? `${STAMP.format(jam.endDate)} UTC` : "the jam ends"}</span>.
-          </p>
-          <Link href={`/jams/${jam.slug}/submissions/new`} className={fullWidth}>
-            Create submission
-          </Link>
+          {entry.invites.map((invite) => (
+            <div key={invite.id} className="flex flex-col gap-2 rounded-lg border p-3">
+              <p className="text-sm">
+                <span className="font-medium">{invite.inviterName}</span> invited you to join{" "}
+                <span className="font-medium">{invite.submissionTitle}</span>.
+              </p>
+              <InviteResponseButtons inviteId={invite.id} label={invite.submissionTitle} />
+            </div>
+          ))}
+          {entry.canCreate ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                You&apos;ve joined but haven&apos;t submitted yet. Start a draft now — teammates can be added until{" "}
+                <span className="font-mono">{jam.endDate ? `${STAMP.format(jam.endDate)} UTC` : "the jam ends"}</span>.
+              </p>
+              <Link href={`/jams/${jam.slug}/submissions/new`} className={fullWidth}>
+                Create submission
+              </Link>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">You&apos;ve joined. Submissions open when the jam starts.</p>
+          )}
+          <LeaveJamButton jamId={jam.id} className="w-full" />
         </>
-      ) : (
-        <p className="text-sm text-muted-foreground">You&apos;ve joined. Submissions open when the jam starts.</p>
       );
       break;
     case "has-entry":
@@ -184,6 +199,7 @@ function EntryCard({ data }: { data: JamPageData }) {
           >
             Open your submission
           </Link>
+          <p className="text-xs text-subtle-foreground">{entry.leaveReason}</p>
         </>
       );
       break;

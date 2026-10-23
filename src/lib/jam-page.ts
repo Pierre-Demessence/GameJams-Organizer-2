@@ -1,6 +1,7 @@
 import type { JamPhase, JamPhaseInput } from "@/domain/jam-phase";
-import { canJoin } from "@/domain/participation";
+import { canJoin, canLeaveJam } from "@/domain/participation";
 import { canCreateSubmission } from "@/domain/submission";
+import type { ViewerInviteView } from "@/lib/invite-queries";
 import { phaseProgress } from "@/lib/jam-status-display";
 
 export type TimelineState = "past" | "current" | "future";
@@ -16,8 +17,8 @@ export interface TimelineSegment {
 export type EntryPanel =
   | { kind: "signed-out"; canJoin: boolean }
   | { kind: "can-join" }
-  | { kind: "joined"; canCreate: boolean }
-  | { kind: "has-entry"; submissionId: string; status: "DRAFT" | "SUBMITTED" }
+  | { kind: "joined"; canCreate: boolean; invites: ViewerInviteView[] }
+  | { kind: "has-entry"; submissionId: string; status: "DRAFT" | "SUBMITTED"; leaveReason: string }
   | { kind: "closed" };
 
 const DAY = new Intl.DateTimeFormat("en", { month: "short", day: "2-digit", timeZone: "UTC" });
@@ -67,15 +68,23 @@ export function entryPanelState(input: {
   phase: JamPhase;
   hasJoined: boolean;
   submission: { id: string; status: "DRAFT" | "SUBMITTED" } | null;
+  invites: ViewerInviteView[];
 }): EntryPanel {
   const joinable = canJoin({ phase: input.phase, hasJoined: false }).allowed;
   if (!input.signedIn) return { kind: "signed-out", canJoin: joinable };
   if (input.submission) {
-    return { kind: "has-entry", submissionId: input.submission.id, status: input.submission.status };
+    // Always a refusal here: a live submission is what blocks leaving, so the page shows the reason.
+    const leave = canLeaveJam({ hasJoined: true, isParticipant: true });
+    return {
+      kind: "has-entry",
+      submissionId: input.submission.id,
+      status: input.submission.status,
+      leaveReason: leave.allowed ? "" : leave.reason,
+    };
   }
   if (input.hasJoined) {
     const canCreate = canCreateSubmission({ phase: input.phase, hasJoined: true, hasSubmission: false }).allowed;
-    return { kind: "joined", canCreate };
+    return { kind: "joined", canCreate, invites: input.invites };
   }
   return joinable ? { kind: "can-join" } : { kind: "closed" };
 }

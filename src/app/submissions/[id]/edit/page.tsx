@@ -3,12 +3,9 @@ import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { checkJamPermission } from "@/lib/permissions";
 import { jamPhase } from "@/domain/jam-phase";
-import {
-  canAddContributor,
-  canDeleteOwnSubmission,
-  canEditSubmission,
-  canRemoveContributor,
-} from "@/domain/submission";
+import { canDeleteOwnSubmission, canEditSubmission } from "@/domain/submission";
+import { loadSubmissionInvites } from "@/lib/invite-queries";
+import { teamPanelState } from "@/lib/team-panel";
 import { SubmissionForm } from "@/app/jams/[slug]/submissions/new/submission-form";
 
 export async function generateMetadata({
@@ -96,18 +93,14 @@ export default async function EditSubmissionPage({
 
   const userId = session.user.id;
   const isLeader = submission.members.some((m) => m.userId === userId && m.isLeader);
-  const teamContext = {
+  const team = teamPanelState({
     phase,
     ranked: submission.jam.ranked,
     allowContributorsAfterClose: submission.jam.allowContributorsAfterClose,
     isMember,
-  };
-  const canAdd = canAddContributor({
-    ...teamContext,
-    teamSize: submission.members.length,
-    maxTeamSize: submission.jam.maxTeamSize,
-  }).allowed;
-  const canRemove = canRemoveContributor({ ...teamContext, targetIsLeader: false }).allowed;
+    isLeader,
+  });
+  const invites = isMember ? await loadSubmissionInvites(submission.id) : [];
 
   return (
     <SubmissionForm
@@ -126,10 +119,14 @@ export default async function EditSubmissionPage({
         isMember
           ? {
               submissionId: submission.id,
+              jamSlug: submission.jam.slug,
               currentUserId: userId,
-              canAdd,
-              canRemove,
+              canInvite: team.canInvite,
+              canRemove: team.canRemove,
               canTransfer: isLeader,
+              canLeave: team.canLeave,
+              leaveHint: team.leaveHint,
+              invites,
               maxTeamSize: submission.jam.maxTeamSize,
               members: submission.members.map((m) => ({
                 id: m.id,

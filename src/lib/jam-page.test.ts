@@ -35,7 +35,8 @@ describe("jamTimeline", () => {
 });
 
 describe("entryPanelState", () => {
-  const none = { signedIn: true, hasJoined: false, submission: null };
+  const none = { signedIn: true, hasJoined: false, submission: null, invites: [] };
+  const invite = { id: "i1", submissionTitle: "Space Game", inviterName: "Ada" };
   it("asks signed-out visitors to sign in, saying whether they could join", () => {
     expect(entryPanelState({ ...none, signedIn: false, phase: "UPCOMING" })).toEqual({ kind: "signed-out", canJoin: true });
     expect(entryPanelState({ ...none, signedIn: false, phase: "FINISHED" })).toEqual({ kind: "signed-out", canJoin: false });
@@ -44,13 +45,25 @@ describe("entryPanelState", () => {
     expect(entryPanelState({ ...none, phase: "ONGOING" })).toEqual({ kind: "can-join" });
   });
   it("lets joined users create a submission only while live", () => {
-    expect(entryPanelState({ ...none, hasJoined: true, phase: "ONGOING" })).toEqual({ kind: "joined", canCreate: true });
-    expect(entryPanelState({ ...none, hasJoined: true, phase: "UPCOMING" })).toEqual({ kind: "joined", canCreate: false });
+    expect(entryPanelState({ ...none, hasJoined: true, phase: "ONGOING" })).toEqual({ kind: "joined", canCreate: true, invites: [] });
+    expect(entryPanelState({ ...none, hasJoined: true, phase: "UPCOMING" })).toEqual({ kind: "joined", canCreate: false, invites: [] });
+  });
+  it("lists the pending invites a joined user can answer", () => {
+    expect(entryPanelState({ ...none, hasJoined: true, phase: "ONGOING", invites: [invite] })).toEqual({
+      kind: "joined",
+      canCreate: true,
+      invites: [invite],
+    });
   });
   it("points to the existing entry", () => {
     expect(
       entryPanelState({ ...none, hasJoined: true, phase: "RATING", submission: { id: "s1", status: "SUBMITTED" } })
-    ).toEqual({ kind: "has-entry", submissionId: "s1", status: "SUBMITTED" });
+    ).toEqual({
+      kind: "has-entry",
+      submissionId: "s1",
+      status: "SUBMITTED",
+      leaveReason: "Leave your submission before leaving the jam",
+    });
   });
   it("is closed for outsiders once submissions close", () => {
     expect(entryPanelState({ ...none, phase: "RATING" })).toEqual({ kind: "closed" });

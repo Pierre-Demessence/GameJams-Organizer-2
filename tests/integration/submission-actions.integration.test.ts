@@ -1,13 +1,18 @@
 import { describe, it, expect } from "vitest";
 import {
-  addContributorAction,
+  acceptInviteAction,
   createSubmissionAction,
   deleteSubmissionAction,
+  inviteContributorAction,
+  leaveSubmissionAction,
+  removeContributorAction,
+  transferLeaderAction,
   updateSubmissionAction,
 } from "@/app/submissions/actions";
 import { db } from "@/lib/db";
 import { actingAs, signOut } from "./current-session";
 import {
+  addMember,
   createUser,
   createJam,
   createOngoingJam,
@@ -224,7 +229,7 @@ describe("updateSubmissionAction custom fields", () => {
 });
 
 describe("team management", () => {
-  it("lets a contributor add another participant", async () => {
+  it("lets a contributor invite another participant, who then accepts", async () => {
     const owner = await createUser();
     const jam = await createOngoingJam(owner.id);
     const leader = await createUser();
@@ -232,14 +237,15 @@ describe("team management", () => {
     const newcomer = await createUser("newcomer");
     for (const u of [leader, contributor, newcomer]) await joinJam(jam.id, u.id);
     const submission = await createSubmission(jam.id, leader.id);
-    await db.submissionMember.create({
-      data: { submissionId: submission.id, userId: contributor.id },
-    });
+    await addMember(submission.id, contributor.id);
     actingAs(contributor.id);
 
-    const res = await addContributorAction(submission.id, "newcomer");
+    expect((await inviteContributorAction(submission.id, "newcomer")).success).toBe(true);
+    const invite = await db.submissionInvite.findFirstOrThrow({ where: { submissionId: submission.id } });
+    actingAs(newcomer.id);
+    expect((await acceptInviteAction(invite.id)).success).toBe(true);
 
-    expect(res.success).toBe(true);
+    expect(await db.submissionMember.count({ where: { submissionId: submission.id } })).toBe(3);
   });
 
   it("frees members of a deleted submission to join another team", async () => {
@@ -255,9 +261,79 @@ describe("team management", () => {
     actingAs(owner.id);
     expect((await deleteSubmissionAction(deleted.id)).success).toBe(true);
     actingAs(leader.id);
-    const res = await addContributorAction(submission.id, "former");
+    const res = await inviteContributorAction(submission.id, "former");
 
     expect(res.success).toBe(true);
+  });
+});
+
+describe("leaveSubmissionAction", () => {
+  async function team(jamOf: (ownerId: string) => ReturnType<typeof createOngoingJam>) {
+    const owner = await createUser();
+    const jam = await jamOf(owner.id);
+    const leader = await createUser();
+    const member = await createUser();
+    for (const u of [leader, member]) await joinJam(jam.id, u.id);
+    const submission = await createSubmission(jam.id, leader.id);
+    await addMember(submission.id, member.id);
+    return { jam, leader, member, submission };
+  }
+
+  it("removes a non-leader member while ongoing and keeps them joined", async () => {
+    const { jam, member, submission } = await team(createOngoingJam);
+    actingAs(member.id);
+
+    const res = await leaveSubmissionAction(submission.id);
+
+    expect(res.success).toBe(true);
+    expect(await db.submissionMember.count({ where: { submissionId: submission.id } })).toBe(1);
+    expect(await db.jamParticipant.count({ where: { jamId: jam.id, userId: member.id } })).toBe(1);
+  });
+
+  it("refuses the leader with the hand-over reason", async () => {
+    const { leader, submission } = await team(createOngoingJam);
+    actingAs(leader.id);
+
+    expect((await leaveSubmissionAction(submission.id)).error).toMatch(/transfer leadership/i);
+    expect(await db.submissionMember.count({ where: { submissionId: submission.id } })).toBe(2);
+  });
+
+  it("refuses outside the ongoing period", async () => {
+    const { member, submission } = await team(createFinishedJam);
+    actingAs(member.id);
+
+    expect((await leaveSubmissionAction(submission.id)).error).toMatch(/ongoing/i);
+    expect(await db.submissionMember.count({ where: { submissionId: submission.id } })).toBe(2);
+  });
+
+  it("rejects signed-out users, non-members and unknown submissions", async () => {
+    const { submission } = await team(createOngoingJam);
+    const outsider = await createUser();
+
+    signOut();
+    expect((await leaveSubmissionAction(submission.id)).error).toMatch(/signed in/i);
+    actingAs(outsider.id);
+    expect((await leaveSubmissionAction(submission.id)).error).toMatch(/not on this team/i);
+    expect((await leaveSubmissionAction("missing")).error).toMatch(/not found/i);
+  });
+});
+
+describe("team action rate limits", () => {
+  const actions: [string, () => Promise<{ error?: string }>][] = [
+    ["remove", () => removeContributorAction("missing", "nobody")],
+    ["transfer", () => transferLeaderAction("missing", "nobody")],
+    ["leave", () => leaveSubmissionAction("missing")],
+  ];
+
+  it.each(actions)("throttles %s", async (_name, run) => {
+    const user = await createUser();
+    actingAs(user.id);
+
+    const results = [];
+    for (let i = 0; i < 11; i++) results.push(await run());
+
+    expect(results[9].error).not.toMatch(/too many/i);
+    expect(results[10].error).toMatch(/too many/i);
   });
 });
 

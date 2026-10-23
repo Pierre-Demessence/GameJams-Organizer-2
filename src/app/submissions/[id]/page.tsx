@@ -6,17 +6,15 @@ import { checkJamPermission } from "@/lib/permissions";
 import { getUserRatings, loadRater } from "@/lib/rating-queries";
 import { jamPhase } from "@/domain/jam-phase";
 import { canRate } from "@/domain/rating";
-import {
-  canAddContributor,
-  canEditSubmission,
-  canRemoveContributor,
-} from "@/domain/submission";
+import { canEditSubmission } from "@/domain/submission";
 import { CoverImage } from "@/components/cover-image";
 import { Markdown } from "@/components/markdown";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { initials } from "@/lib/initials";
+import { loadSubmissionInvites } from "@/lib/invite-queries";
 import { platformLabel } from "@/lib/jam-labels";
 import { safeHttpUrl } from "@/lib/safe-url";
+import { teamPanelState } from "@/lib/team-panel";
 import { cn } from "@/lib/utils";
 import { TeamManager } from "./team-manager";
 import { ModerationActions } from "./moderation-actions";
@@ -162,21 +160,14 @@ export default async function SubmissionDetailPage({
     : false;
   const showRatingCard = showRateButton || hasRated;
 
-  const teamContext = {
+  const team = teamPanelState({
     phase: status,
     ranked: submission.jam.ranked,
     allowContributorsAfterClose: submission.jam.allowContributorsAfterClose,
     isMember,
-  };
-  const canAddMembers = canAddContributor({
-    ...teamContext,
-    teamSize: submission.members.length,
-    maxTeamSize: submission.jam.maxTeamSize,
-  }).allowed;
-  const canRemoveMembers = canRemoveContributor({
-    ...teamContext,
-    targetIsLeader: false,
-  }).allowed;
+    isLeader,
+  });
+  const invites = isMember ? await loadSubmissionInvites(submission.id) : [];
 
   // Filter private fields for non-organizers
   const visibleFields = submission.fieldValues.filter(
@@ -435,15 +426,19 @@ export default async function SubmissionDetailPage({
             />
           )}
 
-          {isMember && session?.user?.id && (canAddMembers || canRemoveMembers) && (
+          {isMember && session?.user?.id && (team.canInvite || team.canRemove || team.canLeave || team.leaveHint) && (
             <section aria-label="Manage team" className="flex flex-col gap-3 rounded-xl border bg-card p-5">
               <h2 className="text-sm text-subtle-foreground">Manage team</h2>
               <TeamManager
                 submissionId={submission.id}
+                jamSlug={jam.slug}
                 currentUserId={session.user.id}
-                canAdd={canAddMembers}
-                canRemove={canRemoveMembers}
+                canInvite={team.canInvite}
+                canRemove={team.canRemove}
                 canTransfer={isLeader}
+                canLeave={team.canLeave}
+                leaveHint={team.leaveHint}
+                invites={invites}
                 members={submission.members.map((m) => ({
                   id: m.id,
                   userId: m.user.id,

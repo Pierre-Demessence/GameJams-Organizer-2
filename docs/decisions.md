@@ -76,6 +76,23 @@ coverage) and pure presentation helpers in `src/lib/*.ts` (unit-tested). Compone
 
 - **Why:** pure logic gets fast exhaustive tests; database reads get real-Postgres tests.
 
+### Joining a team locks rows instead of relying on a constraint
+
+`acceptInviteAction` locks the invitee's `JamParticipant` row and the team's `Submission` row
+(`SELECT … FOR UPDATE`) before re-checking the single-submission rule and `maxTeamSize`.
+
+- **Why:** "one live submission per user per jam" spans two tables (`SubmissionMember` has no
+  `jamId`, and deleted submissions are exempt), so no unique index can express it.
+- **Rejected:** denormalizing `jamId` onto `SubmissionMember` for a partial unique index.
+
+### Only the leader transfers leadership
+
+Any member can invite, remove and edit, but only the current leader hands over leadership.
+
+- **Why:** leadership decides who rates under "team leader only" eligibility, so a member must
+  not be able to take it from someone else.
+- **Rejected:** letting any member transfer leadership.
+
 ### JWT sessions
 
 Auth.js runs the JWT strategy; there is no session table.

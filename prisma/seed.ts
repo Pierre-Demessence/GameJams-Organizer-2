@@ -144,6 +144,18 @@ async function main() {
     },
   });
 
+  // Joined to the ongoing jam without a team, so they hold a pending invite (below).
+  const dana = await prisma.user.upsert({
+    where: { email: "dana@example.com" },
+    update: {},
+    create: {
+      email: "dana@example.com",
+      username: "dana",
+      displayName: "Dana",
+      passwordHash: password,
+    },
+  });
+
   // Grant the seeded Site Admin. Defaults to Alice in dev; override with STAFF_ADMIN_EMAIL.
   const staffAdminEmail = process.env.STAFF_ADMIN_EMAIL ?? "alice@example.com";
   const staffAdmin = await prisma.user.findUnique({
@@ -413,6 +425,12 @@ async function main() {
     }
   }
 
+  await prisma.jamParticipant.upsert({
+    where: { jamId_userId: { jamId: ongoingJam.id, userId: dana.id } },
+    update: {},
+    create: { jamId: ongoingJam.id, userId: dana.id },
+  });
+
   const ongoingSubmissions = await createSeedSubmissions(ongoingJam.id, new Date(now - days(1)), [
     {
       key: "clockwork-cavern",
@@ -496,6 +514,14 @@ async function main() {
       videoUrl: "https://example.com/seeds/rating/orbit-orchard/trailer.mp4",
     },
   ]);
+
+  await prisma.submissionInvite.create({
+    data: {
+      submissionId: ongoingSubmissions["clockwork-cavern"].id,
+      inviteeId: dana.id,
+      invitedById: alice.id,
+    },
+  });
 
   const finishedRankedSubmissions = await createSeedSubmissions(finishedRankedJam.id, new Date(now - days(24)), [
     {
@@ -600,7 +626,7 @@ async function main() {
   ]);
 
   console.log(
-    `Seed complete: 3 users, ${allJams.length} jams, ${Object.keys(ongoingSubmissions).length + Object.keys(ratingSubmissions).length + Object.keys(finishedRankedSubmissions).length + Object.keys(finishedUnrankedSubmissions).length} submissions, and ratings for 2 ranked jams`
+    `Seed complete: 4 users, ${allJams.length} jams, ${Object.keys(ongoingSubmissions).length + Object.keys(ratingSubmissions).length + Object.keys(finishedRankedSubmissions).length + Object.keys(finishedUnrankedSubmissions).length} submissions, and ratings for 2 ranked jams`
   );
 }
 

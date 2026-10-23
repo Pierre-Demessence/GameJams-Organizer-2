@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { updateJamAction, softDeleteJamAction } from "@/app/jams/actions";
+import { leaveJamAction, updateJamAction, softDeleteJamAction } from "@/app/jams/actions";
 import {
   assignRoleAction,
   removeRoleAction,
@@ -7,11 +7,15 @@ import {
 import { db } from "@/lib/db";
 import { actingAs, signOut } from "./current-session";
 import {
+  createInvite,
+  createOngoingJam,
+  createSubmission,
   createUser,
   createJam,
   grantJamRole,
   grantStaffRole,
   jamFormData,
+  joinJam,
 } from "./factories";
 
 describe("updateJamAction authorization", () => {
@@ -167,5 +171,79 @@ describe("role management authorization", () => {
     const res = await removeRoleAction(jam.id, admin.id, "ADMIN");
 
     expect(res.error).toMatch(/creator/i);
+  });
+});
+
+describe("leaveJamAction", () => {
+  it("removes the participant row and the user's pending invites in that jam only", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const elsewhere = await createOngoingJam(owner.id);
+    const leader = await createUser();
+    const user = await createUser();
+    for (const j of [jam, elsewhere]) {
+      await joinJam(j.id, leader.id);
+      await joinJam(j.id, user.id);
+    }
+    const here = await createSubmission(jam.id, leader.id);
+    const there = await createSubmission(elsewhere.id, leader.id);
+    await createInvite(here.id, user.id, leader.id);
+    await createInvite(there.id, user.id, leader.id);
+    actingAs(user.id);
+
+    const res = await leaveJamAction(jam.id);
+
+    expect(res.success).toBe(true);
+    expect(await db.jamParticipant.count({ where: { jamId: jam.id, userId: user.id } })).toBe(0);
+    expect(await db.jamParticipant.count({ where: { jamId: elsewhere.id, userId: user.id } })).toBe(1);
+    expect(await db.submissionInvite.count({ where: { submissionId: here.id } })).toBe(0);
+    expect(await db.submissionInvite.count({ where: { submissionId: there.id } })).toBe(1);
+  });
+
+  it("refuses a user in a live submission with the canLeaveJam reason", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const user = await createUser();
+    await joinJam(jam.id, user.id);
+    await createSubmission(jam.id, user.id);
+    actingAs(user.id);
+
+    expect((await leaveJamAction(jam.id)).error).toMatch(/leave your submission/i);
+    expect(await db.jamParticipant.count({ where: { jamId: jam.id, userId: user.id } })).toBe(1);
+  });
+
+  it("lets a user whose submission was deleted leave", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const user = await createUser();
+    await joinJam(jam.id, user.id);
+    const submission = await createSubmission(jam.id, user.id);
+    await db.submission.update({ where: { id: submission.id }, data: { deletedAt: new Date() } });
+    actingAs(user.id);
+
+    expect((await leaveJamAction(jam.id)).success).toBe(true);
+  });
+
+  it("rejects signed-out users, users who never joined and unknown jams", async () => {
+    const owner = await createUser();
+    const jam = await createOngoingJam(owner.id);
+    const user = await createUser();
+
+    signOut();
+    expect((await leaveJamAction(jam.id)).error).toMatch(/signed in/i);
+    actingAs(user.id);
+    expect((await leaveJamAction(jam.id)).error).toMatch(/not joined/i);
+    expect((await leaveJamAction("missing")).error).toMatch(/not found/i);
+  });
+
+  it("is rate-limited", async () => {
+    const user = await createUser();
+    actingAs(user.id);
+
+    const results = [];
+    for (let i = 0; i < 11; i++) results.push(await leaveJamAction("missing"));
+
+    expect(results[9].error).not.toMatch(/too many/i);
+    expect(results[10].error).toMatch(/too many/i);
   });
 });

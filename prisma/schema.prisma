@@ -32,6 +32,8 @@ model User {
   jamRoles        JamRole[]
   jamParticipants JamParticipant[]
   submissions     SubmissionMember[]
+  invitesReceived SubmissionInvite[] @relation("InviteInvitee")
+  invitesSent     SubmissionInvite[] @relation("InviteInviter")
   ratings         Rating[]
   staffRoles      StaffRole[]
   auditEntries    AuditLogEntry[]    @relation("AuditActor")
@@ -225,6 +227,7 @@ model Submission {
 
   jam         Jam                @relation(fields: [jamId], references: [id], onDelete: Cascade)
   members     SubmissionMember[]
+  invites     SubmissionInvite[]
   ratings     Rating[]
   fieldValues CustomFieldValue[]
 }
@@ -239,6 +242,22 @@ model SubmissionMember {
   user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([submissionId, userId])
+}
+
+// A pending invite to join a team; accepting, declining or cancelling deletes the row.
+model SubmissionInvite {
+  id           String   @id @default(cuid())
+  submissionId String
+  inviteeId    String
+  invitedById  String
+  createdAt    DateTime @default(now())
+
+  submission Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  invitee    User       @relation("InviteInvitee", fields: [inviteeId], references: [id], onDelete: Cascade)
+  invitedBy  User       @relation("InviteInviter", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, inviteeId])
+  @@index([inviteeId])
 }
 
 // ─── Custom Fields ──────────────────────────────

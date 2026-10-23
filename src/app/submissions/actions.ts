@@ -13,12 +13,14 @@ import {
   verifyCodeOnItchPage,
 } from "@/lib/verification";
 import { jamPhase } from "@/domain/jam-phase";
+import { canLeaveSubmission } from "@/domain/participation";
 import {
-  canAddContributor,
+  canAcceptInvite,
   canCreateSubmission,
   canDeleteOwnSubmission,
   canEditSubmission,
   canFinalizeSubmission,
+  canInviteContributor,
   canRemoveContributor,
   canTransferLeadership,
   canUnsubmit,
@@ -43,6 +45,16 @@ async function loadSubmission(submissionId: string) {
   });
   if (!submission || submission.jam.deletedAt) return null;
   return submission;
+}
+
+type Outcome = { error?: string; success?: true };
+
+// A message, not a result object: a shared object would stop TypeScript from normalizing the
+// action result unions that the client components rely on.
+const THROTTLED_MESSAGE = "Too many requests. Please try again later.";
+
+async function isThrottled(key: string): Promise<boolean> {
+  return !(await checkRateLimit(key)).allowed;
 }
 
 function hasLiveSubmissionIn(jamId: string, userId: string) {
@@ -86,31 +98,37 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
   const fieldError = validateCustomFieldValues(jam.customFields, fieldValues);
   if (fieldError) return { error: fieldError };
 
+  // The creator is now on a team, so their invites to other teams in this jam can no longer be accepted.
   let submission;
   try {
-    submission = await db.submission.create({
-      data: {
-        jamId: jam.id,
-        title: parsed.data.title,
-        description: parsed.data.description || null,
-        coverUrl: parsed.data.coverUrl || null,
-        itchUrl: parsed.data.itchUrl || null,
-        supportedPlatforms: parsed.data.supportedPlatforms ?? [],
-        verificationCode: parsed.data.itchUrl
-          ? generateVerificationCode()
-          : null,
-        screenshots: parsed.data.screenshots ?? [],
-        videoUrl: parsed.data.videoUrl || null,
-        members: {
-          create: { userId: session.user.id, isLeader: true },
+    [submission] = await db.$transaction([
+      db.submission.create({
+        data: {
+          jamId: jam.id,
+          title: parsed.data.title,
+          description: parsed.data.description || null,
+          coverUrl: parsed.data.coverUrl || null,
+          itchUrl: parsed.data.itchUrl || null,
+          supportedPlatforms: parsed.data.supportedPlatforms ?? [],
+          verificationCode: parsed.data.itchUrl
+            ? generateVerificationCode()
+            : null,
+          screenshots: parsed.data.screenshots ?? [],
+          videoUrl: parsed.data.videoUrl || null,
+          members: {
+            create: { userId: session.user.id, isLeader: true },
+          },
+          fieldValues: {
+            create: Object.entries(fieldValues)
+              .filter(([, value]) => value)
+              .map(([fieldId, value]) => ({ fieldId, value })),
+          },
         },
-        fieldValues: {
-          create: Object.entries(fieldValues)
-            .filter(([, value]) => value)
-            .map(([fieldId, value]) => ({ fieldId, value })),
-        },
-      },
-    });
+      }),
+      db.submissionInvite.deleteMany({
+        where: { inviteeId: session.user.id, submission: { jamId: jam.id } },
+      }),
+    ]);
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
       return { error: "You already have a submission in this jam" };
@@ -196,7 +214,7 @@ export async function updateSubmissionAction(
   return { success: true };
 }
 
-export async function addContributorAction(
+export async function inviteContributorAction(
   submissionId: string,
   contributorUsername: string
 ) {
@@ -204,50 +222,185 @@ export async function addContributorAction(
   if (!session?.user?.id) return { error: "You must be signed in" };
   const userId = session.user.id;
 
+  if (await isThrottled(`sub:invite:${userId}`)) return { error: THROTTLED_MESSAGE };
+
   const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
 
-  const decision = canAddContributor({
+  const invitee = await db.user.findUnique({
+    where: { username: contributorUsername },
+    select: { id: true },
+  });
+  if (!invitee) return { error: "User not found" };
+
+  const [participant, liveSubmission, existingInvite, pendingInvites] = await Promise.all([
+    db.jamParticipant.findUnique({
+      where: { jamId_userId: { jamId: submission.jamId, userId: invitee.id } },
+    }),
+    hasLiveSubmissionIn(submission.jamId, invitee.id),
+    db.submissionInvite.findUnique({
+      where: { submissionId_inviteeId: { submissionId, inviteeId: invitee.id } },
+    }),
+    db.submissionInvite.count({ where: { submissionId } }),
+  ]);
+  const decision = canInviteContributor({
     phase: jamPhase(submission.jam),
     ranked: submission.jam.ranked,
     allowContributorsAfterClose: submission.jam.allowContributorsAfterClose,
     isMember: submission.members.some((m) => m.userId === userId),
     teamSize: submission.members.length,
+    pendingInvites,
     maxTeamSize: submission.jam.maxTeamSize,
+    invitee: {
+      hasJoined: participant !== null,
+      hasLiveSubmission: liveSubmission !== null,
+      alreadyInvited: existingInvite !== null,
+    },
   });
   if (!decision.allowed) return { error: decision.reason };
 
-  const contributor = await db.user.findUnique({
-    where: { username: contributorUsername },
-    select: { id: true },
-  });
-  if (!contributor) return { error: "User not found" };
-
-  const isParticipant = await db.jamParticipant.findUnique({
-    where: {
-      jamId_userId: { jamId: submission.jamId, userId: contributor.id },
-    },
-  });
-  if (!isParticipant) {
-    return { error: "User must join the jam first" };
-  }
-
-  if (await hasLiveSubmissionIn(submission.jamId, contributor.id)) {
-    return { error: "User is already part of a submission in this jam" };
-  }
-
   try {
-    await db.submissionMember.create({
-      data: { submissionId, userId: contributor.id, isLeader: false },
+    await db.submissionInvite.create({
+      data: { submissionId, inviteeId: invitee.id, invitedById: userId },
     });
   } catch (err: unknown) {
     if (isUniqueViolation(err)) {
-      return { error: "User is already on this team" };
+      return { error: "User is already invited to this submission" };
     }
-    return { error: "Failed to add contributor" };
+    return { error: "Failed to send the invite" };
   }
 
   revalidatePath(`/submissions/${submissionId}`);
+  return { success: true };
+}
+
+// Any member may withdraw a pending invite. A non-member gets "not found" so invites stay private.
+export async function cancelInviteAction(inviteId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
+
+  if (await isThrottled(`sub:invite-cancel:${userId}`)) return { error: THROTTLED_MESSAGE };
+
+  const invite = await db.submissionInvite.findUnique({
+    where: { id: inviteId },
+    select: { submissionId: true },
+  });
+  const submission = invite && (await loadSubmission(invite.submissionId));
+  if (!submission || !submission.members.some((m) => m.userId === userId)) {
+    return { error: "Invite not found" };
+  }
+
+  await db.submissionInvite.deleteMany({ where: { id: inviteId } });
+
+  revalidatePath(`/submissions/${submission.id}`);
+  return { success: true };
+}
+
+export async function declineInviteAction(inviteId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
+
+  if (await isThrottled(`sub:invite-decline:${userId}`)) return { error: THROTTLED_MESSAGE };
+
+  const { count } = await db.submissionInvite.deleteMany({
+    where: { id: inviteId, inviteeId: userId },
+  });
+  if (count === 0) return { error: "Invite not found" };
+
+  return { success: true };
+}
+
+export async function acceptInviteAction(inviteId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
+
+  if (await isThrottled(`sub:invite-accept:${userId}`)) return { error: THROTTLED_MESSAGE };
+
+  const invite = await db.submissionInvite.findFirst({
+    where: { id: inviteId, inviteeId: userId },
+    select: { submissionId: true },
+  });
+  const loaded = invite && (await loadSubmission(invite.submissionId));
+  if (!loaded) return { error: "Invite not found" };
+  const { jam } = loaded;
+
+  try {
+    const result = await db.$transaction(async (tx): Promise<Outcome> => {
+      // Lock the invitee's participant row, then the team's row, so concurrent accepts queue up:
+      // one user accepting two invites, or two users taking the last seat, each re-check the
+      // rules below against committed state instead of racing past them.
+      const participant = await tx.$queryRaw<{ id: string }[]>`
+        SELECT "id" FROM "JamParticipant"
+        WHERE "jamId" = ${jam.id} AND "userId" = ${userId} FOR UPDATE
+      `;
+      await tx.$queryRaw`SELECT "id" FROM "Submission" WHERE "id" = ${loaded.id} FOR UPDATE`;
+
+      const submission = await tx.submission.findUnique({ where: { id: loaded.id } });
+      if (!submission) return { error: "Invite not found" };
+
+      const teamSize = await tx.submissionMember.count({ where: { submissionId: submission.id } });
+      const liveSubmission = await tx.submissionMember.findFirst({
+        where: { userId, submission: { jamId: jam.id, deletedAt: null } },
+      });
+      const decision = canAcceptInvite({
+        phase: jamPhase(jam),
+        ranked: jam.ranked,
+        allowContributorsAfterClose: jam.allowContributorsAfterClose,
+        hasJoined: participant.length > 0,
+        hasLiveSubmission: liveSubmission !== null,
+        teamSize,
+        maxTeamSize: jam.maxTeamSize,
+      });
+      if (!decision.allowed) return { error: decision.reason };
+
+      await tx.submissionMember.create({
+        data: { submissionId: submission.id, userId, isLeader: false },
+      });
+      await tx.submissionInvite.deleteMany({
+        where: { inviteeId: userId, submission: { jamId: jam.id } },
+      });
+      return { success: true };
+    });
+    if (result.success) {
+      revalidatePath(`/submissions/${loaded.id}`);
+      revalidatePath(`/jams/${jam.slug}`);
+    }
+    return result;
+  } catch (err: unknown) {
+    if (isUniqueViolation(err)) return { error: "You are already on this team" };
+    return { error: "Failed to accept the invite" };
+  }
+}
+
+export async function leaveSubmissionAction(submissionId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+  const userId = session.user.id;
+
+  if (await isThrottled(`sub:leave:${userId}`)) return { error: THROTTLED_MESSAGE };
+
+  const submission = await loadSubmission(submissionId);
+  if (!submission) return { error: "Submission not found" };
+
+  const own = submission.members.find((m) => m.userId === userId);
+  if (!own) return { error: "You are not on this team" };
+
+  const decision = canLeaveSubmission({
+    phase: jamPhase(submission.jam),
+    isLeader: own.isLeader,
+  });
+  if (!decision.allowed) return { error: decision.reason };
+
+  // The `isLeader` guard is re-evaluated by Postgres after any lock wait, so a transfer that makes
+  // this member the leader between the read above and this delete cannot leave the team leaderless.
+  const { count } = await db.submissionMember.deleteMany({ where: { id: own.id, isLeader: false } });
+  if (count === 0) return { error: "Your role on this team changed: reload and try again" };
+
+  revalidatePath(`/submissions/${submissionId}`);
+  revalidatePath(`/jams/${submission.jam.slug}`);
   return { success: true };
 }
 
@@ -258,6 +411,8 @@ export async function removeContributorAction(
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
   const userId = session.user.id;
+
+  if (await isThrottled(`sub:remove:${userId}`)) return { error: THROTTLED_MESSAGE };
 
   const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };
@@ -274,7 +429,8 @@ export async function removeContributorAction(
   });
   if (!decision.allowed) return { error: decision.reason };
 
-  await db.submissionMember.delete({ where: { id: target.id } });
+  const { count } = await db.submissionMember.deleteMany({ where: { id: target.id, isLeader: false } });
+  if (count === 0) return { error: "That member's role changed: reload and try again" };
 
   revalidatePath(`/submissions/${submissionId}`);
   return { success: true };
@@ -287,6 +443,8 @@ export async function transferLeaderAction(
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
   const userId = session.user.id;
+
+  if (await isThrottled(`sub:transfer:${userId}`)) return { error: THROTTLED_MESSAGE };
 
   const submission = await loadSubmission(submissionId);
   if (!submission) return { error: "Submission not found" };

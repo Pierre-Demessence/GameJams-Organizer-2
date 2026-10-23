@@ -11,7 +11,7 @@ import { deletedJamSlug } from "@/lib/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { revalidatePath } from "next/cache";
 import { canPublish, jamPhase, validateJamDates } from "@/domain/jam-phase";
-import { canJoin } from "@/domain/participation";
+import { canJoin, canLeaveJam } from "@/domain/participation";
 
 function toDate(value: string | undefined): Date | null {
   return value ? new Date(value) : null;
@@ -278,6 +278,47 @@ export async function joinJamAction(jamId: string) {
 
   revalidatePath(`/jams/${jam.slug}`);
   return { success: true };
+}
+
+export async function leaveJamAction(jamId: string) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return { error: "You must be signed in to leave a jam" };
+  }
+  const userId = session.user.id;
+
+  const { allowed } = await checkRateLimit(`jam:leave:${userId}`);
+  if (!allowed) {
+    return { error: "Too many requests. Please try again later." };
+  }
+
+  const jam = await db.jam.findUnique({ where: { id: jamId } });
+  if (!jam) return { error: "Jam not found" };
+
+  const result = await db.$transaction(async (tx): Promise<{ error?: string; success?: true }> => {
+    // Locking the participant row serializes with an invite being accepted at the same moment,
+    // so the live-submission check below cannot go stale before the row is deleted.
+    const participant = await tx.$queryRaw<{ id: string }[]>`
+      SELECT "id" FROM "JamParticipant" WHERE "jamId" = ${jamId} AND "userId" = ${userId} FOR UPDATE
+    `;
+    const member = await tx.submissionMember.findFirst({
+      where: { userId, submission: { jamId, deletedAt: null } },
+    });
+    const decision = canLeaveJam({
+      hasJoined: participant.length > 0,
+      isParticipant: member !== null,
+    });
+    if (!decision.allowed) return { error: decision.reason };
+
+    await tx.submissionInvite.deleteMany({
+      where: { inviteeId: userId, submission: { jamId } },
+    });
+    await tx.jamParticipant.delete({ where: { jamId_userId: { jamId, userId } } });
+    return { success: true };
+  });
+
+  if (result.success) revalidatePath(`/jams/${jam.slug}`);
+  return result;
 }
 
 export async function checkSlugAvailable(slug: string): Promise<{ available: boolean | null }> {

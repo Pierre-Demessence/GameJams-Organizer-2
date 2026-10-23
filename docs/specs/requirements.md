@@ -275,12 +275,20 @@ THE SYSTEM SHALL prevent a user from being part of more than one submission per 
 ### REQ-SUB-06: Contributors
 
 WHEN a team leader invites another jam participant to their submission,
+THE SYSTEM SHALL create a pending invite, and WHEN the invitee accepts,
 THE SYSTEM SHALL add them as a contributor with the same edit permissions as the team leader.
+
+WHEN an invitee declines, or any team member cancels the invite,
+THE SYSTEM SHALL delete it.
+
+WHEN a user creates their own submission, accepts an invite or leaves the jam,
+THE SYSTEM SHALL delete their other pending invites in that jam.
 
 ### REQ-SUB-07: Max Team Size
 
 IF a jam has a max team size configured and the team already has that many members,
-THEN THE SYSTEM SHALL reject additional contributor invitations.
+THEN THE SYSTEM SHALL reject additional contributor invitations. Pending invites count towards
+the limit when inviting; only members count when accepting.
 
 ### REQ-SUB-08: Team Leader Transfer
 
@@ -293,6 +301,17 @@ WHILE a jam is in RATING status,
 THE SYSTEM SHALL prevent adding or removing contributors from submissions,
 UNLESS the jam setting "allow contributors after submissions close" is enabled,
 in which case contributors may be added but not removed.
+
+### REQ-SUB-09a: Leaving
+
+WHEN a joined user who is in no live submission leaves a jam,
+THE SYSTEM SHALL remove their participation.
+
+WHEN a non-leader member leaves their submission while the jam is ONGOING,
+THE SYSTEM SHALL remove their membership and keep them joined.
+
+IF the leader tries to leave their submission, or anyone tries to after the jam leaves ONGOING,
+THEN THE SYSTEM SHALL refuse.
 
 ### REQ-SUB-10: Moderation Switches
 

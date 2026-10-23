@@ -7,9 +7,7 @@ its own `docs/plans/<feature>.md` when work starts. Delete a milestone once it i
 
 Order of work:
 
-1. Leave a jam / leave a submission (spec §4.7).
 2. Mandatory TOTP 2FA for staff (spec §10).
-3. Contributor invites with acceptance (spec §5).
 4. Settings → Delete account, once its product rules are decided.
 5. Mobile designs for the organizer screens.
 

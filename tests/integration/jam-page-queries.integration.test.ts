@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { db } from "@/lib/db";
 import { loadJamPage } from "@/lib/jam-page-queries";
-import { createJam, createSubmission, createUser, daysFromNow, grantJamRole, joinJam } from "./factories";
+import { createInvite, createJam, createSubmission, createUser, daysFromNow, grantJamRole, joinJam } from "./factories";
 
 describe("loadJamPage", () => {
   it("returns null for unknown slugs and hides drafts from non-organizers", async () => {
@@ -49,5 +49,21 @@ describe("loadJamPage", () => {
     const sub = await createSubmission(jam.id, owner.id);
     await db.submission.update({ where: { id: sub.id }, data: { deletedAt: new Date() } });
     expect((await loadJamPage("deleted-entry", owner.id))?.viewer.submission).toBeNull();
+  });
+
+  it("lists the viewer's pending invites while the contributor window is open", async () => {
+    const owner = await createUser();
+    const invitee = await createUser();
+    const jam = await createJam(owner.id, {
+      slug: "invite-jam", visibility: "PUBLIC", publishedAt: daysFromNow(-2),
+      startDate: daysFromNow(-1), endDate: daysFromNow(1),
+    });
+    await joinJam(jam.id, invitee.id);
+    const sub = await createSubmission(jam.id, owner.id, { title: "Space Game" });
+    await createInvite(sub.id, invitee.id, owner.id);
+
+    const page = await loadJamPage("invite-jam", invitee.id);
+    expect(page?.viewer.invites).toMatchObject([{ submissionTitle: "Space Game" }]);
+    expect((await loadJamPage("invite-jam", null))?.viewer.invites).toEqual([]);
   });
 });

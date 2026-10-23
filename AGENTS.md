@@ -96,6 +96,9 @@ The build must produce 0 errors before a task is done.
   reinstate).
 - **Submission lifecycle**: DRAFT → SUBMITTED, only once the itch.io link is
   ownership-verified. Changing the verified link resets it to DRAFT.
+- **Contributors join through invites** (`SubmissionInvite`, pending rows only); never insert a
+  `SubmissionMember` directly. `acceptInviteAction` and `leaveJamAction` lock the participant row
+  (and the team row) before re-checking the rules; keep that order if you touch them.
 - **Deleting a submission**: organizers (`delete_submission`), staff, or the team leader while
   ONGOING (`canDeleteOwnSubmission`). Staff deletes and restores are audited.
 - **Restoring a jam** strips the `__del__<id>` slug suffix (`restoredSlug`) and fails if the

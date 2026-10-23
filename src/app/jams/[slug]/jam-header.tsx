@@ -27,6 +27,7 @@ export function JamHeader({
     phase,
     hasJoined: viewer.hasJoined,
     submission: viewer.submission,
+    invites: viewer.invites,
   });
 
   const tabs: LinkTab[] = [

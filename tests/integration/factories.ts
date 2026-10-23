@@ -101,6 +101,30 @@ export function createSubmission(
   });
 }
 
+export function addMember(submissionId: string, userId: string) {
+  return db.submissionMember.create({ data: { submissionId, userId, isLeader: false } });
+}
+
+export function createInvite(submissionId: string, inviteeId: string, invitedById: string) {
+  return db.submissionInvite.create({ data: { submissionId, inviteeId, invitedById } });
+}
+
+// A ranked jam in its RATING period, so jamPhase() returns "RATING".
+export async function createRatingJam(
+  createdById: string,
+  overrides?: { allowContributorsAfterClose?: boolean }
+) {
+  const jam = await createJam(createdById, {
+    publishedAt: daysFromNow(-4),
+    startDate: daysFromNow(-3),
+    endDate: daysFromNow(-1),
+    ratingEnd: daysFromNow(3),
+    ranked: true,
+  });
+  if (!overrides?.allowContributorsAfterClose) return jam;
+  return db.jam.update({ where: { id: jam.id }, data: { allowContributorsAfterClose: true } });
+}
+
 export function grantJamRole(jamId: string, userId: string, role: JamRoleType) {
   return db.jamRole.create({ data: { jamId, userId, role } });
 }

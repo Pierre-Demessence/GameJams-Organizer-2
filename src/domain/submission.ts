@@ -68,17 +68,54 @@ interface TeamContext {
   isMember: boolean;
 }
 
+type WindowInput = Pick<TeamContext, "phase" | "ranked" | "allowContributorsAfterClose">;
+
 // Spec §5 contributor change window: free changes while ONGOING; afterwards,
 // additions only (never removals) through RATING when the jam allows it.
-export function canAddContributor(
-  input: TeamContext & { teamSize: number; maxTeamSize: number | null }
-): Decision {
-  if (!input.isMember) return deny("Only team members can add contributors");
+export function isContributorWindowOpen(input: WindowInput): boolean {
   const openAfterClose =
     input.phase === "RATING" && input.ranked && input.allowContributorsAfterClose;
-  if (input.phase !== "ONGOING" && !openAfterClose) {
-    return deny("Contributors can no longer be added to this submission");
+  return input.phase === "ONGOING" || openAfterClose;
+}
+
+const WINDOW_CLOSED = "Contributors can no longer be added to this submission";
+
+// Spec §5: members invite, the invitee accepts. Pending invites hold a seat so a
+// full team cannot over-invite.
+export function canInviteContributor(
+  input: TeamContext & {
+    teamSize: number;
+    pendingInvites: number;
+    maxTeamSize: number | null;
+    invitee: { hasJoined: boolean; hasLiveSubmission: boolean; alreadyInvited: boolean };
   }
+): Decision {
+  if (!input.isMember) return deny("Only team members can invite contributors");
+  if (!isContributorWindowOpen(input)) return deny(WINDOW_CLOSED);
+  if (!input.invitee.hasJoined) return deny("User must join the jam first");
+  if (input.invitee.hasLiveSubmission) {
+    return deny("User is already part of a submission in this jam");
+  }
+  if (input.invitee.alreadyInvited) return deny("User is already invited to this submission");
+  if (input.maxTeamSize && input.teamSize + input.pendingInvites >= input.maxTeamSize) {
+    return deny("Team is already at maximum size");
+  }
+  return allow;
+}
+
+// The invitee's side, re-checked at accept time: the world may have changed since the invite.
+// Only members count here; other pending invites do not hold a seat against an accept.
+export function canAcceptInvite(
+  input: WindowInput & {
+    hasJoined: boolean;
+    hasLiveSubmission: boolean;
+    teamSize: number;
+    maxTeamSize: number | null;
+  }
+): Decision {
+  if (!isContributorWindowOpen(input)) return deny(WINDOW_CLOSED);
+  if (!input.hasJoined) return deny("You must join this jam first");
+  if (input.hasLiveSubmission) return deny("You already have a submission in this jam");
   if (input.maxTeamSize && input.teamSize >= input.maxTeamSize) {
     return deny("Team is already at maximum size");
   }

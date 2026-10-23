@@ -6,8 +6,6 @@ delete the line once it ships.
 
 ## MVP gaps
 
-- [MVP] Leave a jam (Joined → Not joined) and leave a submission (Participant → Joined), spec §4.7; rules exist in `src/domain/participation.ts`, actions and UI do not.
-- [MVP] Contributor invites with acceptance instead of adding contributors directly, spec §5.
 - [MVP] Mandatory TOTP 2FA for staff, independent of the sign-in provider, spec §10; the admin board's "2FA verified" badge and per-staff "2FA on" status wait on it.
 - [MVP] Settings → Delete account: needs product rules first (led submissions, organized jams, ratings), since the spec only lets staff delete accounts.
 - [MVP] Mobile designs for the organizer screens (host / manage jam, submission editor, sign in) on the design canvas (see `docs/design-system.md`).
@@ -23,6 +21,11 @@ delete the line once it ships.
 - `src/components/markdown.tsx:3` renders sanitized raw HTML through `rehype-raw`, but spec §4.1 says raw HTML is escaped. Drop `rehype-raw` or amend the spec.
 - Search palette results are listbox options, so middle-click / "open in new tab" does not work (`src/components/search-palette.tsx`).
 - `docker-compose.yml` publishes no port for `db`, but `README.md` and `docs/configuration.md` expect it on `localhost:5432`, so `docker compose up db -d` alone leaves the dev server and integration tests unable to connect. Add a `127.0.0.1:5432:5432` mapping (or a dev override file) or fix the docs.
+- `createSubmissionAction` does not lock the participant row, so a create racing `leaveJamAction` can leave a submission by a user who is no longer joined, and a create racing `acceptInviteAction` (or a second create) can put one user on two live submissions; lock and re-check inside the transaction the way `acceptInviteAction` does (`src/app/submissions/actions.ts`).
+- `inviteContributorAction` looks the invitee up before checking that the caller is a team member, so a non-member can probe whether a username exists; check membership first (`src/app/submissions/actions.ts`).
+- Invite, accept and leave-jam inputs (usernames, invite ids) are not Zod-validated, unlike the rest of the actions.
+- Team integration tests lack: accept during RATING with `allowContributorsAfterClose`, leave-submission refusal in that same state, `leaveJamAction` concurrency, and cancel/decline after the window closes.
+- The jam page's "joined" panel says "Submissions open when the jam starts" in RATING and FINISHED too (`src/app/jams/[slug]/page.tsx`); the copy only fits UPCOMING.
 - Search is `ILIKE '%q%'` (sequential scan); add a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the table grows (`src/lib/search-queries.ts`).
 
 ## Spec proposals
@@ -34,7 +37,6 @@ Suggested changes to `docs/specs/product-spec.md`, awaiting a decision.
 - Prize allocation: all-members approval stalls on one silent member; drop it, or "leader proposes, auto-accepted after N days unless contested".
 - Rating eligibility "Everyone" invites fake accounts; pair it with a minimum account age or OAuth-only accounts.
 - Organizer edits after the lock: spec §5 locks content at RATING, but `edit_submission` holders can edit in any phase (moderation fixes); confirm or restrict to moderation switches.
-- Who transfers leadership: the code lets only the current leader hand it over (leadership decides who rates under "team leader only"); confirm or allow any member.
 - Externally hosted images leak viewer IPs and break when removed; consider an image proxy or at least a strict CSP.
 
 ## Deferred

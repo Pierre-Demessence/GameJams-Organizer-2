@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { db } from "@/lib/db";
+import { loadViewerInvites, type ViewerInviteView } from "@/lib/invite-queries";
 import { hasPermission } from "@/lib/permissions";
 import { jamPhase, type JamPhase } from "@/domain/jam-phase";
 import { resultsAccess } from "@/domain/results";
@@ -30,6 +31,7 @@ export interface JamViewer {
   canPreviewResults: boolean;
   hasJoined: boolean;
   submission: { id: string; status: "DRAFT" | "SUBMITTED" } | null;
+  invites: ViewerInviteView[];
 }
 export interface JamPageData {
   jam: NonNullable<Awaited<ReturnType<typeof findJam>>>;
@@ -47,15 +49,16 @@ export const loadJamPage = cache(async (slug: string, userId: string | null): Pr
   const roles = userId ? jam.roles.filter((r) => r.userId === userId).map((r) => r.role) : [];
   if (phase === "DRAFT" && roles.length === 0) return null;
 
-  const [participant, member] = userId
+  const [participant, member, invites] = userId
     ? await Promise.all([
         db.jamParticipant.findUnique({ where: { jamId_userId: { jamId: jam.id, userId } } }),
         db.submissionMember.findFirst({
           where: { userId, submission: { jamId: jam.id, deletedAt: null } },
           select: { submission: { select: { id: true, status: true } } },
         }),
+        loadViewerInvites(jam, userId),
       ])
-    : [null, null];
+    : [null, null, []];
 
   const canPreviewResults = hasPermission(roles, "preview_results");
   return {
@@ -70,6 +73,7 @@ export const loadJamPage = cache(async (slug: string, userId: string | null): Pr
       canPreviewResults,
       hasJoined: Boolean(participant),
       submission: member?.submission ?? null,
+      invites,
     },
     resultsVisible: resultsAccess({ ...jam, phase, canPreview: canPreviewResults }) !== "none",
   };

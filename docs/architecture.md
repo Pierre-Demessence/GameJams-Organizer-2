@@ -59,6 +59,20 @@ complete schedule.
 `visibility` is independent of the lifecycle: listings show jams that are published **and**
 PUBLIC; an UNLISTED published jam runs its full lifecycle and is reachable by URL only.
 
+## Teams and invites
+
+Members of a submission invite joined users by username (`inviteContributorAction`); the invite is
+a `SubmissionInvite` row that exists only while pending, so accept, decline and cancel delete it.
+`isContributorWindowOpen` (`src/domain/submission.ts`) is the one window rule, shared by inviting,
+accepting and the loaders in `src/lib/invite-queries.ts`: a closed window or a deleted submission
+hides the invites without deleting them.
+
+`acceptInviteAction` and `leaveJamAction` run in a transaction that first locks the invitee's
+`JamParticipant` row, and accept also locks the `Submission` row. The single-submission rule
+and `maxTeamSize` are checked against that locked state, which keeps concurrent accepts from
+overfilling a team or one user accepting two invites. `createSubmissionAction` does not take the
+lock, so a create racing an accept is not serialized.
+
 ## Rating and results
 
 Results are computed on read: `loadJamResults` (`src/lib/scoring.ts`) loads the jam's
