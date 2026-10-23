@@ -81,7 +81,7 @@ coverage) and pure presentation helpers in `src/lib/*.ts` (unit-tested). Compone
 Auth.js runs the JWT strategy; there is no session table.
 
 - **Why:** stateless, no session cleanup.
-- **Cost:** values cached in the token (`isStaff`) go stale until the next sign-in (see backlog).
+- **Cost:** values cached in the token go stale: `isStaff` for up to 60 seconds, `username` until `update()`.
 
 ### Media by URL only
 

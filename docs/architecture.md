@@ -27,7 +27,9 @@ Link another provider → Settings → Auth.js links the Account to the current 
                         (error if that provider account belongs to another user)
 ```
 
-- JWT session strategy; no session table.
+- JWT session strategy; no session table. The `jwt` callback re-reads `isStaff` from the database
+  at most every 60 seconds (`staffCheckedAt` on the token, `src/lib/staff-claim.ts`); the edge
+  middleware uses `auth.config.ts` and never touches the database.
 - Custom sign-in / sign-up pages under `src/app/(auth)/`.
 - `INITIAL_ADMIN_EMAILS` grants Site Admin on sign-in (see [configuration.md](configuration.md)).
 
@@ -92,7 +94,7 @@ A Jam Admin reveals hidden results once the jam is FINISHED, which sets `results
 | CSRF | Server Actions' built-in origin check |
 | SQL injection | Prisma parameterized queries only |
 | Broken access control | Permission-catalog check before every mutation (jam and platform) |
-| Abuse | `checkRateLimit()` on every mutating action; search throttled per IP |
+| Abuse | `checkRateLimit()` on every mutating action (fixed 15-minute window per key, counted in the Postgres `RateLimit` table so all replicas share it); search throttled per IP |
 | Password storage | bcrypt |
 | SSRF (itch.io fetch) | Single-host allowlist (`itch.io`, `*.itch.io`), HTTPS, per-hop redirect re-validation, timeout, size cap |
 | Staff mistakes | Soft delete + restore, audit log; mandatory staff TOTP is in the backlog |

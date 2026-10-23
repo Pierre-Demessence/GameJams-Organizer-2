@@ -10,7 +10,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export async function linkPasswordAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
-  if (!checkRateLimit(`settings:password:${session.user.id}`).allowed) {
+  if (!(await checkRateLimit(`settings:password:${session.user.id}`)).allowed) {
     return { error: "Too many requests. Please try again later." };
   }
 
@@ -49,7 +49,7 @@ export async function linkPasswordAction(formData: FormData) {
 export async function changePasswordAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
-  if (!checkRateLimit(`settings:password:${session.user.id}`).allowed) {
+  if (!(await checkRateLimit(`settings:password:${session.user.id}`)).allowed) {
     return { error: "Too many requests. Please try again later." };
   }
 
@@ -82,7 +82,7 @@ export async function changePasswordAction(formData: FormData) {
 export async function unlinkProviderAction(provider: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
-  if (!checkRateLimit(`settings:unlink:${session.user.id}`).allowed) {
+  if (!(await checkRateLimit(`settings:unlink:${session.user.id}`)).allowed) {
     return { error: "Too many requests. Please try again later." };
   }
 

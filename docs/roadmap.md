@@ -16,7 +16,5 @@ Order of work:
 Done when:
 
 - No `[MVP]` line is left in `docs/backlog.md`.
-- The rate limiter is shared across pods and `isStaff` is refreshed in the `jwt` callback (both
-  under Known issues), since prod runs 2 replicas.
 - The Operations checks pass: prod one-time setup confirmed, Velero restore tested, full manual
   regression pass on the release build.

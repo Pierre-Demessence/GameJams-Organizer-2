@@ -76,7 +76,7 @@ export async function restoreJamAction(jamId: string) {
   if (!(await checkStaffPermission(session.user.id, "delete_any_jam"))) {
     return { error: "You do not have permission" };
   }
-  if (!checkRateLimit(`restore:${session.user.id}`, 60).allowed) {
+  if (!(await checkRateLimit(`restore:${session.user.id}`, 60)).allowed) {
     return { error: "Too many requests. Please try again later." };
   }
 
@@ -116,7 +116,7 @@ export async function restoreSubmissionAction(submissionId: string) {
   if (!(await checkStaffPermission(session.user.id, "moderate_any_submission"))) {
     return { error: "You do not have permission" };
   }
-  if (!checkRateLimit(`restore:${session.user.id}`, 60).allowed) {
+  if (!(await checkRateLimit(`restore:${session.user.id}`, 60)).allowed) {
     return { error: "Too many requests. Please try again later." };
   }
 

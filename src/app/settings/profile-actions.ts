@@ -9,7 +9,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export async function updateProfileAction(formData: FormData) {
   const session = await auth();
   if (!session?.user?.id) return { error: "Not authenticated." };
-  if (!checkRateLimit(`settings:profile:${session.user.id}`).allowed) {
+  if (!(await checkRateLimit(`settings:profile:${session.user.id}`)).allowed) {
     return { error: "Too many requests. Please try again later." };
   }
 

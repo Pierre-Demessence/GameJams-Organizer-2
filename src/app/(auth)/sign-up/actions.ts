@@ -10,7 +10,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export async function signUpAction(formData: FormData) {
   const headersList = await headers();
   const ip = clientIp(headersList);
-  const { allowed } = checkRateLimit(`signup:${ip}`);
+  const { allowed } = await checkRateLimit(`signup:${ip}`);
 
   if (!allowed) {
     return { error: "Too many sign-up attempts. Please try again later." };

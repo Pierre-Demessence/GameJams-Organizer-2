@@ -6,6 +6,7 @@ import type { Adapter, AdapterUser } from "next-auth/adapters";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
 import { isStaff } from "@/lib/staff-permissions";
+import { refreshStaffClaim } from "@/lib/staff-claim";
 import { recordAudit } from "@/lib/audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -48,11 +49,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, account, trigger }) {
       if (user) {
         token.id = user.id;
-        if (user.id) token.isStaff = await isStaff(user.id);
       }
       if (account) {
         token.provider = account.provider;
       }
+      // Re-read from the database at most every STAFF_RECHECK_MS (and on `update()`), so a
+      // revoked staff role stops showing in the UI within a minute. Only runs on the Node
+      // runtime: the edge middleware uses auth.config.ts, which has no jwt callback.
+      await refreshStaffClaim(token, !!user || trigger === "update");
       // Loaded lazily so tokens issued before this field existed pick it up on their next
       // request; refreshed on `update()` so a username change in settings shows at once.
       if (token.id && (token.username === undefined || trigger === "update")) {
@@ -71,38 +75,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.user.isStaff = token.isStaff ?? false;
       session.user.username = token.username ?? null;
       return session;
-    },
-    async signIn({ user, account }) {
-      // For OAuth providers, generate a unique username on first sign-in
-      if (account?.provider !== "credentials" && user.id) {
-        const existing = await db.user.findUnique({ where: { id: user.id } });
-        if (existing && !existing.username) {
-          const baseUsername = (user.name ?? "user")
-            .toLowerCase()
-            .replace(/[^a-z0-9]/g, "") || "user";
-          let username = baseUsername;
-          let suffix = 0;
-
-          // Retry loop using DB unique constraint to avoid TOCTOU race
-          for (let attempt = 0; attempt < 20; attempt++) {
-            try {
-              await db.user.update({
-                where: { id: user.id },
-                data: { username },
-              });
-              break;
-            } catch (e: unknown) {
-              if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") {
-                suffix++;
-                username = `${baseUsername}${suffix}`;
-                continue;
-              }
-              throw e;
-            }
-          }
-        }
-      }
-      return true;
     },
   },
   events: {

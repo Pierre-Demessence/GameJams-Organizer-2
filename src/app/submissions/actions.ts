@@ -55,7 +55,7 @@ export async function createSubmissionAction(jamSlug: string, formData: FormData
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
-  const { allowed } = checkRateLimit(`sub:create:${session.user.id}`);
+  const { allowed } = await checkRateLimit(`sub:create:${session.user.id}`);
   if (!allowed) return { error: "Too many requests. Please try again later." };
 
   const jam = await db.jam.findUnique({
@@ -442,7 +442,7 @@ export async function verifySubmissionAction(submissionId: string) {
   const session = await auth();
   if (!session?.user?.id) return { error: "You must be signed in" };
 
-  const { allowed } = checkRateLimit(`verify:${session.user.id}`);
+  const { allowed } = await checkRateLimit(`verify:${session.user.id}`);
   if (!allowed) return { error: "Too many requests. Please try again later." };
 
   const result = await requireTeamMember(submissionId, session.user.id);

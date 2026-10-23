@@ -20,11 +20,9 @@ delete the line once it ships.
 
 ## Known issues
 
-- Rate limiter is in-memory per pod (`src/lib/rate-limit.ts:7`) while prod runs 2 replicas, so limits are doubled and inconsistent; move to Postgres / Redis or document it.
-- `isStaff` is cached in the JWT at sign-in (`src/lib/auth.ts:51`), so a revoked staff role shows in the UI until the next sign-in; actions re-check the DB. Refresh it in the `jwt` callback.
-- Dead username generation in the `signIn` callback (`src/lib/auth.ts:76`): `customPrismaAdapter` always sets a username. Remove it.
 - `src/components/markdown.tsx:3` renders sanitized raw HTML through `rehype-raw`, but spec §4.1 says raw HTML is escaped. Drop `rehype-raw` or amend the spec.
 - Search palette results are listbox options, so middle-click / "open in new tab" does not work (`src/components/search-palette.tsx`).
+- `docker-compose.yml` publishes no port for `db`, but `README.md` and `docs/configuration.md` expect it on `localhost:5432`, so `docker compose up db -d` alone leaves the dev server and integration tests unable to connect. Add a `127.0.0.1:5432:5432` mapping (or a dev override file) or fix the docs.
 - Search is `ILIKE '%q%'` (sequential scan); add a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the table grows (`src/lib/search-queries.ts`).
 
 ## Spec proposals

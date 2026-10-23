@@ -19,6 +19,7 @@ declare module "next-auth/jwt" {
     id?: string;
     provider?: string;
     isStaff?: boolean;
+    staffCheckedAt?: number;
     username?: string | null;
   }
 }

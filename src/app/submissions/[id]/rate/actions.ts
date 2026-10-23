@@ -17,7 +17,7 @@ export async function submitRatingAction(data: {
   if (!session?.user?.id) return { error: "You must be signed in" };
   const userId = session.user.id;
 
-  const { allowed } = checkRateLimit(`rate:${userId}`);
+  const { allowed } = await checkRateLimit(`rate:${userId}`);
   if (!allowed) return { error: "Too many requests. Please try again later." };
 
   const parsed = ratingSchema.safeParse(data);

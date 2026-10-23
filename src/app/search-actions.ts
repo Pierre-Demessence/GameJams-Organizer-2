@@ -10,7 +10,7 @@ import { SEARCH_MAX_QUERY } from "@/lib/search";
 export async function searchJamsAction(query: unknown) {
   if (typeof query !== "string" || query.length > SEARCH_MAX_QUERY * 2) return { hits: [] };
   const ip = clientIp(await headers());
-  if (!checkRateLimit(`search:${ip}`, 300).allowed) {
+  if (!(await checkRateLimit(`search:${ip}`, 300)).allowed) {
     return { hits: [], error: "Too many searches. Try again in a few minutes." };
   }
   return { hits: await searchJams(query) };

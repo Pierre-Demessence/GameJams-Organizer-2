@@ -38,7 +38,7 @@ export async function createJamAction(formData: FormData) {
     return { error: "You must be signed in to create a jam" };
   }
 
-  const { allowed } = checkRateLimit(`jam:create:${session.user.id}`);
+  const { allowed } = await checkRateLimit(`jam:create:${session.user.id}`);
   if (!allowed) {
     return { error: "Too many requests. Please try again later." };
   }
@@ -251,7 +251,7 @@ export async function joinJamAction(jamId: string) {
     return { error: "You must be signed in to join a jam" };
   }
 
-  const { allowed } = checkRateLimit(`jam:join:${session.user.id}`);
+  const { allowed } = await checkRateLimit(`jam:join:${session.user.id}`);
   if (!allowed) {
     return { error: "Too many requests. Please try again later." };
   }
@@ -284,7 +284,7 @@ export async function checkSlugAvailable(slug: string): Promise<{ available: boo
   const session = await auth();
   if (!session?.user?.id) return { available: null };
   // Unknown rather than "taken" when throttled: the save still enforces uniqueness.
-  if (!checkRateLimit(`slug-check:${session.user.id}`, 120).allowed) return { available: null };
+  if (!(await checkRateLimit(`slug-check:${session.user.id}`, 120)).allowed) return { available: null };
   if (!slugPattern.test(slug)) return { available: false };
   const existing = await db.jam.findUnique({ where: { slug }, select: { id: true } });
   return { available: !existing };

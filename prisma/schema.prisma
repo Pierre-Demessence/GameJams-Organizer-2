@@ -315,3 +315,14 @@ model Rating {
   @@unique([submissionId, criterionId, userId])
   @@index([submissionId])
 }
+
+// ─── Rate limiting ──────────────────────────────
+
+// One row per limiter key and fixed window; see src/lib/rate-limit.ts.
+model RateLimit {
+  key         String   @id
+  windowStart DateTime @default(now()) @db.Timestamptz(3)
+  count       Int
+
+  @@index([windowStart])
+}

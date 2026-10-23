@@ -12,7 +12,7 @@ import { searchJamsAction } from "@/app/search-actions";
 
 beforeEach(() => {
   searchJams.mockReset().mockResolvedValue([{ slug: "a" }]);
-  checkRateLimit.mockReset().mockReturnValue({ allowed: true, remaining: 1 });
+  checkRateLimit.mockReset().mockResolvedValue({ allowed: true, remaining: 1 });
 });
 
 describe("searchJamsAction", () => {
@@ -25,7 +25,7 @@ describe("searchJamsAction", () => {
   it("throttles per trusted client IP", async () => {
     expect(await searchJamsAction("kite")).toEqual({ hits: [{ slug: "a" }] });
     expect(checkRateLimit).toHaveBeenCalledWith("search:203.0.113.9", 300);
-    checkRateLimit.mockReturnValue({ allowed: false, remaining: 0 });
+    checkRateLimit.mockResolvedValue({ allowed: false, remaining: 0 });
     expect(await searchJamsAction("kite")).toMatchObject({ hits: [], error: expect.stringMatching(/Too many/) });
   });
 });
