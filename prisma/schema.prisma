@@ -26,6 +26,9 @@ model User {
   avatarUrl     String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  // Set when the user deleted their account: the row stays as an anonymous tombstone so
+  // ratings, memberships and Jam.createdById keep a target. No restore.
+  deletedAt     DateTime?
 
   // Staff two-factor: `totpSecret` is AES-256-GCM encrypted (`iv.tag.ciphertext`, base64);
   // `totpEnabledAt` stays null while enrolment is pending; `totpLastStep` rejects replayed codes.

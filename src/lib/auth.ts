@@ -6,7 +6,7 @@ import type { Adapter, AdapterUser } from "next-auth/adapters";
 import { compare } from "bcryptjs";
 import { db } from "@/lib/db";
 import { isStaff } from "@/lib/staff-permissions";
-import { refreshStaffClaim } from "@/lib/staff-claim";
+import { refreshTokenClaims } from "@/lib/staff-claim";
 import { recordAudit } from "@/lib/audit";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -30,7 +30,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const email = credentials.email as string;
         const password = credentials.password as string;
 
-        const user = await db.user.findUnique({ where: { email } });
+        const user = await db.user.findUnique({ where: { email, deletedAt: null } });
         if (!user?.passwordHash) return null;
 
         const valid = await compare(password, user.passwordHash);
@@ -54,9 +54,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.provider = account.provider;
       }
       // Re-read from the database at most every STAFF_RECHECK_MS (and on `update()`), so a
-      // revoked staff role stops showing in the UI within a minute. Only runs on the Node
-      // runtime: the edge middleware uses auth.config.ts, which has no jwt callback.
-      await refreshStaffClaim(token, !!user || trigger === "update");
+      // revoked staff role stops showing in the UI within a minute, and a deleted account's
+      // session ends there (returning null clears it). Only runs on the Node runtime: the
+      // edge middleware uses auth.config.ts, which has no jwt callback.
+      if (!(await refreshTokenClaims(token, !!user || trigger === "update"))) return null;
       // Loaded lazily so tokens issued before this field existed pick it up on their next
       // request; refreshed on `update()` so a username change in settings shows at once.
       if (token.id && (token.username === undefined || trigger === "update")) {

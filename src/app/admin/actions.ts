@@ -21,7 +21,7 @@ export async function grantSiteAdminAction(identifier: string) {
   if (!query) return { error: "Enter a username or email" };
 
   const user = await db.user.findFirst({
-    where: { OR: [{ username: query }, { email: query }] },
+    where: { deletedAt: null, OR: [{ username: query }, { email: query }] },
     select: { id: true, username: true },
   });
   if (!user) return { error: "No user found with that username or email" };

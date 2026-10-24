@@ -26,8 +26,9 @@ export async function updateProfileAction(formData: FormData) {
   const { username, displayName, bio, avatarUrl } = parsed.data;
 
   try {
-    await db.user.update({
-      where: { id: session.user.id },
+    // A deleted account keeps a valid JWT for up to a minute; never write onto its tombstone.
+    const { count } = await db.user.updateMany({
+      where: { id: session.user.id, deletedAt: null },
       data: {
         username,
         displayName: displayName ?? null,
@@ -35,6 +36,7 @@ export async function updateProfileAction(formData: FormData) {
         avatarUrl: avatarUrl ?? null,
       },
     });
+    if (count === 0) return { error: "User not found." };
   } catch (e: unknown) {
     if (typeof e === "object" && e !== null && "code" in e && e.code === "P2002") {
       return { error: "This username is already taken." };

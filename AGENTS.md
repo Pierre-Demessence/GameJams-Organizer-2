@@ -108,6 +108,10 @@ The build must produce 0 errors before a task is done.
 - **Restoring a jam** strips the `__del__<id>` slug suffix (`restoredSlug`) and fails if the
   slug was reused.
 - **Profiles** list only `LISTED_JAM` jams, so unlisted and draft jams never leak.
+- **A deleted user is a tombstone** (`User.deletedAt` set, username `deleted-<id>`, no `User`
+  soft-delete extension). Lookups that add someone (invites, jam roles, staff grant) filter
+  `deletedAt: null`; `deleteAccountAction` plans through `planAccountDeletion`, and usernames
+  starting with `deleted-` are rejected.
 - **Search** (`searchJamsAction`) is public, limited to `LISTED_JAM`, and throttled per IP.
 - **itch.io fetch** uses a single-host allowlist (`itch.io` / `*.itch.io`), HTTPS only, with
   per-hop redirect re-validation, a timeout and a size cap.

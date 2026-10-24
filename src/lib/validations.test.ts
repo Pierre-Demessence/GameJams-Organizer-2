@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
+  deleteAccountSchema,
   isItchProjectUrl,
   profileSchema,
+  signUpSchema,
   submissionSchema,
   criterionSchema,
   findMissingRequiredFields,
@@ -122,5 +124,27 @@ describe("profileSchema", () => {
     for (const avatarUrl of ["javascript:alert(1)", "data:image/png;base64,AAAA"]) {
       expect(profileSchema.safeParse({ ...base, avatarUrl }).success).toBe(false);
     }
+  });
+});
+
+describe("reserved usernames", () => {
+  const signUp = { email: "mira@example.com", password: "hunter22x" };
+
+  it("rejects the deleted- prefix at sign-up and profile edit", () => {
+    expect(signUpSchema.safeParse({ ...signUp, username: "deleted-abc123" }).success).toBe(false);
+    expect(profileSchema.safeParse({ username: "deleted-abc123" }).success).toBe(false);
+  });
+
+  it("still accepts names that merely contain or resemble it", () => {
+    for (const username of ["deleted", "deleted_abc", "undeleted-abc", "the-deleted-one"]) {
+      expect(profileSchema.safeParse({ username }).success).toBe(true);
+    }
+  });
+});
+
+describe("deleteAccountSchema", () => {
+  it("trims the typed username and requires one", () => {
+    expect(deleteAccountSchema.parse({ confirmUsername: "  mira " }).confirmUsername).toBe("mira");
+    expect(deleteAccountSchema.safeParse({ confirmUsername: "   " }).success).toBe(false);
   });
 });

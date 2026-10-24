@@ -6,7 +6,6 @@ delete the line once it ships.
 
 ## MVP gaps
 
-- [MVP] Settings → Delete account: needs product rules first (led submissions, organized jams, ratings), since the spec only lets staff delete accounts.
 - [MVP] Mobile designs for the organizer screens (host / manage jam, submission editor, sign in) on the design canvas (see `docs/design-system.md`).
 
 ## Operations
@@ -25,6 +24,9 @@ delete the line once it ships.
 - Invite, accept and leave-jam inputs (usernames, invite ids) are not Zod-validated, unlike the rest of the actions.
 - Team integration tests lack: accept during RATING with `allowContributorsAfterClose`, leave-submission refusal in that same state, `leaveJamAction` concurrency, and cancel/decline after the window closes.
 - The jam page's "joined" panel says "Submissions open when the jam starts" in RATING and FINISHED too (`src/app/jams/[slug]/page.tsx`); the copy only fits UPCOMING.
+- Account deletion removes the user's `JamRole` rows even in trashed jams, so restoring a trashed jam they alone administered leaves it without an admin, and a trashed submission they led keeps the tombstone as leader (`src/app/settings/actions.ts`); staff can repair both by hand.
+- A deleted account's session stays valid for up to 60 s (`src/lib/staff-claim.ts`), and only `deleteAccountAction`, `updateProfileAction` and `linkPasswordAction` check `deletedAt`; the other mutating actions still trust `session.user.id` in that window. Add a central "user is alive" check (a `requireLiveUser()` helper or in `auth()`).
+- `assignRoleAction` and `removeRoleAction` take no `Jam` row lock, so concurrent ADMIN changes can leave a jam without an admin, and can race `deleteAccountAction`'s admin-count check (`src/app/jams/[slug]/manage/actions.ts`); lock the jam row (`FOR NO KEY UPDATE`) and re-check inside the transaction.
 - Search is `ILIKE '%q%'` (sequential scan); add a `pg_trgm` GIN index on `Jam.name` / `shortDesc` once the table grows (`src/lib/search-queries.ts`).
 
 ## Spec proposals
@@ -63,4 +65,5 @@ Roughly prioritized:
 15. [post-MVP] Analytics dashboard
 16. [post-MVP] Organizations (group jams under a shared, reusable organizer roster)
 17. [post-MVP] Password reset by email (REQ-AUTH-08)
-18. [post-MVP] Staff 2FA recovery codes (today a lost authenticator needs another Site Admin or a SQL step), and 2FA for non-staff accounts
+18. [post-MVP] Staff delete of other accounts (spec §10)
+19. [post-MVP] Staff 2FA recovery codes (today a lost authenticator needs another Site Admin or a SQL step), and 2FA for non-staff accounts

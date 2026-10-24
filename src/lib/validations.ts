@@ -53,11 +53,15 @@ export const passwordSchema = z
   .regex(/[a-zA-Z]/, "Password must contain at least one letter")
   .regex(/[0-9]/, "Password must contain at least one number");
 
+export const DELETED_USERNAME_PREFIX = "deleted-";
+
 const usernameSchema = z
   .string()
   .min(3, "Username must be at least 3 characters")
   .max(30)
-  .regex(/^[a-z0-9_-]+$/, "Username must be lowercase alphanumeric, hyphens, or underscores");
+  .regex(/^[a-z0-9_-]+$/, "Username must be lowercase alphanumeric, hyphens, or underscores")
+  // Deleted accounts become `deleted-<id>` tombstones; a real user must never collide with one.
+  .refine((v) => !v.startsWith(DELETED_USERNAME_PREFIX), "Usernames cannot start with deleted-");
 
 export const signUpSchema = z.object({
   email: z.string().email(),
@@ -90,6 +94,10 @@ export const profileSchema = z.object({
     .string()
     .refine((v) => v === "" || safeHttpUrl(v) !== null, "Avatar URL must start with http:// or https://")
     .optional(),
+});
+
+export const deleteAccountSchema = z.object({
+  confirmUsername: z.string().trim().min(1, "Type your username to confirm").max(60),
 });
 
 export const jamSchema = z.object({

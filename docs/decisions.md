@@ -93,12 +93,21 @@ Any member can invite, remove and edit, but only the current leader hands over l
   not be able to take it from someone else.
 - **Rejected:** letting any member transfer leadership.
 
+### Account deletion keeps a tombstone
+
+Deleting an account anonymizes the `User` row instead of removing it (spec §3).
+
+- **Why:** `Jam.createdById` and `AuditLogEntry.actorId` have no cascade, and kept ratings and
+  frozen memberships need a row to point at; results and team sizes must not change.
+- **Rejected:** hard delete. There is no restore: deletion is irreversible by design.
+
 ### JWT sessions
 
 Auth.js runs the JWT strategy; there is no session table.
 
 - **Why:** stateless, no session cleanup.
-- **Cost:** values cached in the token go stale: `isStaff` for up to 60 seconds, `username` until `update()`.
+- **Cost:** values cached in the token go stale: `isStaff` and a deleted account for up to 60
+  seconds, `username` until `update()`.
 
 ### Staff 2FA proof is a signed cookie, not a JWT claim
 
