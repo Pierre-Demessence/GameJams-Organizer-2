@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { compareJams, jamRoleSummary, memberSince, placement, teamLine, type PlacementInput } from "@/lib/profile";
+import { compareJams, isDeletedUsername, jamRoleSummary, memberSince, placement, teamLine, type PlacementInput } from "@/lib/profile";
 
 const finished: PlacementInput = {
   phase: "FINISHED",
@@ -63,5 +63,14 @@ describe("labels", () => {
       { id: "live", phase: "ONGOING" as const, startDate: d("2026-09-01") },
     ];
     expect(jams.sort(compareJams).map((j) => j.id)).toEqual(["live", "up", "new", "old"]);
+  });
+});
+
+describe("isDeletedUsername", () => {
+  it("recognizes tombstone usernames only", () => {
+    expect(isDeletedUsername("deleted-cm1x2y3z")).toBe(true);
+    expect(isDeletedUsername("deleted")).toBe(false);
+    expect(isDeletedUsername("undeleted-fan")).toBe(false);
+    expect(isDeletedUsername("mira")).toBe(false);
   });
 });

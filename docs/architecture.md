@@ -30,6 +30,8 @@ Link another provider → Settings → Auth.js links the Account to the current 
 - JWT session strategy; no session table. The `jwt` callback re-reads `isStaff` from the database
   at most every 60 seconds (`staffCheckedAt` on the token, `src/lib/staff-claim.ts`); the edge
   middleware uses `auth.config.ts` and never touches the database.
+- The same refresh checks the account still exists: for a deleted or missing user the `jwt`
+  callback returns `null`, which ends the session on that device within a minute.
 - Custom sign-in / sign-up pages under `src/app/(auth)/`.
 - `INITIAL_ADMIN_EMAILS` grants Site Admin on sign-in (see [configuration.md](configuration.md)).
 
@@ -72,6 +74,21 @@ hides the invites without deleting them.
 and `maxTeamSize` are checked against that locked state, which keeps concurrent accepts from
 overfilling a team or one user accepting two invites. `createSubmissionAction` does not take the
 lock, so a create racing an accept is not serialized.
+
+## Account deletion
+
+`deleteAccountAction` (`src/app/settings/actions.ts`) anonymizes the `User` row in place: username
+`deleted-<id>`, display name "Deleted user", `email`, `passwordHash`, `bio`, `avatarUrl` and the
+`Account` rows gone, `deletedAt` set. The row stays because ratings, kept memberships,
+`Jam.createdById` and `AuditLogEntry.actorId` point at it. There is no restore, and `User` has no
+soft-delete extension (the row must stay readable as "Deleted user").
+
+`planAccountDeletion` (`src/domain/account.ts`) decides over plain data from `loadAccountDeletion`
+(`src/lib/account-queries.ts`): blockers, or the row operations. The settings page shows the same
+plan as a preview; the action reloads it inside a transaction that first locks the user's
+`JamParticipant` rows, then the submissions they lead, then the jams they administer (all ordered by
+id), so a concurrent accept or a co-admin deleting at the same time cannot make the plan stale.
+Profile URLs starting with `deleted-` render a stub without a query (`isDeletedUsername`).
 
 ## Rating and results
 

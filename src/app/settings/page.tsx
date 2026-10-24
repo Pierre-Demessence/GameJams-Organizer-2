@@ -4,6 +4,10 @@ import { db } from "@/lib/db";
 import { ProfileForm } from "./profile-form";
 import { PasswordSection, SignInMethods } from "./account-settings";
 import { AppearancePicker } from "./appearance-picker";
+import { DeleteAccount } from "./delete-account";
+import { planAccountDeletion } from "@/domain/account";
+import { describeAccountDeletion } from "@/lib/account-deletion";
+import { loadAccountDeletion } from "@/lib/account-queries";
 
 export const metadata = {
   title: "Settings — GameJam Organizer",
@@ -14,6 +18,7 @@ const SECTIONS = [
   { id: "sign-in", label: "Sign-in methods" },
   { id: "password", label: "Email & password" },
   { id: "appearance", label: "Appearance" },
+  { id: "delete-account", label: "Delete account" },
 ];
 
 export default async function SettingsPage() {
@@ -26,6 +31,14 @@ export default async function SettingsPage() {
   });
 
   if (!user) redirect("/sign-in");
+
+  const deletion = await loadAccountDeletion(db, user.id);
+  if (!deletion) redirect("/sign-in");
+  const plan = planAccountDeletion(deletion.input);
+  const summary = describeAccountDeletion(plan.preview, {
+    ratings: deletion.ratingCount,
+    invites: deletion.inviteCount,
+  });
 
   const hasPassword = Boolean(user.passwordHash);
   const providers = [...new Set(user.accounts.map((a) => a.provider))];
@@ -83,6 +96,19 @@ export default async function SettingsPage() {
 
         <Section id="appearance" title="Appearance">
           <AppearancePicker />
+        </Section>
+
+        <Section
+          id="delete-account"
+          title="Delete account"
+          description="Erases your personal data. Your past jam history stays, credited to “Deleted user”."
+        >
+          <DeleteAccount
+            username={user.username}
+            blockers={plan.allowed ? [] : plan.blockers}
+            removes={summary.removes}
+            keeps={summary.keeps}
+          />
         </Section>
       </div>
     </div>

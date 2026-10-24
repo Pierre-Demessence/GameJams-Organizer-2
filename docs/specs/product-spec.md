@@ -162,11 +162,37 @@ A user profile stores and displays:
 - The jams they created or participated in, with their roles (admin / moderator / judge / host).
 - The submissions and teams they participated in.
 
+### Deleting your account
+
+A user can delete their own account from Settings by typing their username to confirm. Deletion is
+permanent and cannot be undone.
+
+- **Erased:** the profile (username, display name, bio, avatar), email, password and linked
+  sign-in accounts. The username and email become free to register again. The account stays as an
+  anonymous **"Deleted user"**, and its profile URL shows a "This account was deleted" page.
+- **Kept:** the user's ratings, and their membership of submissions in jams already in RATING or
+  FINISHED, so results and team sizes do not change. Past jams stay and credit "Deleted user".
+- **Before RATING** (a jam that is a draft, upcoming or ongoing): the user leaves their teams and
+  the jam, and a submission they lead alone is deleted.
+- **Pending team invites** the user sent or received are removed.
+- **Jam roles** are all removed. A draft jam where the user is the only Jam Admin is deleted.
+- **Refused**, with the reason and a link to fix it, while the user:
+  - leads a submission that has other members in a jam before RATING (transfer leadership first);
+  - is the only Jam Admin of a published jam that is not FINISHED (add another admin first);
+  - holds a staff role (another admin removes it first).
+- A deleted account's sessions on other devices end within a minute.
+- Deleted accounts are never found when someone adds a user (team invites, jam roles, staff).
+  Usernames starting with `deleted-` are reserved.
+
+Staff deleting other users' accounts is described under
+[Section 10](#10-platform-administration--moderation).
+
 ### What a user can do
 
 - Create a jam.
 - Join a jam.
 - Submit a game to a jam.
+- Delete their own account.
 
 ---
 

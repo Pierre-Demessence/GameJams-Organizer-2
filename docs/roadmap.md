@@ -8,7 +8,6 @@ its own `docs/plans/<feature>.md` when work starts. Delete a milestone once it i
 Order of work:
 
 2. Mandatory TOTP 2FA for staff (spec §10).
-4. Settings → Delete account, once its product rules are decided.
 5. Mobile designs for the organizer screens.
 
 Done when:

@@ -1,5 +1,6 @@
 import type { JamPhase } from "@/domain/jam-phase";
 import { jamRoleLabel } from "@/lib/jam-labels";
+import { DELETED_USERNAME_PREFIX } from "@/lib/validations";
 
 type JamRole = "ADMIN" | "MODERATOR" | "JUDGE" | "HOST";
 
@@ -68,4 +69,10 @@ export function compareJams(
     PHASE_ORDER[a.phase] - PHASE_ORDER[b.phase] ||
     (b.startDate?.getTime() ?? 0) - (a.startDate?.getTime() ?? 0)
   );
+}
+
+// Deleted accounts keep a `deleted-<id>` username and no public profile. Real usernames can
+// never start with the prefix (usernameSchema), so the URL alone decides, without a query.
+export function isDeletedUsername(username: string): boolean {
+  return username.startsWith(DELETED_USERNAME_PREFIX);
 }

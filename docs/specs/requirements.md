@@ -85,6 +85,22 @@ a new token SHALL be issued on each login.
 WHEN an authenticated user clicks "Sign out,"
 THE SYSTEM SHALL terminate their session and redirect them to the homepage.
 
+### REQ-AUTH-09: Delete Account
+
+WHEN a signed-in user confirms deletion by typing their username,
+THE SYSTEM SHALL erase their profile, email, password and linked accounts, keep a "Deleted user"
+tombstone, keep their ratings and their memberships of submissions in RATING or FINISHED jams,
+remove them from teams and jams before RATING (deleting a submission they lead alone), remove their
+jam roles and pending invites, delete draft jams they alone administer, and end their sessions
+within 60 seconds.
+
+IF the user leads a submission with other members before RATING, is the only Jam Admin of a
+published jam that is not finished, or holds a staff role,
+THEN THE SYSTEM SHALL refuse, name each blocker and link to where it can be resolved.
+
+THE SYSTEM SHALL show a "This account was deleted" page at the deleted user's profile URL, reject
+usernames starting with `deleted-`, and exclude deleted users from every lookup that adds someone.
+
 ### REQ-AUTH-08: Password Reset (Deferred)
 
 > **Deferred to post-MVP.** For MVP, users who forget their email/password can link an OAuth

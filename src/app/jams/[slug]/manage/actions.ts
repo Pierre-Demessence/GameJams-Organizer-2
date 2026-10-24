@@ -24,7 +24,7 @@ export async function assignRoleAction(
   }
 
   const targetUser = await db.user.findUnique({
-    where: { username: targetUsername },
+    where: { username: targetUsername, deletedAt: null },
     select: { id: true },
   });
   if (!targetUser) return { error: "User not found" };
@@ -108,6 +108,7 @@ export async function searchUsersForRole(query: string) {
 
   const users = await db.user.findMany({
     where: {
+      deletedAt: null,
       OR: [
         { username: { contains: query, mode: "insensitive" } },
         { displayName: { contains: query, mode: "insensitive" } },
