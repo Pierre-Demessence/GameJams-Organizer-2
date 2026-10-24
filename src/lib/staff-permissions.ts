@@ -1,4 +1,5 @@
 import { db } from "@/lib/db";
+import { staffGate } from "@/lib/two-factor";
 import type { StaffRoleType } from "@/generated/prisma/client";
 
 export type StaffPermission =
@@ -38,10 +39,12 @@ export async function isStaff(userId: string): Promise<boolean> {
   return count > 0;
 }
 
+// A role alone grants nothing: the browser must also have passed the TOTP check (spec §10).
 export async function checkStaffPermission(
   userId: string,
   permission: StaffPermission
 ): Promise<boolean> {
   const roles = await getStaffRoles(userId);
-  return hasStaffPermission(roles, permission);
+  if (!hasStaffPermission(roles, permission)) return false;
+  return (await staffGate(userId, true)).allowed;
 }

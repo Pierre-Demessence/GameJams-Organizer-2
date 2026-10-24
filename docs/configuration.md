@@ -18,7 +18,8 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `NEXTAUTH_SECRET` | Yes | — | Signing secret for Auth.js JWT tokens. Generate with `openssl rand -base64 32` |
-| `NEXTAUTH_URL` | Yes | `http://localhost:3000` | Public URL of the application |
+| `NEXTAUTH_URL` | Yes | `http://localhost:3000` | Public URL of the application. An `https://` URL also makes the staff 2FA cookie `Secure` and `__Host-` prefixed |
+| `TOTP_ENCRYPTION_KEY` | Yes (for staff) | — | AES-256-GCM key (32 bytes, base64) that encrypts staff TOTP secrets at rest. Generate with `openssl rand -base64 32`. Changing it makes every enrolled secret unreadable; staff then need a 2FA reset. If it is missing or malformed, enrolment and code checks fail with a server error and staff powers stay locked |
 
 ### Discord OAuth (Optional)
 
@@ -52,5 +53,5 @@ In the docker-compose setup, `DATABASE_URL` is automatically constructed from `P
 ## Security Notes
 
 - Never commit `.env` to version control (it is gitignored).
-- In production, use strong random values for `POSTGRES_PASSWORD` and `NEXTAUTH_SECRET`.
+- In production, use strong random values for `POSTGRES_PASSWORD`, `NEXTAUTH_SECRET` and `TOTP_ENCRYPTION_KEY`.
 - The default dev credentials (`gamejams/gamejams`) are only safe for local development.

@@ -6,7 +6,6 @@ delete the line once it ships.
 
 ## MVP gaps
 
-- [MVP] Mandatory TOTP 2FA for staff, independent of the sign-in provider, spec §10; the admin board's "2FA verified" badge and per-staff "2FA on" status wait on it.
 - [MVP] Settings → Delete account: needs product rules first (led submissions, organized jams, ratings), since the spec only lets staff delete accounts.
 - [MVP] Mobile designs for the organizer screens (host / manage jam, submission editor, sign in) on the design canvas (see `docs/design-system.md`).
 
@@ -64,3 +63,4 @@ Roughly prioritized:
 15. [post-MVP] Analytics dashboard
 16. [post-MVP] Organizations (group jams under a shared, reusable organizer roster)
 17. [post-MVP] Password reset by email (REQ-AUTH-08)
+18. [post-MVP] Staff 2FA recovery codes (today a lost authenticator needs another Site Admin or a SQL step), and 2FA for non-staff accounts

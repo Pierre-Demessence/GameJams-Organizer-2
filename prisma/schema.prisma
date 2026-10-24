@@ -27,7 +27,13 @@ model User {
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  accounts        Account[]
+  // Staff two-factor: `totpSecret` is AES-256-GCM encrypted (`iv.tag.ciphertext`, base64);
+  // `totpEnabledAt` stays null while enrolment is pending; `totpLastStep` rejects replayed codes.
+  totpSecret    String?
+  totpEnabledAt DateTime?
+  totpLastStep  Int?
+
+  accounts       Account[]
   createdJams     Jam[]              @relation("JamCreator")
   jamRoles        JamRole[]
   jamParticipants JamParticipant[]

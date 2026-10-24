@@ -5,8 +5,10 @@ import { db } from "@/lib/db";
 import { checkStaffPermission } from "@/lib/staff-permissions";
 import { recordAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { restoredSlug } from "@/lib/admin";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { clearTwoFactor } from "@/lib/two-factor";
 
 export async function grantSiteAdminAction(identifier: string) {
   const session = await auth();
@@ -64,6 +66,40 @@ export async function revokeSiteAdminAction(userId: string) {
     targetType: "user",
     targetId: userId,
     metadata: { role: "SITE_ADMIN" },
+  });
+
+  revalidatePath("/admin");
+  return { success: true };
+}
+
+// Lost-authenticator recovery: the member enrols again on their next /admin visit. Staff cannot
+// reset their own, so a hijacked staff session cannot strip its own second factor.
+export async function resetTwoFactorAction(userId: string) {
+  const session = await auth();
+  if (!session?.user?.id) return { error: "You must be signed in" };
+  if (!(await checkStaffPermission(session.user.id, "manage_staff"))) {
+    return { error: "You do not have permission" };
+  }
+  if (userId === session.user.id) return { error: "You cannot reset your own two-factor" };
+  if (!(await checkRateLimit(`2fa-reset:${session.user.id}`, 30)).allowed) {
+    return { error: "Too many requests. Please try again later." };
+  }
+  const id = z.string().min(1).safeParse(userId);
+  if (!id.success) return { error: "Staff member not found" };
+
+  const target = await db.user.findFirst({
+    where: { id: id.data, staffRoles: { some: {} } },
+    select: { username: true },
+  });
+  if (!target) return { error: "Staff member not found" };
+
+  await clearTwoFactor(userId);
+  await recordAudit({
+    actorId: session.user.id,
+    action: "staff:2fa_reset",
+    targetType: "user",
+    targetId: userId,
+    metadata: { username: target.username },
   });
 
   revalidatePath("/admin");

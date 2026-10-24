@@ -13,7 +13,7 @@ import {
   createUser,
   createJam,
   grantJamRole,
-  grantStaffRole,
+  grantVerifiedStaffRole,
   jamFormData,
   joinJam,
 } from "./factories";
@@ -116,7 +116,7 @@ describe("softDeleteJamAction authorization", () => {
     const owner = await createUser();
     const jam = await createJam(owner.id);
     const staff = await createUser();
-    await grantStaffRole(staff.id);
+    await grantVerifiedStaffRole(staff.id);
     actingAs(staff.id);
 
     const res = await softDeleteJamAction(jam.id);

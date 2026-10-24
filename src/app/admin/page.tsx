@@ -1,8 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import { ShieldCheck } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { checkStaffPermission } from "@/lib/staff-permissions";
+import { getStaffRoles, hasStaffPermission } from "@/lib/staff-permissions";
+import { staffGate } from "@/lib/two-factor";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { AUDIT_FILTERS, auditActionWhere, auditHref, auditTone, parseAuditParams } from "@/lib/admin";
 import { cn } from "@/lib/utils";
@@ -30,7 +32,11 @@ export default async function AdminPage({
 }) {
   const session = await auth();
   if (!session?.user?.id) redirect("/sign-in?callbackUrl=%2Fadmin");
-  if (!(await checkStaffPermission(session.user.id, "view_audit_log"))) notFound();
+  const roles = await getStaffRoles(session.user.id);
+  if (!hasStaffPermission(roles, "view_audit_log")) notFound();
+  // Staff with no authenticator, or no valid code in this browser, are sent to the 2FA page.
+  const access = await staffGate(session.user.id, true);
+  if (!access.allowed) redirect("/admin/two-factor?callbackUrl=%2Fadmin");
 
   const { filter, page } = parseAuditParams(await searchParams);
   const auditWhere = auditActionWhere(filter);
@@ -57,7 +63,7 @@ export default async function AdminPage({
     }),
     db.staffRole.findMany({
       where: { role: "SITE_ADMIN" },
-      include: { user: { select: { id: true, username: true, displayName: true } } },
+      include: { user: { select: { id: true, username: true, displayName: true, totpEnabledAt: true } } },
     }),
   ]);
 
@@ -95,6 +101,7 @@ export default async function AdminPage({
     userId: r.user.id,
     username: r.user.username,
     displayName: r.user.displayName,
+    twoFactor: r.user.totpEnabledAt !== null,
   }));
   const side = [
     { id: "deleted", label: "Deleted", count: deleted.length },
@@ -121,6 +128,10 @@ export default async function AdminPage({
         <div className="flex flex-col gap-1.5">
           <h1 className="text-[30px] font-semibold tracking-tight">Platform admin</h1>
           <p className="text-muted-foreground">Staff actions here are recorded in the audit log.</p>
+          <span className="inline-flex h-6 items-center gap-1.5 self-start rounded-md bg-muted px-2 text-xs font-medium">
+            <ShieldCheck aria-hidden className="size-3.5" />
+            2FA verified
+          </span>
         </div>
 
         <section id="deleted" aria-labelledby="deleted-title" className="flex scroll-mt-6 flex-col gap-3.5">

@@ -23,7 +23,13 @@ export default defineConfig({
     // concurrently against it.
     fileParallelism: false,
     testTimeout: 20_000,
-    env: { DATABASE_URL: TEST_DATABASE_URL },
+    env: {
+      DATABASE_URL: TEST_DATABASE_URL,
+      // Fixed throwaway keys so staff two-factor works without a developer's real secrets.
+      NEXTAUTH_SECRET: "integration-test-secret-integration-test-secret",
+      TOTP_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64"),
+      NEXTAUTH_URL: "http://localhost:3000",
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],

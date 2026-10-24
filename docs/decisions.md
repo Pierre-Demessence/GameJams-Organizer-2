@@ -100,6 +100,13 @@ Auth.js runs the JWT strategy; there is no session table.
 - **Why:** stateless, no session cleanup.
 - **Cost:** values cached in the token go stale: `isStaff` for up to 60 seconds, `username` until `update()`.
 
+### Staff 2FA proof is a signed cookie, not a JWT claim
+
+The "passed TOTP" proof is a separate HMAC-signed cookie checked on the server, not a claim in the Auth.js token.
+
+- **Why:** the client's `update()` can send arbitrary session data into the JWT callback, so a claim there can be forged by the signed-in user; a server-signed cookie bound to the user id and the enrolment cannot.
+- **Rejected:** a JWT claim (forgeable via `update()`); a session table (the app has none).
+
 ### Media by URL only
 
 Covers, screenshots and avatars are external URLs; the app stores no files.
@@ -125,8 +132,8 @@ requires every dynamic read (`auth()`, `params`, `searchParams`, DB, `new Date()
 
 `pnpm test:integration` runs against a dedicated `gamejams_test` database on the docker-compose
 Postgres (`TEST_DATABASE_URL`), created and migrated in global setup, with every table truncated
-before each test and files run serially. Only `@/lib/auth`, `next/cache` and
-`next/navigation` are mocked.
+before each test and files run serially. Only `@/lib/auth`, `next/cache`, `next/navigation` and
+`next/headers` (an in-memory cookie jar standing in for the browser) are mocked.
 
 - **Why:** authorization branches and resulting DB state are what matter; mocking Prisma would
   test the mocks.

@@ -51,7 +51,12 @@ export default defineConfig({
           setupFiles: ["./tests/integration/setup.ts"],
           fileParallelism: false,
           testTimeout: 20_000,
-          env: { DATABASE_URL: TEST_DATABASE_URL },
+          env: {
+            DATABASE_URL: TEST_DATABASE_URL,
+            NEXTAUTH_SECRET: "integration-test-secret-integration-test-secret",
+            TOTP_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString("base64"),
+            NEXTAUTH_URL: "http://localhost:3000",
+          },
         },
       },
     ],

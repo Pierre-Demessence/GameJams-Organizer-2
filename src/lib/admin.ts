@@ -10,12 +10,13 @@ export function restoredSlug(slug: string, id: string): string {
   return slug.endsWith(suffix) ? slug.slice(0, -suffix.length) : slug;
 }
 
-export type AuditFilter = "all" | "deletes" | "restores" | "staff";
+export type AuditFilter = "all" | "deletes" | "restores" | "staff" | "auth";
 export const AUDIT_FILTERS: { value: AuditFilter; label: string }[] = [
   { value: "all", label: "All actions" },
   { value: "deletes", label: "Deletes" },
   { value: "restores", label: "Restores" },
   { value: "staff", label: "Role changes" },
+  { value: "auth", label: "Sign-in security" },
 ];
 
 type Raw = Record<string, string | string[] | undefined>;
@@ -37,6 +38,8 @@ export function auditActionWhere(filter: AuditFilter): { action?: { endsWith?: s
       return { action: { endsWith: ":restore" } };
     case "staff":
       return { action: { startsWith: "staff:" } };
+    case "auth":
+      return { action: { startsWith: "auth:" } };
     case "all":
       return {};
   }
@@ -48,7 +51,7 @@ export function auditHref(filter: AuditFilter, page: number): string {
 }
 
 export function auditTone(action: string): "danger" | "live" | "muted" {
-  if (action.endsWith(":soft_delete") || action.endsWith(":revoke")) return "danger";
-  if (action.endsWith(":restore") || action.endsWith(":grant")) return "live";
+  if (action.endsWith(":soft_delete") || action.endsWith(":revoke") || action.endsWith(":2fa_failed")) return "danger";
+  if (action.endsWith(":restore") || action.endsWith(":grant") || action.endsWith(":2fa_enrol")) return "live";
   return "muted";
 }

@@ -72,6 +72,10 @@ The build must produce 0 errors before a task is done.
 - **Access control** is permission-based: gate mutations with
   `checkJamPermission(jamId, userId, permission)`. Jam roles stack (union of `getJamRoles` +
   `hasPermission`). Never inline `role === "ADMIN"`.
+- **Staff powers need `staffAccess`** (role + enrolled + TOTP-verified browser): go through
+  `checkStaffPermission`, which applies it; never bypass it, and never trust `isStaff` from the JWT
+  for anything but UI hints. TOTP secrets are stored only through `src/lib/two-factor.ts`
+  (encrypted); never log or return them.
 - **Auth**: read the session with `auth()` from `@/lib/auth` in server components and actions.
 - **All user input** is validated with Zod before any database write.
 - **Rate limiting**: `checkRateLimit()` (`src/lib/rate-limit.ts`) on every mutating action.
@@ -129,3 +133,13 @@ The build must produce 0 errors before a task is done.
 - Tailwind CSS v4: tokens are CSS variables in `globals.css`; there is no `tailwind.config`.
 - Prisma 7 uses the `pg` driver adapter and generates the client into `src/generated/`.
 - Auth redirects and route protection run in `src/middleware.ts` (edge).
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

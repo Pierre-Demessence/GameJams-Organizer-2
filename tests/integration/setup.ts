@@ -11,6 +11,11 @@ vi.mock("next/cache", () => ({
   revalidateTag: () => {},
 }));
 
+vi.mock("next/headers", async () => {
+  const { cookieJar } = await import("./cookie-jar");
+  return { cookies: async () => cookieJar };
+});
+
 vi.mock("next/navigation", () => ({
   redirect: () => {
     throw new Error("NEXT_REDIRECT");
@@ -31,6 +36,8 @@ async function truncateAll(): Promise<void> {
 
 beforeEach(async () => {
   const { signOut } = await import("./current-session");
+  const { clearCookies } = await import("./cookie-jar");
   signOut();
+  clearCookies();
   await truncateAll();
 });

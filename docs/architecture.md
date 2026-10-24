@@ -31,6 +31,36 @@ Link another provider → Settings → Auth.js links the Account to the current 
   at most every 60 seconds (`staffCheckedAt` on the token, `src/lib/staff-claim.ts`); the edge
   middleware uses `auth.config.ts` and never touches the database.
 - Custom sign-in / sign-up pages under `src/app/(auth)/`.
+
+### Staff two-factor
+
+Staff powers need a staff role **and** a TOTP check passed in the current browser, whichever provider
+signed the member in (spec §10).
+
+```
+/admin → no authenticator → /admin/two-factor (QR + manual key) → valid code → secret activated
+       → authenticator, no cookie → /admin/two-factor (ask for code) → valid code
+       → `staff-2fa` cookie set (signed, HttpOnly, SameSite=Strict, 12 h) → /admin
+```
+
+- `staffAccess` (`src/domain/staff.ts`) is the rule; `checkStaffPermission` applies it after the role
+  check, so every staff action and staff-only control is locked for an unverified browser. `isStaff` in
+  the JWT stays a UI hint.
+- The cookie is an HMAC over `userId.enrolledAt.expiresAt` (key derived from `NEXTAUTH_SECRET`), not a
+  JWT claim, so it is bound to the user and to the current enrolment: another account in the same
+  browser, or a cookie from before a reset, gets nothing from it.
+- TOTP secrets are stored AES-256-GCM encrypted with `TOTP_ENCRYPTION_KEY`. `totpLastStep` rejects a
+  code from the same or an earlier 30-second step, claimed in one guarded update so concurrent submits
+  of one code cannot both pass. Verification attempts are rate-limited per user.
+- Limits: a staff account that has not enrolled yet (a new admin, or right after a reset) lets whoever
+  holds its session enrol their own authenticator, so enrol promptly. The per-user attempt limit
+  also lets someone holding the session block the real owner's code entry for up to 15 minutes.
+  `SameSite=Strict` means opening `/admin` from an external link asks for a code again (the code just
+  used is refused, so wait for the next 30-second step). Rotating `NEXTAUTH_SECRET` invalidates every
+  verification cookie; staff just verify again.
+- A Site Admin resets another staff member's 2FA from `/admin`; recovery of the last admin is a
+  documented SQL step in [deployment.md](deployment.md). Enrolment, failed codes and resets are audited
+  (`auth:2fa_enrol`, `auth:2fa_failed`, `staff:2fa_reset`).
 - `INITIAL_ADMIN_EMAILS` grants Site Admin on sign-in (see [configuration.md](configuration.md)).
 
 ## Jam lifecycle
@@ -111,4 +141,5 @@ A Jam Admin reveals hidden results once the jam is FINISHED, which sets `results
 | Abuse | `checkRateLimit()` on every mutating action (fixed 15-minute window per key, counted in the Postgres `RateLimit` table so all replicas share it); search throttled per IP |
 | Password storage | bcrypt |
 | SSRF (itch.io fetch) | Single-host allowlist (`itch.io`, `*.itch.io`), HTTPS, per-hop redirect re-validation, timeout, size cap |
-| Staff mistakes | Soft delete + restore, audit log; mandatory staff TOTP is in the backlog |
+| Staff mistakes | Soft delete + restore, audit log |
+| Stolen staff login | Mandatory staff TOTP 2FA, independent of the sign-in provider (see Authentication); secrets encrypted at rest |

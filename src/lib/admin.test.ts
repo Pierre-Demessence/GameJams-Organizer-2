@@ -18,6 +18,7 @@ describe("audit filters", () => {
 
   it("maps filters to action conditions and links", () => {
     expect(auditActionWhere("restores")).toEqual({ action: { endsWith: ":restore" } });
+    expect(auditActionWhere("auth")).toEqual({ action: { startsWith: "auth:" } });
     expect(auditActionWhere("all")).toEqual({});
     expect(auditHref("all", 1)).toBe("/admin#audit");
     expect(auditHref("staff", 2)).toBe("/admin?action=staff&page=2#audit");
@@ -26,6 +27,9 @@ describe("audit filters", () => {
   it("colors destructive and restoring actions", () => {
     expect(auditTone("jam:soft_delete")).toBe("danger");
     expect(auditTone("submission:restore")).toBe("live");
+    expect(auditTone("auth:2fa_failed")).toBe("danger");
+    expect(auditTone("auth:2fa_enrol")).toBe("live");
+    expect(auditTone("staff:2fa_reset")).toBe("muted");
     expect(auditTone("jam:edit")).toBe("muted");
   });
 });

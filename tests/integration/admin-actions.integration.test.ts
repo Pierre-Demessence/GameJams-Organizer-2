@@ -4,11 +4,11 @@ import { softDeleteJamAction } from "@/app/jams/actions";
 import { deleteSubmissionAction } from "@/app/submissions/actions";
 import { db } from "@/lib/db";
 import { actingAs } from "./current-session";
-import { createOngoingJam, createSubmission, createUser, grantStaffRole } from "./factories";
+import { createOngoingJam, createSubmission, createUser, grantVerifiedStaffRole } from "./factories";
 
 async function staff() {
   const admin = await createUser();
-  await grantStaffRole(admin.id, "SITE_ADMIN");
+  await grantVerifiedStaffRole(admin.id);
   return admin;
 }
 

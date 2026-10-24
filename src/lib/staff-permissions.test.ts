@@ -6,14 +6,17 @@ import {
   checkStaffPermission,
 } from "@/lib/staff-permissions";
 
-const { staffFindMany, staffCount } = vi.hoisted(() => ({
+const { staffFindMany, staffCount, staffGate } = vi.hoisted(() => ({
   staffFindMany: vi.fn(),
   staffCount: vi.fn(),
+  staffGate: vi.fn(),
 }));
 
 vi.mock("@/lib/db", () => ({
   db: { staffRole: { findMany: staffFindMany, count: staffCount } },
 }));
+
+vi.mock("@/lib/two-factor", () => ({ staffGate }));
 
 describe("hasStaffPermission", () => {
   it("grants a Site Admin every staff permission", () => {
@@ -74,17 +77,28 @@ describe("isStaff", () => {
 describe("checkStaffPermission", () => {
   beforeEach(() => {
     staffFindMany.mockReset();
+    staffGate.mockReset();
   });
 
-  it("grants when the user's staff role holds the permission", async () => {
+  it("grants when the role holds the permission and the browser passed two-factor", async () => {
     staffFindMany.mockResolvedValue([{ role: "SITE_ADMIN" }]);
+    staffGate.mockResolvedValue({ allowed: true });
 
     expect(await checkStaffPermission("user-1", "manage_staff")).toBe(true);
+    expect(staffGate).toHaveBeenCalledWith("user-1", true);
   });
 
-  it("denies when the user has no staff roles", async () => {
+  it("denies a role holder whose browser has not passed two-factor", async () => {
+    staffFindMany.mockResolvedValue([{ role: "SITE_ADMIN" }]);
+    staffGate.mockResolvedValue({ allowed: false, reason: "Enter your two-factor code" });
+
+    expect(await checkStaffPermission("user-1", "manage_staff")).toBe(false);
+  });
+
+  it("denies when the user has no staff roles, without checking two-factor", async () => {
     staffFindMany.mockResolvedValue([]);
 
     expect(await checkStaffPermission("user-1", "manage_staff")).toBe(false);
+    expect(staffGate).not.toHaveBeenCalled();
   });
 });

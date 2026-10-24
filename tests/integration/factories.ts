@@ -1,4 +1,6 @@
+import * as OTPAuth from "otpauth";
 import { db } from "@/lib/db";
+import { encryptSecret, issueVerificationCookie, parseEncryptionKey } from "@/lib/two-factor";
 import type {
   JamRoleType,
   StaffRoleType,
@@ -134,6 +136,40 @@ export function grantStaffRole(
   role: StaffRoleType = "SITE_ADMIN"
 ) {
   return db.staffRole.create({ data: { userId, role } });
+}
+
+// Gives the user a working authenticator (enrolment complete) and returns its base32 secret.
+export async function enrolTotp(userId: string): Promise<string> {
+  const secret = new OTPAuth.Secret({ size: 20 }).base32;
+  await db.user.update({
+    where: { id: userId },
+    data: {
+      totpSecret: encryptSecret(secret, parseEncryptionKey(process.env.TOTP_ENCRYPTION_KEY)),
+      totpEnabledAt: new Date(),
+    },
+  });
+  return secret;
+}
+
+// A valid code for the secret; `steps` shifts it by 30-second steps (negative = earlier).
+export function totpCode(secret: string, steps = 0): string {
+  return new OTPAuth.TOTP({ secret: OTPAuth.Secret.fromBase32(secret), digits: 6, period: 30 }).generate({
+    timestamp: Date.now() + steps * 30_000,
+  });
+}
+
+// Puts a valid staff-2FA cookie for this user in the test browser.
+export async function passTwoFactor(userId: string): Promise<void> {
+  const user = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { totpEnabledAt: true } });
+  await issueVerificationCookie(userId, user.totpEnabledAt!);
+}
+
+// Staff role, enrolled authenticator and a verified browser: what staff powers need.
+export async function grantVerifiedStaffRole(userId: string): Promise<{ secret: string }> {
+  await grantStaffRole(userId);
+  const secret = await enrolTotp(userId);
+  await passTwoFactor(userId);
+  return { secret };
 }
 
 export function jamFormData(overrides?: Record<string, string>): FormData {

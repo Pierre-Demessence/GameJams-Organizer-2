@@ -75,6 +75,12 @@ export const signInSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+// Authenticator apps show codes as "123 456"; spaces are dropped before the check.
+export const twoFactorCodeSchema = z
+  .string()
+  .transform((v) => v.replace(/\s+/g, ""))
+  .pipe(z.string().regex(/^\d{6}$/, "Enter the 6-digit code from your authenticator app"));
+
 export const profileSchema = z.object({
   username: usernameSchema,
   displayName: z.string().max(50).optional(),

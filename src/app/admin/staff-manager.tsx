@@ -2,17 +2,19 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { ShieldCheck, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { initials } from "@/lib/initials";
 import { cn } from "@/lib/utils";
-import { grantSiteAdminAction, revokeSiteAdminAction } from "./actions";
+import { grantSiteAdminAction, resetTwoFactorAction, revokeSiteAdminAction } from "./actions";
 
 interface StaffEntry {
   userId: string;
   username: string;
   displayName: string | null;
+  twoFactor: boolean;
 }
 
 export function StaffManager({ staff, currentUserId }: { staff: StaffEntry[]; currentUserId: string }) {
@@ -50,11 +52,26 @@ export function StaffManager({ staff, currentUserId }: { staff: StaffEntry[]; cu
               >
                 {initials(name)}
               </span>
-              <span className="min-w-0 flex-1 text-sm">
+              <span className="min-w-40 flex-1 text-sm">
                 {name} <span className="text-subtle-foreground">@{s.username}</span>
                 {self && <span className="text-subtle-foreground"> (you)</span>}
               </span>
               <span className="inline-flex h-6 items-center rounded-md bg-muted px-2 text-xs font-medium">Site Admin</span>
+              <span className="inline-flex h-6 items-center gap-1.5 rounded-md border border-input px-2 text-xs font-medium">
+                {s.twoFactor ? <ShieldCheck aria-hidden className="size-3.5" /> : <ShieldOff aria-hidden className="size-3.5" />}
+                {s.twoFactor ? "2FA on" : "2FA off"}
+              </span>
+              {!self && s.twoFactor && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isPending}
+                  onClick={() => run(() => resetTwoFactorAction(s.userId), `Reset 2FA for ${s.username}`)}
+                  className="h-11 px-2.5 text-xs md:h-7.5"
+                >
+                  Reset 2FA
+                </Button>
+              )}
               {!self && (
                 <Button
                   type="button"

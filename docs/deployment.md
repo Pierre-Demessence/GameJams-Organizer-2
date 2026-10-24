@@ -25,8 +25,9 @@ environments are supported:
 ## One-time setup
 
 1. **1Password**: create items `gamejams-dev` and `gamejams-prod` in the `K8S`
-   vault with fields `postgres-password`, `nextauth-secret`, `discord-id`,
-   `discord-secret`. Optionally add `initial-admin-emails` (comma-separated) to
+   vault with fields `postgres-password`, `nextauth-secret`, `totp-encryption-key`
+   (`openssl rand -base64 32`; add it before the ExternalSecret syncs, or the whole
+   app Secret fails to build), `discord-id`, `discord-secret`. Optionally add `initial-admin-emails` (comma-separated) to
    bootstrap the first Site Admin — see "Bootstrapping the first admin" below.
 2. **Discord OAuth**: add redirect URIs
    `https://gamejams.corniland.ovh/api/auth/callback/discord` and
@@ -83,6 +84,26 @@ Prod starts with an empty database and is not seeded, so no Site Admin exists an
 The value is consumed via an *optional* `envFrom`, so if the field is absent the
 app still starts normally (admin bootstrap just stays inactive).
 
+The first sign-in as an admin only grants the role: staff powers stay locked until
+the admin enrols an authenticator at `/admin/two-factor` (shown automatically on the
+first `/admin` visit).
+
+## Recovering staff two-factor
+
+- **A staff member lost their authenticator**: another Site Admin opens `/admin`,
+  Staff, and chooses *Reset 2FA* for them; they enrol again on their next `/admin` visit.
+- **The only Site Admin lost theirs**: nobody can reset it from the UI. Clear it in the
+  database, then enrol again:
+
+  ```sql
+  UPDATE "User"
+  SET "totpSecret" = NULL, "totpEnabledAt" = NULL, "totpLastStep" = NULL
+  WHERE email = 'you@example.com';
+  ```
+
+- **`TOTP_ENCRYPTION_KEY` changed or lost**: every stored secret becomes unreadable,
+  so every enrolled staff member needs the same reset.
+
 ## Docker Compose (self-hosted)
 
 [`docker-compose.yml`](../docker-compose.yml) runs the app, Postgres and a migration job on
@@ -90,7 +111,8 @@ any Docker host:
 
 ```bash
 cp .env.example .env
-# Set NEXTAUTH_SECRET (openssl rand -base64 32), NEXTAUTH_URL (your public URL),
+# Set NEXTAUTH_SECRET and TOTP_ENCRYPTION_KEY (each: openssl rand -base64 32),
+# NEXTAUTH_URL (your public URL),
 # a strong POSTGRES_PASSWORD, and optionally the Discord credentials.
 docker compose up -d --build
 docker compose run --rm migrate   # first run and after each schema change
