@@ -228,7 +228,7 @@ export async function inviteContributorAction(
   if (!submission) return { error: "Submission not found" };
 
   const invitee = await db.user.findUnique({
-    where: { username: contributorUsername },
+    where: { username: contributorUsername, deletedAt: null },
     select: { id: true },
   });
   if (!invitee) return { error: "User not found" };

@@ -6,7 +6,7 @@ import { CoverImage } from "@/components/cover-image";
 import { buttonVariants } from "@/components/ui/button-variants";
 import { initials } from "@/lib/initials";
 import { TONE_BG, TONE_TEXT, jamStatus } from "@/lib/jam-status-display";
-import { memberSince } from "@/lib/profile";
+import { isDeletedUsername, memberSince } from "@/lib/profile";
 import { loadProfile, type ProfileGame } from "@/lib/profile-queries";
 import { safeHttpUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
@@ -17,11 +17,15 @@ interface Props {
 
 export async function generateMetadata({ params }: Props) {
   const { username } = await params;
+  if (isDeletedUsername(username)) {
+    return { title: "Deleted user — GameJam Organizer", robots: { index: false, follow: false } };
+  }
   return { title: `${username} — GameJam Organizer` };
 }
 
 export default async function UserProfilePage({ params }: Props) {
   const { username } = await params;
+  if (isDeletedUsername(username)) return <DeletedProfile />;
   const [profile, session] = await Promise.all([loadProfile(username), auth()]);
   if (!profile) notFound();
 
@@ -147,6 +151,21 @@ export default async function UserProfilePage({ params }: Props) {
           )}
         </section>
       </div>
+    </div>
+  );
+}
+
+function DeletedProfile() {
+  return (
+    <div className="mx-auto flex max-w-xl flex-col items-start gap-4 px-4 pt-16 pb-24 md:px-12">
+      <h1 className="text-2xl font-semibold tracking-tight">This account was deleted</h1>
+      <p className="text-muted-foreground">
+        The person behind this profile deleted their account. Jams and games they took part in stay
+        on those jams, credited to “Deleted user”.
+      </p>
+      <Link href="/jams" className={cn(buttonVariants({ variant: "outline" }), "h-11 md:h-9")}>
+        Browse jams
+      </Link>
     </div>
   );
 }
